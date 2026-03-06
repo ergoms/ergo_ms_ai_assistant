@@ -14,13 +14,9 @@ import json
 import math
 from datetime import datetime
 
-from src.core.bi_analysis.bi_datasets.models import FileUpload, Dataset
-from .fast_bi_service import FastBIService, DEFAULT_MODEL, OLLAMA_BASE_URL
 from .config import build_runtime_config
 from .llm_clients import build_llm_client, LLMClientError
 from .llm_utils import create_ollama_client as _create_ollama_client
-from .intent_detector import IntentDetector, UserIntent, detect_intent, select_chart_columns
-from src.core.bi_analysis.bi_charts.models import Chart
 from src.core.utils.mixins import SwaggerSafeMixin
 from .models import ChatSession, ChatMessage, KnowledgeDocument, KnowledgeChunk
 from .skills import get_skills_manager
@@ -140,6 +136,9 @@ class UserFilesListView(APIView):
     permission_classes = [permissions.IsAuthenticated]
     
     def get(self, request):
+        if not _BI_AVAILABLE or FileUpload is None:
+            return Response({'success': False, 'error': 'Модуль BI Analysis не подключён к системе'}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
         files = FileUpload.objects.filter(owner=request.user).order_by('-uploaded_at')
         
         data = []
@@ -271,6 +270,9 @@ class BIQueryView(APIView):
     permission_classes = [permissions.IsAuthenticated]
     
     def post(self, request):
+        if not _BI_AVAILABLE or FileUpload is None:
+            return Response({'success': False, 'error': 'Модуль BI Analysis не подключён к системе'}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
         file_id = request.data.get('file_id')
         question = request.data.get('question')
         want_commentary = request.data.get('want_commentary', True)
@@ -1094,6 +1096,9 @@ class ChartAnalysisView(APIView):
     permission_classes = [permissions.IsAuthenticated]
     
     def post(self, request):
+        if Chart is None:
+            return Response({'success': False, 'error': 'Модуль BI Analysis не подключён к системе'}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
         chart_id = request.data.get('chart_id')
         use_stream = request.data.get('stream', True)
         
