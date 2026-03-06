@@ -1,0 +1,16 @@
+{
+  "name": "docs",
+  "routePatterns": [
+    "^/docs(/|$)",
+    "^/ai-assistant/docs",
+    "^/knowledge(/|$)"
+  ],
+  "isDefault": false,
+  "ollama": {
+    "temperature": 0.3,
+    "contextWindow": 4096,
+    "maxTokens": 2048
+  }
+}
+
+

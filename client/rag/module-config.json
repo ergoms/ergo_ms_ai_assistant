@@ -1,0 +1,10 @@
+{
+  "name": "rag",
+  "routePatterns": [],
+  "isDefault": true,
+  "ollama": {
+    "temperature": 0.3,
+    "contextWindow": 4096,
+    "maxTokens": 512
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "menuSections": [
+    {
+      "icon": "Bot",
+      "routeName": "AIAssistantHub",
+      "title": "AI Hub",
+      "list": [
+        {
+          "icon": "Bot",
+          "name": "Центр управления",
+          "page": "",
+          "isOffcanvas": false
+        }
+      ]
+    }
+  ]
+}
