@@ -7,6 +7,7 @@ description = "AI assistant module with RAG pipeline, document parsing, and skil
 python = ">=3.12,<3.13"
 pypdf2 = "^3.0.1"
 pdfplumber = "^0.11.8"
+sympy = "^1.14.0"
 
 [build-system]
 requires = ["poetry-core>=2.1.3"]
