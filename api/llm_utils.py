@@ -1,6 +1,10 @@
+from django.conf import settings
+
 from .config import build_runtime_config
 from .llm_clients import build_llm_client
-from .fast_bi_service import DEFAULT_MODEL, OLLAMA_BASE_URL
+
+DEFAULT_MODEL: str = getattr(settings, "OLLAMA_DEFAULT_MODEL", "mistral")
+OLLAMA_BASE_URL: str = getattr(settings, "OLLAMA_BASE_URL", "http://localhost:11434")
 
 
 OLLAMA_OPTION_KEYS = ("top_p", "top_k", "repeat_penalty")

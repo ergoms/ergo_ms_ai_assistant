@@ -1,6 +1,6 @@
 <template>
-  <div 
-    v-if="isVisible" 
+  <div
+    v-if="isVisible"
     class="assistant-chat assistant-chat--visible"
   >
     <div class="assistant-chat__header">
@@ -9,9 +9,9 @@
         <span>AI Ассистент - BI Анализ</span>
       </div>
       <div class="assistant-chat__controls">
-        <router-link 
-          to="/ai-assistant" 
-          class="control-btn" 
+        <router-link
+          to="/ai-assistant"
+          class="control-btn"
           title="Открыть AI Hub"
         >
           <ExternalLink :size="18" />
@@ -19,259 +19,37 @@
       </div>
     </div>
 
-    <!-- Выбор подключения -->
-    <div v-if="!selectedConnection" class="assistant-chat__connection-selector">
-      <ConnectionSelector ref="connectionSelector" @connection-selected="onConnectionSelected" />
-    </div>
-
-    <!-- Выбор файла -->
-    <div v-else-if="!selectedFile" class="assistant-chat__file-gallery">
-      <FileGallery :connection-id="selectedConnection.id" ref="fileGallery" @file-selected="onFileSelected" />
-    </div>
-
-    <!-- Информация о выбранном подключении и файле -->
-    <div v-if="selectedConnection && selectedFile" class="assistant-chat__selected-info">
-      <div class="selected-info-item">
-        <Database :size="14" />
-        <span>{{ selectedConnection.name }}</span>
-      </div>
-      <div class="selected-info-item">
-        <FileSpreadsheet :size="14" />
-        <span>{{ selectedFile.name }}</span>
-      </div>
-      <button class="btn btn-sm btn-outline-secondary" @click="changeFile">
-        Сменить файл
-      </button>
-    </div>
-
-    <div ref="messagesContainer" class="assistant-chat__messages">
-      <AssistantMessage v-for="message in messages" :key="message.id" :message="message" />
-      <AssistantTyping v-if="isTyping" />
-    </div>
-
-    <div class="assistant-chat__input">
-      <div class="input-wrapper">
-        <div class="input-group">
-          <input
-            v-model="inputMessage"
-            type="text"
-            class="form-control"
-            :placeholder="!selectedConnection ? 'Сначала выберите подключение' : !selectedFile ? 'Выберите файл для анализа' : 'Задайте вопрос к данным...'"
-            @keypress.enter="sendMessage"
-            :disabled="isTyping || !selectedConnection || !selectedFile"
-          />
-          <button
-            class="btn btn-danger"
-            @click="sendMessage"
-            :disabled="!inputMessage.trim() || isTyping || !selectedConnection || !selectedFile"
-          >
-            <Send :size="18" />
-          </button>
-        </div>
+    <div class="assistant-chat__wip">
+      <div class="wip-badge">
+        <Construction :size="40" class="wip-badge__icon" />
+        <span class="wip-badge__title">В разработке</span>
+        <p class="wip-badge__desc">
+          Функциональность BI-анализа табличных данных<br />
+          находится в активной разработке и будет<br />
+          доступна в ближайших обновлениях.
+        </p>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, nextTick, watch } from 'vue'
-import { Send, Database, FileSpreadsheet, ExternalLink } from 'lucide-vue-next'
-import AssistantMessage from '../base/AssistantMessage.vue'
-import AssistantTyping from '../base/AssistantTyping.vue'
-import ConnectionSelector from './ConnectionSelector.vue'
-import FileGallery from './FileGallery.vue'
-import { biClient } from './js/bi-client.js'
+import { Database, ExternalLink, Construction } from 'lucide-vue-next'
 
-const emit = defineEmits(['bi-query', 'close'])
-
-const props = defineProps({
+defineProps({
   isVisible: {
     type: Boolean,
     default: false,
   },
 })
 
-const messagesContainer = ref(null)
-const connectionSelector = ref(null)
-const fileGallery = ref(null)
-const inputMessage = ref('')
-const isTyping = ref(false)
-const selectedConnection = ref(null)
-const selectedFile = ref(null)
-const ollamaChecked = ref(false)
-
-let messageIdCounter = 1
-
-const messages = ref([
-  {
-    id: messageIdCounter++,
-    type: 'assistant',
-    content:
-      'Привет! Я ваш AI ассистент для анализа данных.\n\n**Что я умею:**\n• Анализировать табличные данные\n• Генерировать SQL запросы\n• Находить закономерности\n• Предоставлять статистику\n\n**Начните с выбора файла** для анализа данных!',
-    timestamp: new Date(),
-  },
-])
-
-const onConnectionSelected = (connection) => {
-  selectedConnection.value = connection
-  selectedFile.value = null
-  addAssistantMessage(
-    `Выбрано подключение: **${connection.name}**\n\nТеперь выберите файл для анализа.`,
-  )
-}
-
-const onFileSelected = (file) => {
-  selectedFile.value = file
-  addAssistantMessage(
-    `Выбран файл: **${file.name}**\n\nТеперь вы можете задавать вопросы к данным. Например:\n• "Покажи первые 10 строк"\n• "Какие колонки в файле?"\n• "Посчитай среднее значение"\n• "Найди максимум по категориям"`,
-  )
-}
-
-const changeFile = () => {
-  selectedFile.value = null
-  addAssistantMessage('Выберите другой файл для анализа.')
-}
-
-const sendMessage = () => {
-  if (!inputMessage.value.trim() || isTyping.value || !selectedFile.value) {
-    return
-  }
-
-  const messageText = inputMessage.value.trim()
-  
-  const userMessage = {
-    id: messageIdCounter++,
-    type: 'user',
-    content: messageText,
-    timestamp: new Date(),
-  }
-  messages.value.push(userMessage)
-
-  inputMessage.value = ''
-  isTyping.value = true
-
-  emit('bi-query', {
-    fileId: selectedFile.value.id,
-    question: messageText,
-  })
-
-  scrollToBottom()
-}
-
-const addAssistantMessage = (content, data = null) => {
-  const assistantMessage = {
-    id: messageIdCounter++,
-    type: 'assistant',
-    content: content,
-    data: data,
-    timestamp: new Date(),
-  }
-
-  messages.value.push(assistantMessage)
-  isTyping.value = false
-  scrollToBottom()
-}
-
-const updateStreamingMessage = (messageId, updates) => {
-  isTyping.value = false
-  
-  let message = messages.value.find(m => m.id === messageId)
-  
-  if (!message) {
-    message = {
-      id: messageId,
-      type: 'assistant',
-      content: '',
-      streaming: true,
-      stage: '',
-      sql: '',
-      sqlGenerating: '',
-      data: null,
-      error: null,
-      timestamp: new Date(),
-    }
-    messages.value.push(message)
-  }
-  
-  Object.assign(message, updates)
-  
-  scrollToBottom()
-}
-
-const finalizeStreamingMessage = (messageId) => {
-  const message = messages.value.find(m => m.id === messageId)
-  
-  if (message) {
-    message.streaming = false
-    message.stage = ''
-  }
-  
-  isTyping.value = false
-  scrollToBottom()
-}
-
-const setTyping = (typing) => {
-  isTyping.value = typing
-}
-
-const scrollToBottom = () => {
-  nextTick(() => {
-    if (messagesContainer.value) {
-      messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
-    }
-  })
-}
-
-watch(
-  () => messages.value.length,
-  () => {
-    scrollToBottom()
-  },
-)
-
-watch(
-  () => props.isVisible,
-  async (newValue) => {
-    if (newValue && !ollamaChecked.value) {
-      ollamaChecked.value = true
-      await checkOllamaConnection()
-    }
-  },
-  { immediate: true }
-)
-
-const checkOllamaConnection = async () => {
-  try {
-    isTyping.value = true
-    const status = await biClient.checkOllamaStatus()
-    
-    if (!status.available) {
-      addAssistantMessage(
-        `**Внимание:** Не удалось подключиться к Ollama.\n\n` +
-        `**Что нужно сделать:**\n` +
-        `1. Убедитесь, что Ollama установлен и запущен\n` +
-        `2. Проверьте доступность Ollama по адресу: http://localhost:11434\n` +
-        `3. Установите Ollama: https://ollama.com/download\n\n` +
-        `**Текущая ошибка:** ${status.message || 'Неизвестная ошибка'}\n\n` +
-        `Без подключения к Ollama анализ данных будет недоступен.`
-      )
-    }
-  } catch (error) {
-    console.error('Ошибка проверки Ollama:', error)
-    addAssistantMessage(
-      `**Ошибка проверки подключения к Ollama:**\n\n${error.message}\n\n` +
-      `Пожалуйста, убедитесь, что Ollama запущен и доступен.`
-    )
-  } finally {
-    isTyping.value = false
-  }
-}
+defineEmits(['bi-query', 'close'])
 
 defineExpose({
-  addAssistantMessage,
-  updateStreamingMessage,
-  finalizeStreamingMessage,
-  setTyping,
+  addAssistantMessage: () => {},
+  updateStreamingMessage: () => {},
+  finalizeStreamingMessage: () => {},
+  setTyping: () => {},
 })
 </script>
 
@@ -312,6 +90,7 @@ defineExpose({
   background: linear-gradient(135deg, #dc3545, #c82333);
   border-radius: 12px 12px 0 0;
   color: white;
+  flex-shrink: 0;
 }
 
 .assistant-chat__title {
@@ -348,88 +127,41 @@ defineExpose({
   color: white;
 }
 
-.assistant-chat__connection-selector,
-.assistant-chat__file-gallery {
-  max-height: 350px;
-  overflow-y: auto;
-  background: white;
-  border-bottom: 1px solid rgba(220, 53, 69, 0.1);
-}
-
-.assistant-chat__selected-info {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 0.75rem 1rem;
-  background: #e7f3ff;
-  border-bottom: 1px solid rgba(13, 110, 253, 0.2);
-  flex-wrap: wrap;
-}
-
-.selected-info-item {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.85rem;
-  font-weight: 500;
-  color: #0d6efd;
-}
-
-.assistant-chat__messages {
+.assistant-chat__wip {
   flex: 1;
-  overflow-y: auto;
-  padding: 16px;
   display: flex;
-  flex-direction: column;
-  gap: 12px;
+  align-items: center;
+  justify-content: center;
   background: linear-gradient(to bottom, #ffffff, #f8f9fa);
-}
-
-.assistant-chat__messages::-webkit-scrollbar {
-  width: 4px;
-}
-
-.assistant-chat__messages::-webkit-scrollbar-track {
-  background: rgba(220, 53, 69, 0.1);
-  border-radius: 2px;
-}
-
-.assistant-chat__messages::-webkit-scrollbar-thumb {
-  background: linear-gradient(to bottom, #dc3545, #c82333);
-  border-radius: 2px;
-}
-
-.assistant-chat__input {
-  padding: 16px;
-  border-top: 1px solid rgba(220, 53, 69, 0.1);
-  background: linear-gradient(145deg, #f8f9fa, #ffffff);
   border-radius: 0 0 12px 12px;
 }
 
-.assistant-chat__input .form-control {
-  border: 2px solid rgba(220, 53, 69, 0.2);
-  border-right: none;
-  border-radius: 8px 0 0 8px;
-  padding: 10px 14px;
-  transition: all 0.3s ease;
+.wip-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 32px;
+  text-align: center;
+}
+
+.wip-badge__icon {
+  color: #dc3545;
+  opacity: 0.6;
+}
+
+.wip-badge__title {
+  font-size: 22px;
+  font-weight: 700;
+  color: #dc3545;
+  letter-spacing: 0.02em;
+}
+
+.wip-badge__desc {
   font-size: 14px;
-}
-
-.assistant-chat__input .form-control:focus {
-  box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
-  border-color: #dc3545;
-}
-
-.assistant-chat__input .btn {
-  border-radius: 0 8px 8px 0;
-  border: 2px solid #dc3545;
-  padding: 10px 16px;
-  transition: all 0.3s ease;
-}
-
-.assistant-chat__input .btn:hover {
-  background: linear-gradient(135deg, #e74c3c, #dc3545);
-  transform: scale(1.02);
+  color: #6c757d;
+  line-height: 1.6;
+  margin: 0;
 }
 
 @media (max-width: 1200px) {
