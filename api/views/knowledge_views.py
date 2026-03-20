@@ -8,7 +8,7 @@ from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.viewsets import ViewSet
 
-from src.config.settings.ai_assistant import RAG_CHUNK_OVERLAP, RAG_CHUNK_SIZE
+from ..assistant_settings import RAG_CHUNK_OVERLAP, RAG_CHUNK_SIZE
 from src.core.utils.mixins import SwaggerSafeMixin
 
 from ..models import KnowledgeDocument

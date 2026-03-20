@@ -7,6 +7,8 @@ from typing import Any, Dict, Optional
 
 from django.conf import settings
 
+from . import assistant_settings
+
 
 class ComputeDevice(str, Enum):
     """Тип вычислительного устройства для LLM."""
@@ -37,18 +39,18 @@ class RuntimeLLMConfig:
     """
 
     provider: LLMProvider = LLMProvider.AUTO
-    model: Optional[str] = getattr(settings, "OLLAMA_DEFAULT_MODEL", None)
-    base_url: Optional[str] = getattr(settings, "OLLAMA_BASE_URL", None)
-    request_timeout: float = getattr(settings, "AI_ASSISTANT_REQUEST_TIMEOUT", 180.0)
-    stream_timeout: float = getattr(settings, "AI_ASSISTANT_STREAM_TIMEOUT", 300.0)
+    model: Optional[str] = getattr(settings, "OLLAMA_DEFAULT_MODEL", assistant_settings.OLLAMA_DEFAULT_MODEL)
+    base_url: Optional[str] = getattr(settings, "OLLAMA_BASE_URL", assistant_settings.OLLAMA_BASE_URL)
+    request_timeout: float = getattr(settings, "AI_ASSISTANT_REQUEST_TIMEOUT", assistant_settings.AI_ASSISTANT_REQUEST_TIMEOUT)
+    stream_timeout: float = getattr(settings, "AI_ASSISTANT_STREAM_TIMEOUT", assistant_settings.AI_ASSISTANT_STREAM_TIMEOUT)
     compute_device: ComputeDevice = ComputeDevice.GPU
-    sql_tokens: int = getattr(settings, "AI_ASSISTANT_SQL_TOKENS", 256)
-    commentary_tokens: int = getattr(settings, "AI_ASSISTANT_COMMENTARY_TOKENS", 192)
-    temperature_sql: float = getattr(settings, "AI_ASSISTANT_TEMPERATURE_SQL", 0.08)
-    temperature_commentary: float = getattr(settings, "AI_ASSISTANT_TEMPERATURE_COMMENTARY", 0.24)
-    concurrency_limit: int = getattr(settings, "AI_ASSISTANT_CONCURRENCY_LIMIT", 8)
-    max_retries: int = getattr(settings, "AI_ASSISTANT_MAX_RETRIES", 2)
-    keep_alive: str = getattr(settings, "AI_ASSISTANT_KEEP_ALIVE", "10m")
+    sql_tokens: int = getattr(settings, "AI_ASSISTANT_SQL_TOKENS", assistant_settings.AI_ASSISTANT_SQL_TOKENS)
+    commentary_tokens: int = getattr(settings, "AI_ASSISTANT_COMMENTARY_TOKENS", assistant_settings.AI_ASSISTANT_COMMENTARY_TOKENS)
+    temperature_sql: float = getattr(settings, "AI_ASSISTANT_TEMPERATURE_SQL", assistant_settings.AI_ASSISTANT_TEMPERATURE_SQL)
+    temperature_commentary: float = getattr(settings, "AI_ASSISTANT_TEMPERATURE_COMMENTARY", assistant_settings.AI_ASSISTANT_TEMPERATURE_COMMENTARY)
+    concurrency_limit: int = getattr(settings, "AI_ASSISTANT_CONCURRENCY_LIMIT", assistant_settings.AI_ASSISTANT_CONCURRENCY_LIMIT)
+    max_retries: int = getattr(settings, "AI_ASSISTANT_MAX_RETRIES", assistant_settings.AI_ASSISTANT_MAX_RETRIES)
+    keep_alive: str = getattr(settings, "AI_ASSISTANT_KEEP_ALIVE", assistant_settings.AI_ASSISTANT_KEEP_ALIVE)
     provider_config: Dict[str, Any] = field(default_factory=dict)
     device_config: Dict[str, Any] = field(default_factory=dict)
 

@@ -29,11 +29,12 @@
 
     <!-- Сообщения -->
     <div ref="messagesContainer" class="neural-chat__messages">
-      <AssistantMessage 
-        v-for="message in messages" 
-        :key="message.id" 
+      <AssistantMessage
+        v-for="message in messages"
+        :key="message.id"
         :message="message"
         :class="{ 'streaming': message.isStreaming }"
+        @suggest="handleSuggestion"
       />
       <AssistantTyping v-if="isTyping && !hasStreamingContent" />
     </div>
@@ -187,11 +188,16 @@ const sendMessage = async () => {
         }
       },
       // onDone - завершаем streaming
-      (fullResponse) => {
+      (fullResponse, doneData) => {
         const msg = messages.value.find(m => m.id === streamingMessageId)
         if (msg) {
           msg.content = fullResponse
           msg.isStreaming = false
+          if (doneData) {
+            msg.sources = doneData.sources || []
+            msg.suggestions = doneData.suggestions || []
+            if (doneData.message_id) msg.id = doneData.message_id
+          }
         }
         isTyping.value = false
         streamingMessageId = null
@@ -303,6 +309,11 @@ const checkOllamaConnection = async () => {
   } finally {
     isTyping.value = false
   }
+}
+
+const handleSuggestion = (suggestion) => {
+  inputMessage.value = suggestion
+  sendMessage()
 }
 
 defineExpose({

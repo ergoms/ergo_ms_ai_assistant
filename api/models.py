@@ -6,6 +6,36 @@ import uuid
 User = get_user_model()
 
 
+class UserMemory(models.Model):
+    """Долгосрочная семантическая память о пользователе между сессиями."""
+    MEMORY_TYPE_PREFERENCE = 'preference'
+    MEMORY_TYPE_FACT = 'fact'
+    MEMORY_TYPE_CONTEXT = 'context'
+    MEMORY_TYPE_CHOICES = [
+        (MEMORY_TYPE_PREFERENCE, 'Предпочтение'),
+        (MEMORY_TYPE_FACT, 'Факт'),
+        (MEMORY_TYPE_CONTEXT, 'Контекст'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='ai_memories')
+    content = models.TextField(help_text='Содержимое воспоминания')
+    memory_type = models.CharField(max_length=20, choices=MEMORY_TYPE_CHOICES, default=MEMORY_TYPE_FACT)
+    embedding = ArrayField(models.FloatField(), size=None, null=True, blank=True,
+                           help_text='Векторное представление для семантического поиска')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-updated_at']
+        indexes = [
+            models.Index(fields=['user', '-updated_at']),
+        ]
+
+    def __str__(self):
+        return f"{self.user.username} — {self.content[:60]}"
+
+
 class ChatSession(models.Model):
     """
     Сессия чата - представляет один разговор с AI ассистентом
@@ -19,7 +49,8 @@ class ChatSession(models.Model):
     
     # Метаданные для BI модуля (file_id для связи с файлом)
     metadata = models.JSONField(default=dict, blank=True, help_text='Дополнительные данные сессии (file_id для BI и т.д.)')
-    
+    summary = models.TextField(blank=True, default='', help_text='Суммаризация старых сообщений сессии')
+
     class Meta:
         ordering = ['-updated_at']
         indexes = [
@@ -59,7 +90,19 @@ class ChatMessage(models.Model):
     
     # Метаданные
     metadata = models.JSONField(default=dict, blank=True, help_text='Дополнительные данные (модель, настройки и т.д.)')
-    
+
+    # Флаг суммаризации
+    is_summarized = models.BooleanField(default=False, help_text='Включено ли это сообщение в summary сессии')
+
+    # Фидбек пользователя
+    FEEDBACK_GOOD = 1
+    FEEDBACK_BAD = -1
+    feedback = models.SmallIntegerField(
+        null=True, blank=True,
+        choices=[(-1, 'bad'), (1, 'good')],
+        help_text='Оценка ответа пользователем: 1=хорошо, -1=плохо'
+    )
+
     class Meta:
         ordering = ['created_at']
         indexes = [
@@ -143,7 +186,15 @@ class KnowledgeChunk(models.Model):
     """
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     document = models.ForeignKey(KnowledgeDocument, on_delete=models.CASCADE, related_name='chunks')
-    
+
+    # Родительский chunk (для parent-document retrieval)
+    parent_chunk = models.ForeignKey(
+        'self', null=True, blank=True,
+        on_delete=models.CASCADE,
+        related_name='child_chunks',
+        help_text='Родительский chunk (большой контекстный фрагмент) для parent-document retrieval'
+    )
+
     # Текст chunk
     content = models.TextField(help_text='Содержимое chunk')
     

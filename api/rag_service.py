@@ -5,33 +5,37 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from src.config.settings.ai_assistant import (
+from .assistant_settings import (
     AI_ASSISTANT_REQUEST_TIMEOUT,
+    MULTI_QUERY_ENABLED,
     OLLAMA_BASE_URL,
     OLLAMA_EMBEDDINGS_MODEL,
     RAG_ENABLED,
     RAG_MAX_CONTEXT_LENGTH,
+    RAG_RERANK_TOP_N,
     RAG_SIMILARITY_THRESHOLD,
     RAG_TOP_K,
+    RERANKING_ENABLED,
 )
 
 from .rag import (
     OllamaEmbeddingsService,
     RAGRetrievalError,
-    RAGRetrievalService,
 )
+from .rag.retrieval import HybridRAGRetrievalService
 
 logger = logging.getLogger(__name__)
 
 _rag_config_key: tuple[str, str] | None = None
 _rag_embeddings_service: OllamaEmbeddingsService | None = None
-_rag_retrieval_service: RAGRetrievalService | None = None
+_rag_retrieval_service: HybridRAGRetrievalService | None = None
 
 
-def get_rag_services(ollama_config: dict[str, Any] | None = None):
+def get_rag_services(ollama_config: dict[str, Any] | None = None, llm_client: Any | None = None):
     """
     Возвращает (embeddings_service, retrieval_service).
     Пересоздаёт сервисы при смене base_url или модели embeddings.
+    llm_client используется для multi-query и re-ranking.
     """
     global _rag_config_key, _rag_embeddings_service, _rag_retrieval_service
 
@@ -49,11 +53,18 @@ def get_rag_services(ollama_config: dict[str, Any] | None = None):
             model=embeddings_model,
             request_timeout=AI_ASSISTANT_REQUEST_TIMEOUT,
         )
-        _rag_retrieval_service = RAGRetrievalService(
+        _rag_retrieval_service = HybridRAGRetrievalService(
             embeddings_service=_rag_embeddings_service,
             top_k=RAG_TOP_K,
             similarity_threshold=RAG_SIMILARITY_THRESHOLD,
+            rerank_top_n=RAG_RERANK_TOP_N,
+            reranking_enabled=RERANKING_ENABLED,
+            multi_query_enabled=MULTI_QUERY_ENABLED,
+            llm_client=llm_client,
         )
+    elif llm_client is not None and _rag_retrieval_service is not None:
+        # Обновляем llm_client если передан
+        _rag_retrieval_service.llm_client = llm_client
 
     return _rag_embeddings_service, _rag_retrieval_service
 

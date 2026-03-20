@@ -112,16 +112,26 @@
 
         <div class="banner-actions">
           <!-- Кнопка загрузки документов для модуля docs -->
-          <button 
-            v-if="activeModule === 'docs'" 
-            class="action-btn action-btn--primary" 
+          <button
+            v-if="activeModule === 'docs'"
+            class="action-btn action-btn--primary"
             @click="showDocsUploader = !showDocsUploader"
             title="Загрузить документ"
           >
             <Upload :size="18" />
             <span>Загрузить</span>
           </button>
-          
+
+          <!-- Кнопка экспорта чата -->
+          <button
+            v-if="activeModule === 'chat' && chatHistory && chatHistory.length > 1"
+            class="action-btn"
+            @click="exportChat"
+            title="Экспортировать чат"
+          >
+            <Download :size="18" />
+            <span>Экспорт</span>
+          </button>
         </div>
       </header>
 
@@ -492,7 +502,7 @@
 import { ref, computed, nextTick, onMounted, onUnmounted, watch } from 'vue'
 import { 
   Sparkles, Cpu, Send, Zap, ArrowRight,
-  Database, FileSpreadsheet, FileQuestion, Upload, X, Plus, Trash2
+  Database, FileSpreadsheet, FileQuestion, Upload, X, Plus, Trash2, Download
 } from 'lucide-vue-next'
 import { modules, getModuleById } from '../modules/index.js'
 import NeuralBackground from '../components/NeuralBackground.vue'
@@ -708,6 +718,29 @@ const deleteChatSession = async (sessionId) => {
   }
 }
 
+// Экспорт чата в Markdown файл
+const exportChat = () => {
+  if (!chatHistory.value || chatHistory.value.length === 0) return
+
+  const sessionTitle = currentChatSession.value?.title || 'Чат'
+  const exportDate = new Date().toLocaleString('ru-RU')
+
+  let md = `# ${sessionTitle}\n\nЭкспортировано: ${exportDate}\n\n---\n\n`
+  chatHistory.value.forEach(msg => {
+    const role = msg.type === 'user' ? '**Пользователь**' : '**Ассистент**'
+    const time = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : ''
+    md += `${role}${time ? ` *(${time})*` : ''}:\n\n${msg.content || ''}\n\n---\n\n`
+  })
+
+  const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `chat-export-${Date.now()}.md`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 // Load specific chat session (kept for BI module compatibility)
 const loadChatSession = async (sessionId, moduleId = null) => {
   const result = await ragClient.getChatSession(sessionId)
@@ -905,12 +938,15 @@ const sendChatMessage = async (text) => {
               msg.skill_name = metadata.skill_name || null
               msg.skill_call = metadata.skill_call || null
               msg.chart_config = metadata.chart_config || null
+              msg.sources = metadata.sources || []
+              msg.suggestions = metadata.suggestions || []
+              if (metadata.message_id) msg.id = metadata.message_id
               msg.metadata = metadata
             }
           }
         } else if (fullResponse) {
           chatHistory.value.push({
-            id: chatMsgId++,
+            id: metadata?.message_id || chatMsgId++,
             type: 'assistant',
             content: fullResponse,
             timestamp: metadata?.timestamp ? new Date(metadata.timestamp) : new Date(),
@@ -918,6 +954,8 @@ const sendChatMessage = async (text) => {
             skill_name: metadata?.skill_name || null,
             skill_call: metadata?.skill_call || null,
             chart_config: metadata?.chart_config || null,
+            sources: metadata?.sources || [],
+            suggestions: metadata?.suggestions || [],
             metadata: metadata || {},
           })
         }

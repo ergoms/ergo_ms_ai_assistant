@@ -40,13 +40,18 @@ class BaseLLMClient:
         stream: bool = False,
         stream_callback: Optional[Callable[[str], None]] = None,
         format: Optional[Any] = None,
-    ) -> str:
+        tools: Optional[List[Dict[str, Any]]] = None,
+    ) -> Any:
         """
         Отправка сообщений в чат с сохранением контекста.
 
         Args:
             messages: Список сообщений [{"role": "user", "content": "..."}, ...]
             format: Ollama structured output — "json" или JSON-схема (опционально)
+            tools: Список инструментов в формате Ollama/OpenAI tools API (опционально)
+
+        Returns:
+            str — текстовый ответ, или dict — если модель вернула tool_calls
         """
         raise NotImplementedError
 
@@ -96,7 +101,8 @@ class CompositeLLMClient(BaseLLMClient):
         stream: bool = False,
         stream_callback: Optional[Callable[[str], None]] = None,
         format: Optional[Any] = None,
-    ) -> str:
+        tools: Optional[List[Dict[str, Any]]] = None,
+    ) -> Any:
         client = self._clients[0]
         return client.chat(
             messages,
@@ -106,6 +112,7 @@ class CompositeLLMClient(BaseLLMClient):
             stream=stream,
             stream_callback=stream_callback,
             format=format,
+            tools=tools,
         )
 
     def check_health(self) -> Dict[str, Any]:
@@ -330,10 +337,15 @@ class HttpxOllamaClient(BaseLLMClient):
         stream: bool = False,
         stream_callback: Optional[Callable[[str], None]] = None,
         format: Optional[Any] = None,
-    ) -> str:
+        tools: Optional[List[Dict[str, Any]]] = None,
+    ) -> Any:
         """
-        Отправка сообщений в чат с сохранением контекста через /api/chat.
+        Отправка сообщений в чат через /api/chat.
         format: Ollama structured output — "json" или JSON-схема (опционально).
+        tools: Список инструментов Ollama/OpenAI tools API.
+
+        Returns:
+            str — текстовый ответ, или dict {"content": str, "tool_calls": [...]} при tool_calls.
         """
         payload = {
             "model": self.model,
@@ -347,6 +359,8 @@ class HttpxOllamaClient(BaseLLMClient):
         }
         if format is not None:
             payload["format"] = format
+        if tools is not None:
+            payload["tools"] = tools
         if num_predict is not None:
             payload["options"]["num_predict"] = num_predict
         if temperature is not None:
@@ -373,13 +387,21 @@ class HttpxOllamaClient(BaseLLMClient):
                 continue
         raise LLMClientError("Ollama API недоступен") from last_error
     
-    def _chat(self, payload: Dict[str, Any]) -> str:
-        """Выполняет обычный (не streaming) запрос к /api/chat."""
+    def _chat(self, payload: Dict[str, Any]) -> Any:
+        """Выполняет обычный (не streaming) запрос к /api/chat.
+        Возвращает str или dict с tool_calls если модель вернула инструменты."""
         try:
             response = self._client.post("/api/chat", json=payload)
             response.raise_for_status()
             data = response.json()
-            return data.get("message", {}).get("content", "")
+            message = data.get("message", {})
+            if isinstance(message, dict):
+                tool_calls = message.get("tool_calls")
+                content = message.get("content", "")
+                if tool_calls:
+                    return {"content": content, "tool_calls": tool_calls}
+                return content
+            return ""
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
                 error_msg = f"Ollama API вернул 404. Проверьте:\n"

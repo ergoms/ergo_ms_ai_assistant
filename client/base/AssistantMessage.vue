@@ -12,7 +12,7 @@
       <div class="message-bubble">
         <!-- Text content -->
         <div v-if="message.content" class="message-text" v-html="formatMarkdown(message.content)"></div>
-        
+
         <!-- SQL query -->
         <div v-if="message.sql" class="message-code">
           <div class="code-label">
@@ -61,22 +61,94 @@
           <Loader2 :size="12" class="spinning" />
           <span>{{ message.stage }}</span>
         </div>
+
+        <!-- Sources (RAG citations) -->
+        <div v-if="message.sources && message.sources.length > 0 && message.type === 'assistant'" class="message-sources">
+          <button class="sources-toggle" @click="sourcesExpanded = !sourcesExpanded">
+            <BookOpen :size="12" />
+            <span>Источники ({{ message.sources.length }})</span>
+            <ChevronDown :size="12" :class="{ 'rotate-180': sourcesExpanded }" />
+          </button>
+          <div v-if="sourcesExpanded" class="sources-list">
+            <div v-for="(src, idx) in message.sources" :key="idx" class="source-chip">
+              <FileText :size="11" />
+              <span class="source-title">{{ src.document_title }}</span>
+              <span v-if="src.preview" class="source-preview">{{ src.preview }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Feedback buttons (only for assistant messages that are not streaming) -->
+        <div v-if="message.type === 'assistant' && !message.isStreaming && message.id" class="message-feedback">
+          <button
+            class="feedback-btn"
+            :class="{ 'feedback-btn--active': feedbackGiven === 1 }"
+            @click="sendFeedback(1)"
+            title="Хороший ответ"
+          >👍</button>
+          <button
+            class="feedback-btn"
+            :class="{ 'feedback-btn--active': feedbackGiven === -1 }"
+            @click="sendFeedback(-1)"
+            title="Плохой ответ"
+          >👎</button>
+        </div>
       </div>
     </div>
 
     <div class="message-time">{{ formatTime(message.timestamp) }}</div>
+
+    <!-- Suggestion chips (only for last assistant message) -->
+    <div v-if="message.suggestions && message.suggestions.length > 0 && message.type === 'assistant' && !message.isStreaming" class="message-suggestions">
+      <button
+        v-for="(suggestion, idx) in message.suggestions"
+        :key="idx"
+        class="suggestion-chip"
+        @click="$emit('suggest', suggestion)"
+      >
+        <Zap :size="11" />
+        <span>{{ suggestion }}</span>
+      </button>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { Sparkles, User, Terminal, Loader2, AlertCircle } from 'lucide-vue-next'
+import { ref } from 'vue'
+import { Sparkles, User, Terminal, Loader2, AlertCircle, BookOpen, ChevronDown, FileText, Zap } from 'lucide-vue-next'
 
-defineProps({
+const props = defineProps({
   message: {
     type: Object,
     required: true,
   },
 })
+
+const emit = defineEmits(['suggest', 'feedback'])
+
+const sourcesExpanded = ref(false)
+const feedbackGiven = ref(props.message.feedback || null)
+
+const sendFeedback = async (value) => {
+  if (feedbackGiven.value === value) return
+  feedbackGiven.value = value
+  emit('feedback', { messageId: props.message.id, feedback: value })
+  // Also send directly via fetch
+  try {
+    await fetch(`/api/ai_assistant/messages/${props.message.id}/feedback/`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
+      body: JSON.stringify({ feedback: value }),
+    })
+  } catch (e) {
+    console.warn('Feedback send error:', e)
+  }
+}
+
+const getCsrfToken = () => {
+  const match = document.cookie.match(/csrftoken=([^;]+)/)
+  return match ? match[1] : ''
+}
 
 const escapeHtml = (text) => {
   if (!text) return ''
@@ -225,9 +297,15 @@ const parseMarkdownTable = (markdownTable) => {
   }
 }
 
+const renderCodeBlock = (lang, code) => {
+  const escapedCode = escapeHtml(code)
+  const langLabel = lang ? lang.toUpperCase() : 'CODE'
+  return `<div class="code-block"><div class="code-block__header"><span class="code-block__lang">${escapeHtml(langLabel)}</span><button class="code-block__copy" onclick="navigator.clipboard.writeText(this.closest('.code-block').querySelector('code').textContent)" title="Копировать">⧉</button></div><pre><code class="code-block__code lang-${escapeHtml(lang || 'text')}">${escapedCode}</code></pre></div>`
+}
+
 const formatMarkdown = (text) => {
   if (!text) return ''
-  
+
   console.log('[AssistantMessage] ========== formatMarkdown START ==========')
   console.log('[AssistantMessage] Входной текст (полная длина:', text.length, '):')
   console.log(text)
@@ -241,14 +319,23 @@ const formatMarkdown = (text) => {
     console.log('[AssistantMessage] Примеры строк с |:', tableMatches.slice(0, 5))
   }
   
+  // Обрабатываем fenced code blocks (```lang\ncode\n```) ПЕРВЫМИ — до всего остального
+  const codeBlocks = []
+  let codeBlockIndex = 0
+  let content = text
+  content = content.replace(/```(\w*)\n?([\s\S]*?)```/g, (match, lang, code) => {
+    const id = `__CODE_BLOCK_${codeBlockIndex++}__`
+    codeBlocks.push({ id, html: renderCodeBlock(lang, code.trim()) })
+    return `\n${id}\n`
+  })
+
   // Сначала обрабатываем блоки <think> для thinking (ДО обработки таблиц, чтобы не конфликтовало)
   // Используем более надежное регулярное выражение, которое обрабатывает многострочные блоки
   // Важно: используем нежадное совпадение с флагом 's' (dotall) через [\s\S]
   const thinkRegex = /<think>([\s\S]*?)<\/think>/gi
   const thinkBlocks = []
   let thinkIndex = 0
-  
-  let content = text
+
   // Сбрасываем lastIndex для глобального регулярного выражения
   thinkRegex.lastIndex = 0
   let thinkMatch
@@ -447,11 +534,19 @@ const formatMarkdown = (text) => {
   
   // Заменяем переносы строк на <br> в последнюю очередь
   content = content.replace(/\n/g, '<br>')
-  
+
+  // Заменяем плейсхолдеры code blocks на HTML (после <br> замены)
+  codeBlocks.forEach(block => {
+    content = content.replace(
+      new RegExp(block.id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'),
+      block.html
+    )
+  })
+
   console.log('[AssistantMessage] ========== formatMarkdown END ==========')
   console.log('[AssistantMessage] Результат (длина:', content.length, '):', content.substring(0, 500))
   console.log('[AssistantMessage] Итого: think блоков:', thinkBlocks.length, ', таблиц:', tables.length)
-  
+
   return content
 }
 
@@ -1056,5 +1151,177 @@ const formatTime = (timestamp) => {
   color: var(--nc-text-muted, #{$dark-text-muted});
   margin-top: $spacing-xs;
   padding: 0 $spacing-sm;
+}
+
+// ─── Code blocks ────────────────────────────────────────────
+:deep(.code-block) {
+  margin: $spacing-md 0;
+  border-radius: $radius-lg;
+  overflow: hidden;
+  border: 1px solid $neon-cyan-medium;
+  background: var(--nc-bg-base, #{$dark-bg-secondary});
+}
+
+:deep(.code-block__header) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: $spacing-xs $spacing-md;
+  background: rgba(58, 232, 255, 0.15);
+  border-bottom: 1px solid $dark-border;
+}
+
+:deep(.code-block__lang) {
+  font-size: $font-size-xs;
+  font-weight: $font-weight-semibold;
+  color: $neon-cyan;
+  letter-spacing: $letter-spacing-wide;
+}
+
+:deep(.code-block__copy) {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--nc-text-muted, #{$dark-text-muted});
+  font-size: $font-size-sm;
+  padding: 0 $spacing-xs;
+  &:hover { color: $neon-cyan; }
+}
+
+:deep(.code-block pre) {
+  margin: 0;
+  padding: $spacing-md;
+  overflow-x: auto;
+  font-size: $font-size-base;
+  line-height: $line-height-relaxed;
+  color: $neon-green;
+}
+
+[data-bs-theme="light"] :deep(.code-block) {
+  background: #f8fafc;
+  border-color: rgba(226, 232, 240, 0.8);
+}
+[data-bs-theme="light"] :deep(.code-block__lang) { color: #0f768a; }
+[data-bs-theme="light"] :deep(.code-block pre) { color: #059669; }
+
+// ─── Sources ────────────────────────────────────────────────
+.message-sources {
+  margin-top: $spacing-md;
+  font-size: $font-size-xs;
+}
+
+.sources-toggle {
+  display: flex;
+  align-items: center;
+  gap: $spacing-xs;
+  background: rgba(58, 232, 255, 0.08);
+  border: 1px solid rgba(58, 232, 255, 0.2);
+  border-radius: $radius-sm;
+  padding: $spacing-xs $spacing-sm;
+  cursor: pointer;
+  color: $neon-cyan;
+  font-size: $font-size-xs;
+  transition: $transition-fast;
+
+  &:hover { background: rgba(58, 232, 255, 0.15); }
+
+  .rotate-180 { transform: rotate(180deg); }
+}
+
+[data-bs-theme="light"] .sources-toggle {
+  background: rgba(15, 118, 138, 0.08);
+  border-color: rgba(15, 118, 138, 0.2);
+  color: #0f768a;
+}
+
+.sources-list {
+  margin-top: $spacing-xs;
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-xs;
+}
+
+.source-chip {
+  display: flex;
+  align-items: flex-start;
+  gap: $spacing-xs;
+  padding: $spacing-xs $spacing-sm;
+  background: rgba(58, 232, 255, 0.05);
+  border: 1px solid rgba(58, 232, 255, 0.15);
+  border-radius: $radius-sm;
+  font-size: $font-size-xs;
+  color: var(--nc-text-secondary, #{$dark-text-secondary});
+}
+
+.source-title {
+  font-weight: $font-weight-semibold;
+  color: $neon-cyan;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 160px;
+}
+
+.source-preview {
+  color: var(--nc-text-muted, #{$dark-text-muted});
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+// ─── Feedback ────────────────────────────────────────────────
+.message-feedback {
+  display: flex;
+  gap: $spacing-xs;
+  margin-top: $spacing-sm;
+}
+
+.feedback-btn {
+  background: none;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: $radius-sm;
+  padding: 2px $spacing-xs;
+  cursor: pointer;
+  font-size: $font-size-sm;
+  opacity: 0.5;
+  transition: $transition-fast;
+
+  &:hover { opacity: 1; border-color: rgba(255,255,255,0.3); }
+  &--active { opacity: 1; border-color: $neon-cyan; }
+}
+
+// ─── Suggestion chips ────────────────────────────────────────
+.message-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-xs;
+  margin-top: $spacing-sm;
+  padding: 0 0 0 $spacing-sm;
+}
+
+.suggestion-chip {
+  display: flex;
+  align-items: center;
+  gap: $spacing-xs;
+  padding: $spacing-xs $spacing-sm;
+  background: rgba(168, 85, 247, 0.1);
+  border: 1px solid rgba(168, 85, 247, 0.3);
+  border-radius: 20px;
+  font-size: $font-size-xs;
+  color: $neon-purple;
+  cursor: pointer;
+  transition: $transition-fast;
+
+  &:hover {
+    background: rgba(168, 85, 247, 0.2);
+    border-color: rgba(168, 85, 247, 0.5);
+  }
+}
+
+[data-bs-theme="light"] .suggestion-chip {
+  background: rgba(124, 58, 237, 0.08);
+  border-color: rgba(124, 58, 237, 0.25);
+  color: #7c3aed;
 }
 </style>

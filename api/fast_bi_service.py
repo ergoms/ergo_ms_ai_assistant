@@ -5,8 +5,10 @@ BI-анализ через Polars + LLM — функциональность н�
 """
 from django.conf import settings
 
-DEFAULT_MODEL: str = getattr(settings, "OLLAMA_DEFAULT_MODEL", "mistral")
-OLLAMA_BASE_URL: str = getattr(settings, "OLLAMA_BASE_URL", "http://localhost:11434")
+from . import assistant_settings
+
+DEFAULT_MODEL: str = getattr(settings, "OLLAMA_DEFAULT_MODEL", assistant_settings.OLLAMA_DEFAULT_MODEL)
+OLLAMA_BASE_URL: str = getattr(settings, "OLLAMA_BASE_URL", assistant_settings.OLLAMA_BASE_URL)
 
 
 class FastBIService:

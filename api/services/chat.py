@@ -1,5 +1,6 @@
 """
 Общая логика чата: сессия, файлы, RAG, сбор messages для LLM, постобработка навыков.
+Поддерживает: smart context window, суммаризация, память пользователя, sources, suggestions.
 """
 
 from __future__ import annotations
@@ -11,15 +12,31 @@ from typing import Any
 
 from django.utils import timezone
 
-from src.config.settings.ai_assistant import RAG_CHUNK_OVERLAP, RAG_CHUNK_SIZE
+from ..assistant_settings import (
+    MEMORY_MAX_TOKENS,
+    RAG_CHUNK_OVERLAP,
+    RAG_CHUNK_SIZE,
+    SUGGESTIONS_ENABLED,
+    SUMMARY_MAX_TOKENS,
+    SUMMARY_TRIGGER_MESSAGES,
+)
 
 from ..llm_utils import create_ollama_client
 from ..models import ChatMessage, ChatSession, KnowledgeDocument
 from ..rag import DocumentParseError, DocumentParserService, RAGIndexingService
-from ..rag_service import get_rag_context, get_rag_services
+from ..rag_service import get_rag_context, get_rag_services  # noqa: F401 (re-exported)
 from ..skills.integration import execute_skill_from_llm_response
 
 logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Утилиты
+# ---------------------------------------------------------------------------
+
+def count_tokens(text: str) -> int:
+    """Грубая оценка количества токенов (4 символа ≈ 1 токен)."""
+    return max(1, len(text) // 4)
 
 
 def parse_enable_vectorization(raw: Any) -> bool:
@@ -45,6 +62,10 @@ def collect_uploaded_files(request) -> list:
             uploaded_files = [single_file]
     return uploaded_files
 
+
+# ---------------------------------------------------------------------------
+# Сессия
+# ---------------------------------------------------------------------------
 
 def load_or_create_session(
     user,
@@ -88,6 +109,10 @@ def save_user_message(session: ChatSession, message: str, ollama_config: dict | 
     )
 
 
+# ---------------------------------------------------------------------------
+# Файлы и RAG
+# ---------------------------------------------------------------------------
+
 def process_uploads_and_file_context(
     session: ChatSession,
     user,
@@ -95,10 +120,6 @@ def process_uploads_and_file_context(
     enable_vectorization: bool,
     ollama_config: dict | None,
 ) -> tuple[str, list[str]]:
-    """
-    Векторизация загрузок и/или извлечение текста в контекст.
-    Возвращает (uploaded_file_context, vectorized_document_ids для этого запроса).
-    """
     uploaded_file_context = ""
     vectorized_document_ids: list[str] = []
     if session.metadata and "vectorized_documents" in session.metadata:
@@ -217,6 +238,72 @@ def build_rag_blocks(
     return rag_context, rag_chunks
 
 
+def build_sources_from_chunks(chunks: list) -> list[dict]:
+    """Формирует список источников из найденных RAG chunks для отображения пользователю."""
+    seen_docs: dict[str, int] = {}  # doc_id → chunk_counter
+    sources = []
+    for chunk in chunks[:5]:  # max 5 источников
+        doc_id = chunk.get("document_id", "")
+        doc_title = chunk.get("document_title", "Документ")
+        chunk_index = chunk.get("chunk_index", 0)
+        # Превью: первые 150 символов дочернего chunk
+        preview = (chunk.get("child_content") or chunk.get("content", ""))[:150]
+        if preview and len(preview) == 150:
+            preview += "..."
+
+        if doc_id not in seen_docs:
+            seen_docs[doc_id] = 0
+            sources.append({
+                "document_id": doc_id,
+                "document_title": doc_title,
+                "chunk_index": chunk_index,
+                "preview": preview,
+                "similarity": round(chunk.get("similarity", 0.0), 3),
+            })
+    return sources
+
+
+# ---------------------------------------------------------------------------
+# Суммаризация и память
+# ---------------------------------------------------------------------------
+
+def run_summarization_if_needed(session: ChatSession, client: Any) -> None:
+    """Запускает суммаризацию если накопилось достаточно сообщений."""
+    try:
+        from ..memory.summarizer import ConversationSummarizer
+        summarizer = ConversationSummarizer(llm_client=client, trigger_count=SUMMARY_TRIGGER_MESSAGES)
+        summarizer.summarize_if_needed(session)
+    except Exception as e:
+        logger.warning("Ошибка суммаризации: %s", e)
+
+
+def get_user_memory_context(user, query: str, client: Any, embeddings_service: Any) -> str:
+    """Возвращает строку с релевантными воспоминаниями пользователя."""
+    try:
+        from ..memory.user_memory import UserMemoryService
+        svc = UserMemoryService(llm_client=client, embeddings_service=embeddings_service)
+        memories = svc.get_relevant_memories(user, query, top_k=3)
+        if memories:
+            return "Контекст о пользователе:\n" + "\n".join(f"- {m}" for m in memories)
+    except Exception as e:
+        logger.debug("Ошибка получения памяти пользователя: %s", e)
+    return ""
+
+
+def save_user_memories_async(user, messages: list, client: Any, embeddings_service: Any) -> None:
+    """Фоновое извлечение и сохранение воспоминаний после ответа."""
+    try:
+        from ..memory.user_memory import UserMemoryService
+        svc = UserMemoryService(llm_client=client, embeddings_service=embeddings_service)
+        svc.extract_and_save_memories(user, messages)
+    except Exception as e:
+        logger.debug("Ошибка сохранения памяти пользователя: %s", e)
+
+
+# ---------------------------------------------------------------------------
+# Smart context window management
+# ---------------------------------------------------------------------------
+
 def build_system_prompt_parts(uploaded_files: list, enable_vectorization: bool) -> list[str]:
     parts: list[str] = []
     if not uploaded_files:
@@ -224,19 +311,17 @@ def build_system_prompt_parts(uploaded_files: list, enable_vectorization: bool) 
     if enable_vectorization:
         parts.append(
             "Пользователь загрузил файлы, которые были проиндексированы с помощью векторного поиска. "
-            "Используй информацию из векторного поиска для точных и релевантных ответов. "
-            "Учитывай контекст из всех загруженных файлов при ответе на вопросы."
+            "Используй информацию из векторного поиска для точных и релевантных ответов."
         )
     else:
         parts.append(
-            "Пользователь загрузил файлы. Используй информацию из загруженных файлов для ответа на вопросы. "
-            "Учитывай содержимое всех загруженных файлов при формировании ответа."
+            "Пользователь загрузил файлы. Используй информацию из загруженных файлов для ответа."
         )
     return parts
 
 
-def append_history_messages(messages: list[dict], session: ChatSession) -> None:
-    previous_messages = session.messages.order_by("created_at")[:10]
+def append_history_messages(messages: list[dict], session: ChatSession, max_messages: int = 10) -> None:
+    previous_messages = session.messages.order_by("created_at")[:max_messages]
     for msg in previous_messages:
         if msg.message_type == ChatMessage.MESSAGE_TYPE_USER:
             messages.append({"role": "user", "content": msg.content})
@@ -266,17 +351,44 @@ def assemble_chat_messages(
     enable_vectorization: bool,
     uploaded_file_context: str,
     rag_context: str,
+    user_memory_context: str = "",
 ) -> list[dict]:
-    """system + история (включая только что сохранённое user-сообщение) + текущий user с контекстами."""
+    """
+    Собирает messages для LLM с учётом приоритетов контекста:
+    summary (400 tokens) > recent_messages > rag_context > memory (200 tokens).
+    """
     messages: list[dict] = []
-    system_prompt_parts = build_system_prompt_parts(uploaded_files, enable_vectorization)
-    if system_prompt_parts:
-        messages.append({"role": "system", "content": "\n".join(system_prompt_parts)})
+    system_parts = build_system_prompt_parts(uploaded_files, enable_vectorization)
+
+    # Добавляем summary сессии в system (если есть)
+    if session.summary:
+        summary_text = session.summary
+        # Обрезаем до SUMMARY_MAX_TOKENS
+        max_chars = SUMMARY_MAX_TOKENS * 4
+        if len(summary_text) > max_chars:
+            summary_text = summary_text[-max_chars:]
+        system_parts.append(f"[Краткое резюме предыдущего разговора]\n{summary_text}")
+
+    # Добавляем память пользователя в system (если есть)
+    if user_memory_context:
+        mem_text = user_memory_context
+        max_mem_chars = MEMORY_MAX_TOKENS * 4
+        if len(mem_text) > max_mem_chars:
+            mem_text = mem_text[:max_mem_chars]
+        system_parts.append(mem_text)
+
+    if system_parts:
+        messages.append({"role": "system", "content": "\n\n".join(system_parts)})
+
     append_history_messages(messages, session)
     user_content = compose_user_message_content(message, uploaded_file_context, rag_context)
     messages.append({"role": "user", "content": user_content})
     return messages
 
+
+# ---------------------------------------------------------------------------
+# Навыки
+# ---------------------------------------------------------------------------
 
 def apply_skills_to_answer(
     raw_answer: str,
@@ -302,12 +414,48 @@ def apply_skills_to_answer(
     return answer, skill_result, skill_display_name, skill_call
 
 
+# ---------------------------------------------------------------------------
+# Suggested questions
+# ---------------------------------------------------------------------------
+
+def generate_suggestions(
+    client: Any,
+    message: str,
+    answer: str,
+) -> list[str]:
+    """Генерирует 3 suggested follow-up вопроса асинхронно."""
+    if not SUGGESTIONS_ENABLED:
+        return []
+    try:
+        prompt = (
+            f"Based on this Q&A, generate 3 short follow-up questions the user might ask next. "
+            f"Return ONLY a JSON array of strings in Russian. "
+            f"Question: {message[:200]}\nAnswer: {answer[:300]}\n"
+            f'Example: ["Вопрос 1?", "Вопрос 2?", "Вопрос 3?"]'
+        )
+        msgs = [{"role": "user", "content": prompt}]
+        resp = client.chat(msgs, temperature=0.4, format="json", num_predict=200)
+        if isinstance(resp, str):
+            suggestions = json.loads(resp)
+            if isinstance(suggestions, list):
+                return [str(s) for s in suggestions[:3] if s]
+    except Exception as e:
+        logger.debug("Ошибка генерации suggestions: %s", e)
+    return []
+
+
+# ---------------------------------------------------------------------------
+# Metadata и сохранение
+# ---------------------------------------------------------------------------
+
 def build_assistant_metadata(
     runtime_config,
     ollama_config: dict | None,
     skill_display_name: str | None,
     skill_call: Any,
     skill_result: Any,
+    sources: list | None = None,
+    suggestions: list | None = None,
 ) -> dict[str, Any]:
     metadata: dict[str, Any] = {
         "model": runtime_config.model,
@@ -319,6 +467,10 @@ def build_assistant_metadata(
     if skill_result and skill_result.success and skill_result.metadata:
         if "chart_config" in skill_result.metadata:
             metadata["chart_config"] = skill_result.metadata["chart_config"]
+    if sources:
+        metadata["sources"] = sources
+    if suggestions:
+        metadata["suggestions"] = suggestions
     return metadata
 
 
@@ -346,4 +498,3 @@ def save_assistant_message(
 def create_client(ollama_config: dict | None):
     """Обертка над create_ollama_client для view-слоя."""
     return create_ollama_client(ollama_config)
-

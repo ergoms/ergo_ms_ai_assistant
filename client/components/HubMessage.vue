@@ -189,6 +189,36 @@
         <AlertTriangle :size="16" />
         <span>{{ message.error }}</span>
       </div>
+
+      <!-- Sources (RAG citations) -->
+      <div v-if="message.sources && message.sources.length > 0 && message.type === 'assistant'" class="message-sources-hub">
+        <button class="sources-toggle-hub" @click="sourcesExpanded = !sourcesExpanded">
+          <span>📄 Источники ({{ message.sources.length }})</span>
+          <span :class="{ 'chevron-open': sourcesExpanded }">▾</span>
+        </button>
+        <div v-if="sourcesExpanded" class="sources-list-hub">
+          <div v-for="(src, idx) in message.sources" :key="idx" class="source-item-hub">
+            <strong>{{ src.document_title }}</strong>
+            <span v-if="src.preview" class="source-preview-hub"> — {{ src.preview }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Feedback -->
+      <div v-if="message.type === 'assistant' && !message.streaming && message.id" class="message-feedback-hub">
+        <button
+          class="feedback-btn-hub"
+          :class="{ 'active': hubFeedback === 1 }"
+          @click="sendHubFeedback(1)"
+          title="Хороший ответ"
+        >👍</button>
+        <button
+          class="feedback-btn-hub"
+          :class="{ 'active': hubFeedback === -1 }"
+          @click="sendHubFeedback(-1)"
+          title="Плохой ответ"
+        >👎</button>
+      </div>
     </div>
   </div>
 </template>
@@ -214,6 +244,24 @@ const props = defineProps({
 })
 
 const sqlCopied = ref(false)
+const sourcesExpanded = ref(false)
+const hubFeedback = ref(props.message.feedback || null)
+
+const sendHubFeedback = async (value) => {
+  if (hubFeedback.value === value) return
+  hubFeedback.value = value
+  try {
+    const csrfMatch = document.cookie.match(/csrftoken=([^;]+)/)
+    const csrfToken = csrfMatch ? csrfMatch[1] : ''
+    await fetch(`/api/ai_assistant/messages/${props.message.id}/feedback/`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+      body: JSON.stringify({ feedback: value }),
+    })
+  } catch (e) {
+    console.warn('Feedback error:', e)
+  }
+}
 
 // Pagination state
 const ROWS_PER_PAGE = 20

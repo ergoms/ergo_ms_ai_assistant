@@ -87,11 +87,56 @@ class SkillsManager:
     def get_function_definitions(self) -> List[Dict[str, Any]]:
         """
         Возвращает определения всех функций для LLM (function calling).
-        
+
         Returns:
             Список определений функций в формате OpenAI function calling
         """
         return [skill.get_function_definition() for skill in self._skills.values()]
+
+    def execute_chain(
+        self,
+        skill_calls: List[Dict[str, Any]],
+        query: str,
+        context: Optional[Dict[str, Any]] = None,
+    ) -> List[SkillResult]:
+        """
+        Последовательное выполнение цепочки навыков.
+        Вывод предыдущего навыка передаётся как 'previous_result' в контекст следующего.
+
+        Args:
+            skill_calls: Список вызовов навыков [{"tool": name, "parameters": {...}}, ...]
+            query: Исходный запрос пользователя
+            context: Начальный контекст
+
+        Returns:
+            Список SkillResult для каждого шага цепочки
+        """
+        results = []
+        current_context = dict(context or {})
+
+        for step, call in enumerate(skill_calls):
+            skill_name = call.get("tool", "")
+            parameters = call.get("parameters", {})
+
+            if not skill_name:
+                results.append(SkillResult(success=False, error=f"Шаг {step}: не указано имя навыка"))
+                continue
+
+            # Добавляем результат предыдущего шага в контекст
+            if results:
+                last = results[-1]
+                current_context["previous_result"] = last.result if last.success else None
+                current_context["previous_metadata"] = last.metadata or {}
+
+            result = self.execute_skill(skill_name, query, parameters, current_context)
+            results.append(result)
+
+            logger.info(
+                f"Цепочка шаг {step + 1}/{len(skill_calls)}: {skill_name} — "
+                f"{'успех' if result.success else 'ошибка'}"
+            )
+
+        return results
     
     def auto_discover_skills(self) -> None:
         """

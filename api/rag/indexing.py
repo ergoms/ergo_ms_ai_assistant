@@ -21,31 +21,37 @@ class RAGIndexingError(Exception):
 
 class RAGIndexingService:
     """
-    Сервис для индексации документов в векторную базу знаний
-    
-    Функционал:
-    - Разбиение документов на chunks (по размеру или по предложениям)
-    - Генерация embeddings для каждого chunk
-    - Сохранение в базу данных
+    Сервис для индексации документов в векторную базу знаний.
+    Поддерживает parent-document retrieval: большие родительские chunks для контекста,
+    маленькие дочерние для точного поиска.
     """
-    
+
     def __init__(
         self,
         embeddings_service: OllamaEmbeddingsService,
         chunk_size: int = 1000,
         chunk_overlap: int = 200,
+        parent_chunk_size: int = 1500,
+        child_chunk_size: int = 200,
+        use_parent_document: bool = True,
     ):
         """
         Инициализация сервиса индексации
         
         Args:
             embeddings_service: Сервис для генерации embeddings
-            chunk_size: Максимальный размер chunk в символах
-            chunk_overlap: Размер перекрытия между chunks в символах (для сохранения контекста)
+            chunk_size: Максимальный размер chunk в символах (используется если use_parent_document=False)
+            chunk_overlap: Размер перекрытия между chunks в символах
+            parent_chunk_size: Размер родительского chunk (большой контекстный блок)
+            child_chunk_size: Размер дочернего chunk (маленький для точного поиска)
+            use_parent_document: Если True — использовать parent-document retrieval
         """
         self.embeddings_service = embeddings_service
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
+        self.parent_chunk_size = parent_chunk_size
+        self.child_chunk_size = child_chunk_size
+        self.use_parent_document = use_parent_document
     
     def _split_text_into_chunks(self, text: str) -> List[Dict[str, Any]]:
         """
@@ -207,85 +213,195 @@ class RAGIndexingService:
                     "Убедитесь, что указан текст или загружен файл с текстом."
                 )
             
-            # Разбиваем текст на chunks
-            chunks_data = self._split_text_into_chunks(text_content)
-            
-            if not chunks_data:
-                raise RAGIndexingError("Не удалось разбить документ на chunks (возможно, документ пуст)")
-            
-            logger.info(f"Разбили документ {document.id} на {len(chunks_data)} chunks")
-            
-            # Генерируем embeddings для всех chunks батчем
-            texts_for_embedding = [chunk["content"] for chunk in chunks_data]
-            
-            try:
-                embeddings_list = self.embeddings_service.generate_embeddings_batch(texts_for_embedding)
-            except EmbeddingsError as e:
-                raise RAGIndexingError(f"Ошибка генерации embeddings: {e}") from e
-            
-            if len(embeddings_list) != len(chunks_data):
-                logger.warning(
-                    f"Количество embeddings ({len(embeddings_list)}) не совпадает с количеством chunks ({len(chunks_data)})"
+            if self.use_parent_document:
+                return self._index_with_parent_document(document, text_content, force_reindex)
+            else:
+                return self._index_flat(document, text_content, force_reindex)
+
+        except RAGIndexingError:
+            raise
+        except Exception as e:
+            logger.error(f"Неожиданная ошибка при индексации документа {document.id}: {e}", exc_info=True)
+            raise RAGIndexingError(f"Ошибка индексации: {e}") from e
+
+    def _index_flat(self, document: KnowledgeDocument, text_content: str, force_reindex: bool) -> dict:
+        """Стандартная плоская индексация без parent-document."""
+        chunks_data = self._split_text_into_chunks(text_content)
+        if not chunks_data:
+            raise RAGIndexingError("Не удалось разбить документ на chunks (возможно, документ пуст)")
+
+        logger.info(f"Разбили документ {document.id} на {len(chunks_data)} chunks (flat)")
+
+        texts_for_embedding = [chunk["content"] for chunk in chunks_data]
+        try:
+            embeddings_list = self.embeddings_service.generate_embeddings_batch(texts_for_embedding)
+        except EmbeddingsError as e:
+            raise RAGIndexingError(f"Ошибка генерации embeddings: {e}") from e
+
+        if len(embeddings_list) < len(chunks_data):
+            raise RAGIndexingError(
+                f"Получено недостаточно embeddings: {len(embeddings_list)} из {len(chunks_data)}"
+            )
+        embeddings_list = embeddings_list[:len(chunks_data)]
+
+        with transaction.atomic():
+            chunks_created = chunks_updated = chunks_deleted = 0
+            if force_reindex:
+                old = document.chunks.count()
+                if old > 0:
+                    document.chunks.all().delete()
+                    chunks_deleted = old
+            embedding_model = self.embeddings_service._model
+            for i, (chunk_data, embedding) in enumerate(zip(chunks_data, embeddings_list)):
+                chunk, created = KnowledgeChunk.objects.update_or_create(
+                    document=document,
+                    chunk_index=i,
+                    defaults={
+                        "content": chunk_data["content"],
+                        "start_char": chunk_data["start_char"],
+                        "end_char": chunk_data["end_char"],
+                        "embedding": embedding,
+                        "embedding_model": embedding_model,
+                        "parent_chunk": None,
+                    }
                 )
-                # Обрезаем или дополняем до нужного количества
-                if len(embeddings_list) < len(chunks_data):
-                    raise RAGIndexingError(
-                        f"Получено недостаточно embeddings: {len(embeddings_list)} из {len(chunks_data)}"
-                    )
-                embeddings_list = embeddings_list[:len(chunks_data)]
-            
-            # Сохраняем chunks в базу данных в транзакции
-            with transaction.atomic():
-                chunks_created = 0
-                chunks_updated = 0
-                chunks_deleted = 0
-                
-                # Если переиндексируем, удаляем старые chunks
-                if force_reindex:
-                    old_chunks_count = document.chunks.count()
-                    if old_chunks_count > 0:
-                        document.chunks.all().delete()
-                        chunks_deleted = old_chunks_count
-                        logger.info(f"Удалили {chunks_deleted} старых chunks документа {document.id}")
-                
-                # Создаем новые chunks
-                embedding_model = self.embeddings_service._model
-                
-                for i, (chunk_data, embedding) in enumerate(zip(chunks_data, embeddings_list)):
-                    chunk, created = KnowledgeChunk.objects.update_or_create(
-                        document=document,
-                        chunk_index=i,
-                        defaults={
-                            "content": chunk_data["content"],
-                            "start_char": chunk_data["start_char"],
-                            "end_char": chunk_data["end_char"],
-                            "embedding": embedding,
-                            "embedding_model": embedding_model,
-                        }
-                    )
-                    
-                    if created:
-                        chunks_created += 1
-                    else:
-                        chunks_updated += 1
-                
-                # Обновляем статус индексации документа
-                document.is_indexed = True
-                document.indexed_at = timezone.now()
-                document.save(update_fields=["is_indexed", "indexed_at"])
-                
-                logger.info(
-                    f"Успешно проиндексирован документ {document.id}: "
-                    f"создано {chunks_created}, обновлено {chunks_updated}, удалено {chunks_deleted} chunks"
+                if created:
+                    chunks_created += 1
+                else:
+                    chunks_updated += 1
+
+            document.is_indexed = True
+            document.indexed_at = timezone.now()
+            document.save(update_fields=["is_indexed", "indexed_at"])
+
+            logger.info(
+                f"Проиндексирован документ {document.id} (flat): "
+                f"создано {chunks_created}, обновлено {chunks_updated}, удалено {chunks_deleted}"
+            )
+            return {
+                "success": True,
+                "chunks_created": chunks_created,
+                "chunks_updated": chunks_updated,
+                "chunks_deleted": chunks_deleted,
+                "total_chunks": len(chunks_data),
+            }
+
+    def _index_with_parent_document(self, document: KnowledgeDocument, text_content: str, force_reindex: bool) -> dict:
+        """
+        Parent-document retrieval индексация:
+        - родительские chunks (большие) — для контекста LLM
+        - дочерние chunks (маленькие) — для векторного поиска
+        """
+        # Временно меняем chunk_size для создания parent/child chunks
+        orig_size = self.chunk_size
+        orig_overlap = self.chunk_overlap
+
+        # Родительские chunks
+        self.chunk_size = self.parent_chunk_size
+        self.chunk_overlap = max(50, self.parent_chunk_size // 10)
+        parent_chunks_data = self._split_text_into_chunks(text_content)
+
+        # Дочерние chunks
+        self.chunk_size = self.child_chunk_size
+        self.chunk_overlap = max(20, self.child_chunk_size // 5)
+        child_chunks_data = self._split_text_into_chunks(text_content)
+
+        self.chunk_size = orig_size
+        self.chunk_overlap = orig_overlap
+
+        if not child_chunks_data:
+            raise RAGIndexingError("Не удалось разбить документ на дочерние chunks")
+
+        # Генерируем embeddings только для дочерних chunks
+        child_texts = [c["content"] for c in child_chunks_data]
+        try:
+            embeddings_list = self.embeddings_service.generate_embeddings_batch(child_texts)
+        except EmbeddingsError as e:
+            raise RAGIndexingError(f"Ошибка генерации embeddings: {e}") from e
+
+        if len(embeddings_list) < len(child_chunks_data):
+            raise RAGIndexingError(
+                f"Получено недостаточно embeddings: {len(embeddings_list)} из {len(child_chunks_data)}"
+            )
+        embeddings_list = embeddings_list[:len(child_chunks_data)]
+
+        with transaction.atomic():
+            if force_reindex:
+                old = document.chunks.count()
+                if old > 0:
+                    document.chunks.all().delete()
+
+            embedding_model = self.embeddings_service._model
+            chunks_created = 0
+
+            # Создаём родительские chunks (без embedding — только для контекста)
+            parent_orm_chunks = []
+            for i, p_data in enumerate(parent_chunks_data):
+                parent_chunk = KnowledgeChunk.objects.create(
+                    document=document,
+                    chunk_index=i,
+                    content=p_data["content"],
+                    start_char=p_data["start_char"],
+                    end_char=p_data["end_char"],
+                    embedding=[0.0],  # placeholder — не используется для поиска
+                    embedding_model=embedding_model,
+                    parent_chunk=None,
+                    metadata={"is_parent": True},
                 )
-                
-                return {
-                    "success": True,
-                    "chunks_created": chunks_created,
-                    "chunks_updated": chunks_updated,
-                    "chunks_deleted": chunks_deleted,
-                    "total_chunks": len(chunks_data),
-                }
+                parent_orm_chunks.append(parent_chunk)
+                chunks_created += 1
+
+            # Создаём дочерние chunks со ссылкой на родительский
+            # Определяем родителя по перекрытию позиций
+            for i, (c_data, embedding) in enumerate(zip(child_chunks_data, embeddings_list)):
+                # Ищем родительский chunk, который максимально перекрывает дочерний
+                parent = self._find_parent_chunk(
+                    c_data["start_char"], c_data["end_char"], parent_orm_chunks, parent_chunks_data
+                )
+                KnowledgeChunk.objects.create(
+                    document=document,
+                    chunk_index=len(parent_chunks_data) + i,
+                    content=c_data["content"],
+                    start_char=c_data["start_char"],
+                    end_char=c_data["end_char"],
+                    embedding=embedding,
+                    embedding_model=embedding_model,
+                    parent_chunk=parent,
+                    metadata={"is_child": True},
+                )
+                chunks_created += 1
+
+            document.is_indexed = True
+            document.indexed_at = timezone.now()
+            document.save(update_fields=["is_indexed", "indexed_at"])
+
+            logger.info(
+                f"Проиндексирован документ {document.id} (parent-document): "
+                f"родительских={len(parent_orm_chunks)}, дочерних={len(child_chunks_data)}"
+            )
+            return {
+                "success": True,
+                "chunks_created": chunks_created,
+                "chunks_updated": 0,
+                "chunks_deleted": 0,
+                "total_chunks": chunks_created,
+            }
+
+    def _find_parent_chunk(self, start: int, end: int, parent_orm: list, parent_data: list):
+        """Находит родительский chunk с максимальным перекрытием с дочерним диапазоном."""
+        best_parent = None
+        best_overlap = -1
+        for orm_chunk, p_data in zip(parent_orm, parent_data):
+            p_start = p_data["start_char"]
+            p_end = p_data["end_char"]
+            overlap = max(0, min(end, p_end) - max(start, p_start))
+            if overlap > best_overlap:
+                best_overlap = overlap
+                best_parent = orm_chunk
+        return best_parent
+
+    def _index_document_inner(self, document, text_content, force_reindex):
+        pass  # kept for compat
                 
         except RAGIndexingError:
             raise

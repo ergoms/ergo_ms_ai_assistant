@@ -11,7 +11,7 @@
 from .embeddings import OllamaEmbeddingsService, EmbeddingsError
 from .parser import DocumentParserService, DocumentParseError
 from .indexing import RAGIndexingService, RAGIndexingError
-from .retrieval import RAGRetrievalService, RAGRetrievalError, cosine_similarity
+from .retrieval import RAGRetrievalService, RAGRetrievalError, HybridRAGRetrievalService, cosine_similarity
 
 __all__ = [
     'OllamaEmbeddingsService',
@@ -21,6 +21,7 @@ __all__ = [
     'RAGIndexingService',
     'RAGIndexingError',
     'RAGRetrievalService',
+    'HybridRAGRetrievalService',
     'RAGRetrievalError',
     'cosine_similarity',
 ]

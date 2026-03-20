@@ -11,6 +11,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from ..json_utils import safe_json_dumps
+from ..models import ChatMessage
 from ..services import chat as chat_service
 
 logger = logging.getLogger(__name__)
@@ -19,7 +20,7 @@ logger = logging.getLogger(__name__)
 class ChatView(APIView):
     """
     POST /api/ai_assistant/chat/
-    Простой RAG чат для общих вопросов (без streaming)
+    Простой RAG чат (без streaming)
     """
 
     permission_classes = [permissions.IsAuthenticated]
@@ -52,10 +53,13 @@ class ChatView(APIView):
             runtime_config, client = chat_service.create_client(ollama_config)
             temperature = (ollama_config or {}).get("temperature", 0)
 
+            # Запускаем суммаризацию если нужно
+            chat_service.run_summarization_if_needed(session, client)
+
             uploaded_file_context, vector_ids = chat_service.process_uploads_and_file_context(
                 session, request.user, uploaded_files, enable_vectorization, ollama_config
             )
-            rag_context, _ = chat_service.build_rag_blocks(
+            rag_context, rag_chunks = chat_service.build_rag_blocks(
                 message,
                 request.user,
                 module,
@@ -66,6 +70,17 @@ class ChatView(APIView):
                 ollama_config,
             )
 
+            # Получаем embeddings service для памяти пользователя
+            try:
+                embeddings_service, _ = chat_service.get_rag_services(ollama_config)
+            except Exception:
+                embeddings_service = None
+
+            # Получаем релевантные воспоминания пользователя
+            user_memory_context = chat_service.get_user_memory_context(
+                request.user, message, client, embeddings_service
+            )
+
             messages = chat_service.assemble_chat_messages(
                 session,
                 message,
@@ -73,13 +88,23 @@ class ChatView(APIView):
                 enable_vectorization,
                 uploaded_file_context,
                 rag_context,
+                user_memory_context=user_memory_context,
             )
 
-            answer = client.chat(messages, temperature=temperature, stream=False).strip()
+            answer = client.chat(messages, temperature=temperature, stream=False)
+            if isinstance(answer, dict):
+                answer = answer.get("content", "")
+            answer = answer.strip()
 
             answer, skill_result, skill_display_name, skill_call = chat_service.apply_skills_to_answer(
                 answer, message, request.user, session, module
             )
+
+            # Источники RAG
+            sources = chat_service.build_sources_from_chunks(rag_chunks) if rag_chunks else []
+
+            # Suggested questions
+            suggestions = chat_service.generate_suggestions(client, message, answer)
 
             response_received_at = timezone.now()
             processing_time = int((response_received_at - request_started_at).total_seconds() * 1000)
@@ -90,6 +115,8 @@ class ChatView(APIView):
                 skill_display_name,
                 skill_call,
                 skill_result,
+                sources=sources,
+                suggestions=suggestions,
             )
 
             assistant_message = chat_service.save_assistant_message(
@@ -99,6 +126,10 @@ class ChatView(APIView):
                 processing_time,
                 message_metadata,
             )
+
+            # Сохраняем воспоминания пользователя в фоне
+            recent_msgs = [{"role": "user", "content": message}, {"role": "assistant", "content": answer}]
+            chat_service.save_user_memories_async(request.user, recent_msgs, client, embeddings_service)
 
             response_data = {
                 "success": True,
@@ -110,6 +141,8 @@ class ChatView(APIView):
                 "timestamp": assistant_message.created_at.isoformat(),
                 "skill_name": skill_display_name,
                 "skill_call": skill_call,
+                "sources": sources,
+                "suggestions": suggestions,
             }
             if "chart_config" in message_metadata:
                 response_data["chart_config"] = message_metadata["chart_config"]
@@ -154,24 +187,40 @@ class ChatStreamView(APIView):
         )
         chat_service.save_user_message(session, message, ollama_config)
 
+        # Capture for closure
+        user = request.user
+
         def event_stream():
             try:
                 request_started_at = timezone.now()
                 runtime_config, client = chat_service.create_client(ollama_config)
                 temperature = (ollama_config or {}).get("temperature", 0)
 
+                # Суммаризация если нужно
+                chat_service.run_summarization_if_needed(session, client)
+
                 uploaded_file_context, vector_ids = chat_service.process_uploads_and_file_context(
-                    session, request.user, uploaded_files, enable_vectorization, ollama_config
+                    session, user, uploaded_files, enable_vectorization, ollama_config
                 )
-                rag_context, _ = chat_service.build_rag_blocks(
+                rag_context, rag_chunks = chat_service.build_rag_blocks(
                     message,
-                    request.user,
+                    user,
                     module,
                     session,
-                    request.data,
+                    {},
                     enable_vectorization,
                     vector_ids,
                     ollama_config,
+                )
+
+                # Embeddings service для памяти
+                try:
+                    embeddings_service, _ = chat_service.get_rag_services(ollama_config)
+                except Exception:
+                    embeddings_service = None
+
+                user_memory_context = chat_service.get_user_memory_context(
+                    user, message, client, embeddings_service
                 )
 
                 messages = chat_service.assemble_chat_messages(
@@ -181,6 +230,7 @@ class ChatStreamView(APIView):
                     enable_vectorization,
                     uploaded_file_context,
                     rag_context,
+                    user_memory_context=user_memory_context,
                 )
 
                 streaming_chunks_queue: Queue = Queue()
@@ -198,6 +248,8 @@ class ChatStreamView(APIView):
                             stream=True,
                             stream_callback=stream_callback,
                         )
+                        if isinstance(result, dict):
+                            result = result.get("content", "")
                         result_container["response"] = result.strip()
                     except Exception as e:
                         exception_container["error"] = e
@@ -226,9 +278,15 @@ class ChatStreamView(APIView):
 
                 full_response, skill_result, skill_display_name, skill_call = (
                     chat_service.apply_skills_to_answer(
-                        raw_response, message, request.user, session, module
+                        raw_response, message, user, session, module
                     )
                 )
+
+                # Источники RAG
+                sources = chat_service.build_sources_from_chunks(rag_chunks) if rag_chunks else []
+
+                # Suggested questions
+                suggestions = chat_service.generate_suggestions(client, message, full_response)
 
                 processing_time = int((response_received_at - request_started_at).total_seconds() * 1000)
 
@@ -238,6 +296,8 @@ class ChatStreamView(APIView):
                     skill_display_name,
                     skill_call,
                     skill_result,
+                    sources=sources,
+                    suggestions=suggestions,
                 )
 
                 assistant_message = chat_service.save_assistant_message(
@@ -248,6 +308,10 @@ class ChatStreamView(APIView):
                     message_metadata,
                 )
 
+                # Сохраняем воспоминания
+                recent_msgs = [{"role": "user", "content": message}, {"role": "assistant", "content": full_response}]
+                chat_service.save_user_memories_async(user, recent_msgs, client, embeddings_service)
+
                 done_event = {
                     "type": "done",
                     "full_response": full_response,
@@ -257,6 +321,8 @@ class ChatStreamView(APIView):
                     "timestamp": assistant_message.created_at.isoformat(),
                     "skill_name": skill_display_name,
                     "skill_call": skill_call,
+                    "sources": sources,
+                    "suggestions": suggestions,
                 }
                 if "chart_config" in message_metadata:
                     done_event["chart_config"] = message_metadata["chart_config"]
@@ -270,3 +336,36 @@ class ChatStreamView(APIView):
         response["Cache-Control"] = "no-cache"
         response["X-Accel-Buffering"] = "no"
         return response
+
+
+class MessageFeedbackView(APIView):
+    """
+    PATCH /api/ai_assistant/messages/{id}/feedback/
+    Сохраняет оценку сообщения пользователем (👍/👎).
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [JSONParser]
+
+    def patch(self, request, message_id):
+        feedback = request.data.get("feedback")
+        if feedback not in (1, -1):
+            return Response(
+                {"success": False, "error": "feedback должен быть 1 (хорошо) или -1 (плохо)"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            msg = ChatMessage.objects.get(
+                id=message_id,
+                session__user=request.user,
+                message_type=ChatMessage.MESSAGE_TYPE_ASSISTANT,
+            )
+            msg.feedback = feedback
+            msg.save(update_fields=["feedback"])
+            return Response({"success": True, "message_id": str(msg.id), "feedback": feedback})
+        except ChatMessage.DoesNotExist:
+            return Response(
+                {"success": False, "error": "Сообщение не найдено"},
+                status=status.HTTP_404_NOT_FOUND,
+            )

@@ -323,6 +323,8 @@ class RAGClient {
                     skill_name: event.skill_name,
                     skill_call: event.skill_call,
                     chart_config: event.chart_config,
+                    sources: event.sources || [],
+                    suggestions: event.suggestions || [],
                   })
                 }
               } else if (event.type === 'error' && onError) {

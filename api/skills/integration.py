@@ -1,5 +1,6 @@
 """
 Интеграция навыков с LLM через function calling.
+Поддерживает Ollama native tools API и текстовый [EXECUTE] формат как fallback.
 """
 from __future__ import annotations
 
@@ -11,6 +12,98 @@ from .manager import get_skills_manager
 from .base import SkillResult
 
 logger = logging.getLogger(__name__)
+
+
+def build_tools_schema(available_skills: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """
+    Строит список инструментов в формате Ollama/OpenAI tools API.
+
+    Returns:
+        Список объектов tool schema для передачи в поле `tools` запроса к Ollama.
+    """
+    tools = []
+    for skill in available_skills:
+        tool = {
+            "type": "function",
+            "function": {
+                "name": skill.get("name", ""),
+                "description": skill.get("description", ""),
+                "parameters": skill.get("parameters", {"type": "object", "properties": {}}),
+            }
+        }
+        tools.append(tool)
+    return tools
+
+
+def execute_skill_with_native_tools(
+    llm_client: Any,
+    messages: List[Dict[str, str]],
+    available_skills: List[Dict[str, Any]],
+    original_query: str,
+    context: Optional[Dict[str, Any]] = None,
+    temperature: float = 0.2,
+) -> tuple:
+    """
+    Вызывает LLM с Ollama native tools API.
+    При ошибке или отсутствии поддержки — возвращает None (caller должен использовать текстовый fallback).
+
+    Returns:
+        (answer, skill_result, skill_display_name, skill_call) или None при ошибке/нет инструментов.
+    """
+    if not available_skills:
+        return None
+
+    tools = build_tools_schema(available_skills)
+    manager = get_skills_manager()
+
+    try:
+        # Ollama native tools call через поле `tools` в payload
+        response = llm_client.chat(
+            messages,
+            temperature=temperature,
+            tools=tools,
+        )
+
+        # Если ответ содержит tool_calls — выполняем инструменты
+        if isinstance(response, dict) and response.get("tool_calls"):
+            tool_calls = response["tool_calls"]
+            answer_text = response.get("content", "")
+            skill_result = None
+            skill_display_name = None
+            skill_call_data = None
+
+            for tc in tool_calls:
+                func = tc.get("function", {})
+                tool_name = func.get("name", "")
+                arguments = func.get("arguments", {})
+                if isinstance(arguments, str):
+                    try:
+                        arguments = json.loads(arguments)
+                    except (json.JSONDecodeError, ValueError):
+                        arguments = {}
+
+                skill = manager.get_skill(tool_name)
+                if skill:
+                    skill_display_name = skill.display_name
+                skill_result = manager.execute_skill(tool_name, original_query, arguments, context)
+                skill_call_data = {"tool": tool_name, "parameters": arguments}
+                break  # выполняем первый tool call
+
+            if skill_result and skill_result.success:
+                final_answer = f"{skill_result.result}\n\n{answer_text}".strip()
+            elif skill_result and not skill_result.success:
+                final_answer = f"{answer_text}\n\n⚠️ Ошибка навыка: {skill_result.error}".strip()
+            else:
+                final_answer = answer_text
+
+            return final_answer, skill_result, skill_display_name, skill_call_data
+
+        # Если ответ — строка (обычный текст), вернём None для текстового fallback
+        return None
+
+    except Exception as e:
+        logger.debug(f"Ollama native tools API недоступен, используем текстовый fallback: {e}")
+        return None
 
 
 def build_skills_prompt(available_skills: List[Dict[str, Any]]) -> str:
