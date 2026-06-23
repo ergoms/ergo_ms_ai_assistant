@@ -30,7 +30,7 @@ from .rag import (
     DocumentParserService,
     DocumentParseError,
 )
-from src.config.settings.ai_assistant import (
+from .settings import (
     OLLAMA_BASE_URL,
     OLLAMA_EMBEDDINGS_MODEL,
     RAG_CHUNK_SIZE,
