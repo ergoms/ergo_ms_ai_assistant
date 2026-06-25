@@ -202,7 +202,6 @@ import {
 import { apiClient } from '@/js/api/manager'
 import { sanitizeHtml } from '@/js/utils/sanitize'
 import ApexCharts from 'vue3-apexcharts'
-import { logError, logWarn } from '@/js/utils/logError.js'
 
 const props = defineProps({
   message: {

@@ -71,7 +71,6 @@
 <script setup>
 import { Sparkles, User, Terminal, Loader2, AlertCircle } from 'lucide-vue-next'
 import { sanitizeHtml } from '@/js/utils/sanitize'
-import { logError } from '@/js/utils/logError.js'
 
 defineProps({
   message: {

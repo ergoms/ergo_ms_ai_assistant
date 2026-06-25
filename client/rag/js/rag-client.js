@@ -1,5 +1,4 @@
 import { apiClient } from '@/js/api/manager'
-import { logError, logWarn } from '@/js/utils/logError.js'
 
 /**
  * API Endpoints для RAG модуля AI Assistant

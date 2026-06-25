@@ -174,7 +174,6 @@ import DocumentUploader from './DocumentUploader.vue'
 import { docsClient } from './js/docs-client.js'
 import { ragClient } from '../rag/js/rag-client.js'
 import { getModuleById } from '../modules/index.js'
-import { logError } from '@/js/utils/logError.js'
 
 const props = defineProps({
   isVisible: {

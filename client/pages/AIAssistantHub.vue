@@ -502,7 +502,6 @@ import DocsAssistantChat from '../docs/DocsAssistantChat.vue'
 import { ragClient } from '../rag/js/rag-client.js'
 import { biClient } from '../bi/js/bi-client.js'
 import { useToast } from 'vue-toastification'
-import { logError } from '@/js/utils/logError.js'
 
 // Theme - используем общую систему тем приложения
 const getSystemTheme = () => {

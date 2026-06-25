@@ -68,7 +68,6 @@ import { Send, Sparkles, ExternalLink } from 'lucide-vue-next'
 import AssistantMessage from '../base/AssistantMessage.vue'
 import AssistantTyping from '../base/AssistantTyping.vue'
 import { ragClient } from './js/rag-client.js'
-import { logError } from '@/js/utils/logError.js'
 
 const props = defineProps({
   isVisible: {

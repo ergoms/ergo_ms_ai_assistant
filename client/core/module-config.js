@@ -1,4 +1,3 @@
-import { logWarn } from '@/js/utils/logError.js'
 /**
  * ДИНАМИЧЕСКАЯ КОНФИГУРАЦИЯ МОДУЛЕЙ AI-АССИСТЕНТА
  * 
