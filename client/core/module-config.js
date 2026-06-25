@@ -1,3 +1,4 @@
+import { logWarn } from '@/js/utils/logError.js'
 /**
  * ДИНАМИЧЕСКАЯ КОНФИГУРАЦИЯ МОДУЛЕЙ AI-АССИСТЕНТА
  * 
@@ -39,7 +40,7 @@ function parseRoutePatterns(patterns) {
       
       // Если не строка, пропускаем
       if (typeof pattern !== 'string') {
-        console.warn('AI Assistant: Invalid route pattern type:', typeof pattern, pattern)
+        logWarn(`AI Assistant: Invalid route pattern type: ${typeof pattern}`)
         return null
       }
       
@@ -48,7 +49,7 @@ function parseRoutePatterns(patterns) {
         const patternStr = pattern.startsWith('^') ? pattern : `^${pattern}`
         return new RegExp(patternStr)
       } catch (error) {
-        console.warn('AI Assistant: Failed to parse route pattern:', pattern, error)
+        logWarn(`AI Assistant: Failed to parse route pattern: ${pattern}`, error)
         return null
       }
     })
@@ -137,7 +138,7 @@ export function getActiveModule(routePath) {
     for (const pattern of config.routePatterns) {
       // Проверяем, что pattern является RegExp
       if (!(pattern instanceof RegExp)) {
-        console.warn(`AI Assistant: Invalid route pattern in module ${config.name}:`, pattern)
+        console.warn(`AI Assistant: Invalid route pattern in module ${config.name}: ${String(pattern)}`)
         continue
       }
       

@@ -502,6 +502,7 @@ import DocsAssistantChat from '../docs/DocsAssistantChat.vue'
 import { ragClient } from '../rag/js/rag-client.js'
 import { biClient } from '../bi/js/bi-client.js'
 import { useToast } from 'vue-toastification'
+import { logError } from '@/js/utils/logError.js'
 
 // Theme - используем общую систему тем приложения
 const getSystemTheme = () => {
@@ -703,7 +704,7 @@ const deleteChatSession = async (sessionId) => {
       toast.error(result.error || 'Не удалось удалить чат')
     }
   } catch (error) {
-    console.error('Ошибка удаления чата:', error)
+    logError('Ошибка удаления чата:', error)
     toast.error('Ошибка удаления чата')
   }
 }
@@ -838,7 +839,7 @@ const handleChatTypeSelect = async (moduleId) => {
       toast.error(result.error || 'Не удалось создать чат')
     }
   } catch (error) {
-    console.error('Ошибка создания чата:', error)
+    logError('Ошибка создания чата:', error)
     toast.error('Ошибка создания чата')
   }
 }
@@ -1055,7 +1056,7 @@ const loadConnections = async () => {
     const result = await biClient.getConnections()
     if (result.success) connections.value = result.connections
   } catch (e) {
-    console.error('Ошибка загрузки подключений:', e)
+    logError('Ошибка загрузки подключений:', e)
   }
 }
 
@@ -1068,7 +1069,7 @@ const loadFiles = async () => {
     const result = await biClient.getConnectionFiles(selectedConnection.value.id)
     if (result.success) files.value = result.files
   } catch (e) {
-    console.error('Ошибка загрузки файлов:', e)
+    logError('Ошибка загрузки файлов:', e)
     files.value = []
   }
 }

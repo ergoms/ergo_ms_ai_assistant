@@ -202,6 +202,7 @@ import {
 import { apiClient } from '@/js/api/manager'
 import { sanitizeHtml } from '@/js/utils/sanitize'
 import ApexCharts from 'vue3-apexcharts'
+import { logError, logWarn } from '@/js/utils/logError.js'
 
 const props = defineProps({
   message: {
@@ -448,7 +449,7 @@ const parseMarkdownTable = (markdownTable) => {
     
     return html
   } catch (error) {
-    console.error('Ошибка парсинга таблицы:', error)
+    logError('Ошибка парсинга таблицы:', error)
     return markdownTable
   }
 }
@@ -481,7 +482,7 @@ const copySql = async () => {
     sqlCopied.value = true
     setTimeout(() => { sqlCopied.value = false }, 2000)
   } catch (err) {
-    console.error('Не удалось скопировать:', err)
+    logError('Не удалось скопировать:', err)
   }
 }
 
@@ -525,10 +526,10 @@ const handleDownloadClick = async (event) => {
       document.body.removeChild(a)
       URL.revokeObjectURL(blobUrl)
     } else {
-      console.error('Ошибка скачивания файла:', response.message)
+      logError('Ошибка скачивания файла:', response.message)
     }
   } catch (error) {
-    console.error('Ошибка при скачивании документа:', error)
+    logError('Ошибка при скачивании документа:', error)
   }
 }
 
@@ -641,13 +642,13 @@ const downloadChart = async () => {
         link.click()
         document.body.removeChild(link)
       } else {
-        console.warn('Не удалось получить изображение графика через ApexCharts API')
+        logWarn('Не удалось получить изображение графика через ApexCharts API')
       }
     } else {
       console.warn('ApexCharts API недоступен')
     }
   } catch (error) {
-    console.error('Ошибка при скачивании графика:', error)
+    logError('Ошибка при скачивании графика:', error)
   }
 }
 </script>

@@ -1,4 +1,5 @@
 import { apiClient } from '@/js/api/manager'
+import { logError, logWarn } from '@/js/utils/logError.js'
 
 /**
  * API Endpoints для RAG модуля AI Assistant
@@ -59,7 +60,7 @@ class RAGClient {
         message: response.data?.message || response.data?.error || 'Ошибка проверки статуса' 
       }
     } catch (error) {
-      console.error('Ошибка проверки Ollama:', error)
+      logError('Ошибка проверки Ollama:', error)
       this.ollamaAvailable = false
       
       // Извлекаем сообщение об ошибке из разных возможных мест
@@ -162,7 +163,7 @@ class RAGClient {
         error: response.data?.error || response.data?.message || 'Ошибка обработки запроса',
       }
     } catch (error) {
-      console.error('Ошибка отправки сообщения:', error)
+      logError('Ошибка отправки сообщения:', error)
       
       // Извлекаем сообщение об ошибке из разных возможных мест
       const errorMessage = 
@@ -330,7 +331,7 @@ class RAGClient {
                 onError(event.message)
               }
             } catch (parseError) {
-              console.warn('Ошибка парсинга SSE события:', parseError, jsonStr)
+              logWarn('Ошибка парсинга SSE события:', parseError, jsonStr)
             }
           }
         }
@@ -341,7 +342,7 @@ class RAGClient {
         onDone(accumulatedContent)
       }
     } catch (error) {
-      console.error('Ошибка streaming сообщения:', error)
+      logError('Ошибка streaming сообщения:', error)
       if (onError) {
         onError(error.message || 'Не удалось отправить сообщение')
       }
@@ -371,7 +372,7 @@ class RAGClient {
         error: response.data?.error || 'Ошибка получения списка чатов',
       }
     } catch (error) {
-      console.error('Ошибка получения списка чатов:', error)
+      logError('Ошибка получения списка чатов:', error)
       return {
         success: false,
         error: error.message || 'Не удалось получить список чатов',
@@ -401,7 +402,7 @@ class RAGClient {
         error: response.data?.error || 'Ошибка получения чата',
       }
     } catch (error) {
-      console.error('Ошибка получения чата:', error)
+      logError('Ошибка получения чата:', error)
       return {
         success: false,
         error: error.message || 'Не удалось получить чат',
@@ -434,7 +435,7 @@ class RAGClient {
         error: response.data?.error || 'Ошибка создания чата',
       }
     } catch (error) {
-      console.error('Ошибка создания чата:', error)
+      logError('Ошибка создания чата:', error)
       return {
         success: false,
         error: error.message || 'Не удалось создать чат',
@@ -463,7 +464,7 @@ class RAGClient {
         error: response.data?.error || 'Ошибка удаления чата',
       }
     } catch (error) {
-      console.error('Ошибка удаления чата:', error)
+      logError('Ошибка удаления чата:', error)
       return {
         success: false,
         error: error.message || 'Не удалось удалить чат',

@@ -1,4 +1,5 @@
 import { apiClient } from '@/js/api/manager'
+import { logError, logWarn } from '@/js/utils/logError.js'
 
 /**
  * API Endpoints для BI модуля AI Assistant
@@ -55,7 +56,7 @@ class BIClient {
         message: response.data?.message || response.data?.error || 'Ошибка проверки статуса' 
       }
     } catch (error) {
-      console.error('Ошибка проверки Ollama:', error)
+      logError('Ошибка проверки Ollama:', error)
       this.ollamaAvailable = false
       
       // Извлекаем сообщение об ошибке из разных возможных мест
@@ -86,7 +87,7 @@ class BIClient {
       
       return { success: false, files: [], error: 'Не удалось загрузить файлы' }
     } catch (error) {
-      console.error('Ошибка загрузки файлов:', error)
+      logError('Ошибка загрузки файлов:', error)
       return { success: false, files: [], error: error.message }
     }
   }
@@ -104,7 +105,7 @@ class BIClient {
       
       return { success: false, connections: [], error: 'Не удалось загрузить подключения' }
     } catch (error) {
-      console.error('Ошибка загрузки подключений:', error)
+      logError('Ошибка загрузки подключений:', error)
       return { success: false, connections: [], error: error.message }
     }
   }
@@ -122,7 +123,7 @@ class BIClient {
       
       return { success: false, files: [], error: 'Не удалось загрузить файлы подключения' }
     } catch (error) {
-      console.error('Ошибка загрузки файлов подключения:', error)
+      logError('Ошибка загрузки файлов подключения:', error)
       return { success: false, files: [], error: error.message }
     }
   }
@@ -299,7 +300,7 @@ class BIClient {
                 onEvent(data)
               }
             } catch (e) {
-              console.warn('Не удалось распарсить SSE данные:', e)
+              logWarn('Не удалось распарсить SSE данные:', e)
             }
           }
         }

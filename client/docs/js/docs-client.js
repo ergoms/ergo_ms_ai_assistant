@@ -1,4 +1,5 @@
 import { apiClient } from '@/js/api/manager'
+import { logError, logWarn } from '@/js/utils/logError.js'
 
 /**
  * API Endpoints для Docs модуля AI Assistant
@@ -64,7 +65,7 @@ class DocsClient {
         embeddingsMessage: embeddingsStatus.data?.message,
       }
     } catch (error) {
-      console.error('Ошибка проверки статуса:', error)
+      logError('Ошибка проверки статуса:', error)
       this.ollamaAvailable = false
       this.embeddingsAvailable = false
       
@@ -97,7 +98,7 @@ class DocsClient {
         error: response.data?.error || 'Не удалось загрузить документы'
       }
     } catch (error) {
-      console.error('Ошибка загрузки документов:', error)
+      logError('Ошибка загрузки документов:', error)
       return {
         success: false,
         documents: [],
@@ -125,7 +126,7 @@ class DocsClient {
         error: response.data?.error || 'Документ не найден'
       }
     } catch (error) {
-      console.error('Ошибка получения документа:', error)
+      logError('Ошибка получения документа:', error)
       return {
         success: false,
         error: error.message || 'Не удалось получить документ'
@@ -159,7 +160,7 @@ class DocsClient {
         error: response.data?.error || 'Не удалось создать документ'
       }
     } catch (error) {
-      console.error('Ошибка создания документа:', error)
+      logError('Ошибка создания документа:', error)
       return {
         success: false,
         error: error.response?.data?.error || error.message || 'Не удалось создать документ'
@@ -200,7 +201,7 @@ class DocsClient {
         error: response.data?.error || 'Не удалось загрузить документ'
       }
     } catch (error) {
-      console.error('Ошибка загрузки документа:', error)
+      logError('Ошибка загрузки документа:', error)
       return {
         success: false,
         error: error.response?.data?.error || error.message || 'Не удалось загрузить документ'
@@ -227,7 +228,7 @@ class DocsClient {
         error: response.data?.error || 'Не удалось обновить документ'
       }
     } catch (error) {
-      console.error('Ошибка обновления документа:', error)
+      logError('Ошибка обновления документа:', error)
       return {
         success: false,
         error: error.response?.data?.error || error.message || 'Не удалось обновить документ'
@@ -254,7 +255,7 @@ class DocsClient {
         error: response.data?.error || 'Не удалось удалить документ'
       }
     } catch (error) {
-      console.error('Ошибка удаления документа:', error)
+      logError('Ошибка удаления документа:', error)
       return {
         success: false,
         error: error.message || 'Не удалось удалить документ'
@@ -284,7 +285,7 @@ class DocsClient {
         error: response.data?.error || 'Не удалось проиндексировать документ'
       }
     } catch (error) {
-      console.error('Ошибка индексации документа:', error)
+      logError('Ошибка индексации документа:', error)
       return {
         success: false,
         error: error.response?.data?.error || error.message || 'Не удалось проиндексировать документ'
@@ -312,7 +313,7 @@ class DocsClient {
         error: response.data?.error || 'Не удалось деиндексировать документ'
       }
     } catch (error) {
-      console.error('Ошибка деиндексации документа:', error)
+      logError('Ошибка деиндексации документа:', error)
       return {
         success: false,
         error: error.message || 'Не удалось деиндексировать документ'
@@ -413,7 +414,7 @@ class DocsClient {
                 onError(event.message)
               }
             } catch (parseError) {
-              console.warn('Ошибка парсинга SSE события:', parseError, jsonStr)
+              logWarn('Ошибка парсинга SSE события:', parseError, jsonStr)
             }
           }
         }
@@ -423,7 +424,7 @@ class DocsClient {
         onDone(accumulatedContent)
       }
     } catch (error) {
-      console.error('Ошибка streaming сообщения:', error)
+      logError('Ошибка streaming сообщения:', error)
       if (onError) {
         onError(error.message || 'Не удалось отправить сообщение')
       }

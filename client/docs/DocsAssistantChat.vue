@@ -174,6 +174,7 @@ import DocumentUploader from './DocumentUploader.vue'
 import { docsClient } from './js/docs-client.js'
 import { ragClient } from '../rag/js/rag-client.js'
 import { getModuleById } from '../modules/index.js'
+import { logError } from '@/js/utils/logError.js'
 
 const props = defineProps({
   isVisible: {
@@ -496,7 +497,7 @@ const sendMessage = async () => {
       selectedDocument.value?.id || null
     )
   } catch (error) {
-    console.error('Ошибка отправки сообщения:', error)
+    logError('Ошибка отправки сообщения:', error)
     const msg = messages.value.find(m => m.id === streamingMessageId)
     if (msg) {
       msg.content = `**Ошибка:** ${error.message || 'Не удалось отправить сообщение'}`
@@ -602,7 +603,7 @@ const loadChatHistory = async () => {
       }
     }
   } catch (error) {
-    console.error('Ошибка загрузки истории чата:', error)
+    logError('Ошибка загрузки истории чата:', error)
   }
 }
 

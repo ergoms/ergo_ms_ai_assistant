@@ -71,6 +71,7 @@
 <script setup>
 import { Sparkles, User, Terminal, Loader2, AlertCircle } from 'lucide-vue-next'
 import { sanitizeHtml } from '@/js/utils/sanitize'
+import { logError } from '@/js/utils/logError.js'
 
 defineProps({
   message: {
@@ -221,7 +222,7 @@ const parseMarkdownTable = (markdownTable) => {
     
     return html
   } catch (error) {
-    console.error('[parseMarkdownTable] Ошибка парсинга таблицы:', error)
+    logError('[parseMarkdownTable] Ошибка парсинга таблицы:', error)
     return markdownTable
   }
 }

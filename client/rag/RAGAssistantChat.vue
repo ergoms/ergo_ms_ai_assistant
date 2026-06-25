@@ -68,6 +68,7 @@ import { Send, Sparkles, ExternalLink } from 'lucide-vue-next'
 import AssistantMessage from '../base/AssistantMessage.vue'
 import AssistantTyping from '../base/AssistantTyping.vue'
 import { ragClient } from './js/rag-client.js'
+import { logError } from '@/js/utils/logError.js'
 
 const props = defineProps({
   isVisible: {
@@ -222,7 +223,7 @@ const sendMessage = async () => {
       'chat' // module
     )
   } catch (error) {
-    console.error('Ошибка отправки сообщения:', error)
+    logError('Ошибка отправки сообщения:', error)
     
     const errorMessage = 
       error.response?.data?.error ||
@@ -295,7 +296,7 @@ const checkOllamaConnection = async () => {
       )
     }
   } catch (error) {
-    console.error('Ошибка проверки Ollama:', error)
+    logError('Ошибка проверки Ollama:', error)
     addAssistantMessage(
       `**Ошибка проверки подключения к Ollama:**\n\n${error.message}\n\n` +
       `Пожалуйста, убедитесь, что Ollama запущен и доступен.`
