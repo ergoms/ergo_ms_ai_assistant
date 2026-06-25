@@ -200,6 +200,7 @@ import {
   Grid3x3, AlertTriangle, Database, ChevronLeft, ChevronRight, Sparkles, Download
 } from 'lucide-vue-next'
 import { apiClient } from '@/js/api/manager'
+import { sanitizeHtml } from '@/js/utils/sanitize'
 import ApexCharts from 'vue3-apexcharts'
 
 const props = defineProps({
@@ -368,7 +369,7 @@ const formattedContent = computed(() => {
   // Заменяем переносы строк на <br> в последнюю очередь
   content = content.replace(/\n/g, '<br>')
   
-  return content
+  return sanitizeHtml(content)
 })
 
 const parseMarkdownTable = (markdownTable) => {

@@ -70,6 +70,7 @@
 
 <script setup>
 import { Sparkles, User, Terminal, Loader2, AlertCircle } from 'lucide-vue-next'
+import { sanitizeHtml } from '@/js/utils/sanitize'
 
 defineProps({
   message: {
@@ -452,7 +453,7 @@ const formatMarkdown = (text) => {
   console.log('[AssistantMessage] Результат (длина:', content.length, '):', content.substring(0, 500))
   console.log('[AssistantMessage] Итого: think блоков:', thinkBlocks.length, ', таблиц:', tables.length)
   
-  return content
+  return sanitizeHtml(content)
 }
 
 const formatTime = (timestamp) => {
