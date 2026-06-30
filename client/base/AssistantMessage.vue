@@ -88,7 +88,6 @@ const escapeHtml = (text) => {
 
 const parseMarkdownTable = (markdownTable) => {
   try {
-    console.log('[parseMarkdownTable] Входные данные:', markdownTable.substring(0, 300))
     
     // Убираем пустые строки и нормализуем
     const lines = markdownTable
@@ -96,10 +95,8 @@ const parseMarkdownTable = (markdownTable) => {
       .map(line => line.trim())
       .filter(line => line) // Убираем пустые строки
     
-    console.log('[parseMarkdownTable] Обработанные строки:', lines.length)
     
     if (lines.length < 2) {
-      console.log('[parseMarkdownTable] Недостаточно строк для таблицы')
       return markdownTable // Не таблица
     }
     
@@ -116,21 +113,18 @@ const parseMarkdownTable = (markdownTable) => {
         const allCellsAreSeparators = cells.length > 0 && cells.every(cell => /^[\s\-:]+$/.test(cell))
         if (allCellsAreSeparators) {
           separatorIndex = i
-          console.log('[parseMarkdownTable] Найден разделитель на строке:', i)
           break
         }
       }
     }
     
     if (separatorIndex === -1 || separatorIndex === 0) {
-      console.log('[parseMarkdownTable] Разделитель не найден или он первый')
       return markdownTable // Нет разделителя или он первый
     }
     
     // Первая строка до разделителя - заголовки
     const headerLine = lines[0]
     if (!headerLine.startsWith('|') || !headerLine.endsWith('|')) {
-      console.log('[parseMarkdownTable] Первая строка не является заголовком')
       return markdownTable // Не таблица
     }
     
@@ -142,10 +136,8 @@ const parseMarkdownTable = (markdownTable) => {
         return index > 0 && index < arr.length - 1
       })
     
-    console.log('[parseMarkdownTable] Заголовки:', headers)
     
     if (headers.length === 0) {
-      console.log('[parseMarkdownTable] Нет заголовков')
       return markdownTable // Нет заголовков
     }
     
@@ -157,7 +149,6 @@ const parseMarkdownTable = (markdownTable) => {
     
     // Количество колонок должно совпадать
     if (separatorCells.length !== headers.length) {
-      console.log('[parseMarkdownTable] Несоответствие количества колонок:', separatorCells.length, 'vs', headers.length)
       return markdownTable // Несоответствие количества колонок
     }
     
@@ -179,17 +170,14 @@ const parseMarkdownTable = (markdownTable) => {
         if (row.length === 0) return false
         // Проверяем, что количество ячеек соответствует заголовкам
         if (row.length !== headers.length) {
-          console.log('[parseMarkdownTable] Строка с несоответствующим количеством ячеек:', row.length, 'vs', headers.length)
           return false
         }
         // Убираем строки, где все ячейки пустые
         return row.some(cell => cell.length > 0)
       })
     
-    console.log('[parseMarkdownTable] Найдено строк данных:', rows.length)
     
     if (rows.length === 0) {
-      console.log('[parseMarkdownTable] Нет данных')
       return markdownTable // Нет данных
     }
     
@@ -217,7 +205,6 @@ const parseMarkdownTable = (markdownTable) => {
     
     html += '</table></div>'
     
-    console.log('[parseMarkdownTable] Сгенерирован HTML таблицы (длина:', html.length, ')')
     
     return html
   } catch (error) {
@@ -229,17 +216,11 @@ const parseMarkdownTable = (markdownTable) => {
 const formatMarkdown = (text) => {
   if (!text) return ''
   
-  console.log('[AssistantMessage] ========== formatMarkdown START ==========')
-  console.log('[AssistantMessage] Входной текст (полная длина:', text.length, '):')
-  console.log(text)
-  console.log('[AssistantMessage] Первые 1000 символов:', text.substring(0, 1000))
   
   // Проверяем наличие таблиц в исходном тексте
   const tablePattern = /\|.*\|/g
   const tableMatches = text.match(tablePattern)
-  console.log('[AssistantMessage] Найдено строк с | в исходном тексте:', tableMatches ? tableMatches.length : 0)
   if (tableMatches) {
-    console.log('[AssistantMessage] Примеры строк с |:', tableMatches.slice(0, 5))
   }
   
   // Сначала обрабатываем блоки <think> для thinking (ДО обработки таблиц, чтобы не конфликтовало)
@@ -256,7 +237,6 @@ const formatMarkdown = (text) => {
   while ((thinkMatch = thinkRegex.exec(text)) !== null) {
     const thinkContent = thinkMatch[1]
     const fullMatch = thinkMatch[0]
-    console.log('[AssistantMessage] Найден think блок (длина контента:', thinkContent.length, ', полный блок:', fullMatch.length, '):', thinkContent.substring(0, 200))
     const thinkId = `think-block-${thinkIndex++}`
     // Экранируем HTML и сохраняем контент
     const escapedContent = escapeHtml(thinkContent.trim())
@@ -265,8 +245,6 @@ const formatMarkdown = (text) => {
     content = content.replace(fullMatch, `\n__THINK_PLACEHOLDER_${thinkId}__\n`)
   }
   
-  console.log('[AssistantMessage] Всего найдено think блоков:', thinkBlocks.length)
-  console.log('[AssistantMessage] Контент после обработки think блоков (первые 500 символов):', content.substring(0, 500))
   
   // Затем обрабатываем таблицы
   // Более надежный подход: ищем таблицы построчно, собирая блоки
@@ -278,10 +256,7 @@ const formatMarkdown = (text) => {
   const processedLines = []
   let i = 0
   
-  console.log('[AssistantMessage] Начинаем поиск таблиц, всего строк:', lines.length)
-  console.log('[AssistantMessage] Первые 20 строк для анализа:')
   lines.slice(0, 20).forEach((line, idx) => {
-    console.log(`[AssistantMessage] Строка ${idx}:`, JSON.stringify(line))
   })
   
   while (i < lines.length) {
@@ -290,9 +265,6 @@ const formatMarkdown = (text) => {
     
     // Проверяем, является ли строка частью таблицы (начинается и заканчивается на |)
     if (trimmedLine.startsWith('|') && trimmedLine.endsWith('|')) {
-      console.log('[AssistantMessage] ✓ Найдена потенциальная строка таблицы на строке', i)
-      console.log('[AssistantMessage] Строка:', JSON.stringify(trimmedLine))
-      console.log('[AssistantMessage] Первые 150 символов:', trimmedLine.substring(0, 150))
       
       // Начинаем собирать таблицу
       let tableStart = i
@@ -325,10 +297,7 @@ const formatMarkdown = (text) => {
         break
       }
       
-      console.log('[AssistantMessage] Собрано строк таблицы:', tableLines.length)
-      console.log('[AssistantMessage] Собранные строки таблицы:')
       tableLines.forEach((tl, idx) => {
-        console.log(`[AssistantMessage]   [${idx}]:`, JSON.stringify(tl))
       })
       
       // Проверяем, что это действительно таблица (есть разделитель)
@@ -339,31 +308,24 @@ const formatMarkdown = (text) => {
         if (tableLine.startsWith('|') && tableLine.endsWith('|')) {
           // Разделяем строку на ячейки по |
           const cells = tableLine.split('|').map(cell => cell.trim()).filter(cell => cell)
-          console.log(`[AssistantMessage] Проверка строки ${j} на разделитель:`, JSON.stringify(tableLine))
-          console.log(`[AssistantMessage] Ячейки:`, cells)
           
           // Проверяем, что все ячейки содержат только дефисы, пробелы и двоеточия
           const allCellsAreSeparators = cells.length > 0 && cells.every(cell => /^[\s\-:]+$/.test(cell))
-          console.log(`[AssistantMessage] Все ячейки являются разделителями:`, allCellsAreSeparators)
           
           if (allCellsAreSeparators) {
             hasSeparator = true
             separatorIndex = j
-            console.log('[AssistantMessage] ✓ Найден разделитель на позиции', j, 'в собранной таблице')
             break
           }
         }
       }
       
-      console.log('[AssistantMessage] Результат проверки разделителя:', { hasSeparator, separatorIndex, tableLinesLength: tableLines.length })
       
       // Если это таблица, парсим её
       if (hasSeparator && tableLines.length >= 2 && separatorIndex > 0) {
         const tableText = tableLines.join('\n')
         const tableId = `markdown-table-${tableIndex++}`
-        console.log('[AssistantMessage] Найдена таблица (ID:', tableId, '):', tableText.substring(0, 300))
         const htmlTable = parseMarkdownTable(tableText)
-        console.log('[AssistantMessage] Результат парсинга таблицы (ID:', tableId, ', длина HTML:', htmlTable.length, '):', htmlTable.substring(0, 300))
         
         // Если парсинг успешен (вернул HTML, а не исходный текст)
         if (htmlTable !== tableText && htmlTable.includes('<table')) {
@@ -376,7 +338,6 @@ const formatMarkdown = (text) => {
           console.warn('[AssistantMessage] Не удалось распарсить таблицу (ID:', tableId, '), возвращаем исходный текст')
         }
       } else {
-        console.log('[AssistantMessage] Собранные строки не являются таблицей (hasSeparator:', hasSeparator, ', length:', tableLines.length, ', separatorIndex:', separatorIndex, ')')
       }
       
       // Если не удалось распарсить как таблицу, добавляем строки как есть
@@ -393,19 +354,12 @@ const formatMarkdown = (text) => {
   
   // Собираем контент обратно
   content = processedLines.join('\n')
-  console.log('[AssistantMessage] ========== РЕЗУЛЬТАТ ПОИСКА ТАБЛИЦ ==========')
-  console.log('[AssistantMessage] Найдено таблиц:', tables.length)
   if (tables.length > 0) {
     tables.forEach((table, idx) => {
-      console.log(`[AssistantMessage] Таблица ${idx + 1} (ID: ${table.id}):`, table.html.substring(0, 200))
     })
   } else {
-    console.log('[AssistantMessage] ⚠️ ТАБЛИЦЫ НЕ НАЙДЕНЫ!')
-    console.log('[AssistantMessage] Проверяем, есть ли строки с | в processedLines:')
     const linesWithPipe = processedLines.filter(l => l.includes('|'))
-    console.log('[AssistantMessage] Строк с | в processedLines:', linesWithPipe.length)
     if (linesWithPipe.length > 0) {
-      console.log('[AssistantMessage] Примеры строк с |:', linesWithPipe.slice(0, 5))
     }
   }
   
@@ -421,7 +375,6 @@ const formatMarkdown = (text) => {
     const replacement = `<div class="think-block"><div class="think-block__header">💭 Размышления:</div><div class="think-block__content">${think.content}</div></div>`
     if (content.includes(placeholder)) {
       content = content.replace(placeholder, replacement)
-      console.log('[AssistantMessage] Заменен think плейсхолдер:', think.id)
     } else {
       console.warn('[AssistantMessage] Плейсхолдер think не найден в контенте:', placeholder)
     }
@@ -434,7 +387,6 @@ const formatMarkdown = (text) => {
     const regex = new RegExp(placeholder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')
     if (content.includes(placeholder)) {
       content = content.replace(regex, table.html)
-      console.log('[AssistantMessage] Заменен плейсхолдер таблицы:', table.id)
     } else {
       console.warn('[AssistantMessage] Плейсхолдер таблицы не найден в контенте:', placeholder)
     }
@@ -449,9 +401,6 @@ const formatMarkdown = (text) => {
   // Заменяем переносы строк на <br> в последнюю очередь
   content = content.replace(/\n/g, '<br>')
   
-  console.log('[AssistantMessage] ========== formatMarkdown END ==========')
-  console.log('[AssistantMessage] Результат (длина:', content.length, '):', content.substring(0, 500))
-  console.log('[AssistantMessage] Итого: think блоков:', thinkBlocks.length, ', таблиц:', tables.length)
   
   return sanitizeHtml(content)
 }
