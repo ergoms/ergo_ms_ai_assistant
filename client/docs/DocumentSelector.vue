@@ -106,7 +106,8 @@ import { ref, onMounted } from 'vue'
 import { RefreshCw, Upload, FileText, File, Check, Database, Trash2 } from 'lucide-vue-next'
 import { docsClient } from './js/docs-client.js'
 import DocumentUploader from './DocumentUploader.vue'
-import { useToast } from 'vue-toastification'
+import { useToast } from '@/js/utils/toast.js'
+import { confirmDelete } from '@/js/utils/confirm.js'
 
 const toast = useToast()
 
@@ -190,7 +191,8 @@ const toggleIndex = async (document) => {
 }
 
 const deleteDocument = async (document) => {
-  if (!confirm(`Удалить документ "${document.title}"?`)) {
+  const ok = await confirmDelete('Удаление', `Удалить документ "${document.title}"?`)
+  if (!ok) {
     return
   }
 

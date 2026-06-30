@@ -501,52 +501,11 @@ import ChatTypeSelector from '../components/ChatTypeSelector.vue'
 import DocsAssistantChat from '../docs/DocsAssistantChat.vue'
 import { ragClient } from '../rag/js/rag-client.js'
 import { biClient } from '../bi/js/bi-client.js'
-import { useToast } from 'vue-toastification'
+import { useToast } from '@/js/utils/toast.js'
 
-// Theme - используем общую систему тем приложения
-const getSystemTheme = () => {
-  const theme = localStorage.getItem('theme') || 'auto'
-  if (theme === 'auto') {
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
-  }
-  return theme
-}
+import { useThemeMode } from '@/composables/useThemeMode.js'
 
-const isLightTheme = ref(getSystemTheme() === 'light')
-
-// Слушаем изменения темы
-const updateTheme = () => {
-  isLightTheme.value = getSystemTheme() === 'light'
-}
-
-// Наблюдатель за изменениями data-bs-theme
-let themeObserver = null
-
-onMounted(() => {
-  // Наблюдаем за изменениями атрибута data-bs-theme на html элементе
-  themeObserver = new MutationObserver((mutations) => {
-    mutations.forEach((mutation) => {
-      if (mutation.attributeName === 'data-bs-theme') {
-        updateTheme()
-      }
-    })
-  })
-  
-  themeObserver.observe(document.documentElement, {
-    attributes: true,
-    attributeFilter: ['data-bs-theme']
-  })
-  
-  // Слушаем изменения системной темы
-  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', updateTheme)
-})
-
-onUnmounted(() => {
-  if (themeObserver) {
-    themeObserver.disconnect()
-  }
-  window.matchMedia('(prefers-color-scheme: dark)').removeEventListener('change', updateTheme)
-})
+const { isLight: isLightTheme } = useThemeMode()
 
 // Module state
 const activeModule = ref('chat')

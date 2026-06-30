@@ -425,7 +425,7 @@ const formatTime = (timestamp) => {
 
   &--user {
     align-items: flex-end;
-    
+
     .message-row {
       flex-direction: row-reverse;
     }
@@ -463,7 +463,6 @@ const formatTime = (timestamp) => {
   }
 }
 
-
 .message-bubble {
   flex: 1;
   padding: 1rem 1.5rem;
@@ -476,23 +475,12 @@ const formatTime = (timestamp) => {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
-// Светлая тема - применяем через родительский селектор
-[data-bs-theme="light"] .message-bubble {
-  background: #ffffff;
-  border: 1px solid rgba(226, 232, 240, 0.8);
-  box-shadow: 
+[data-bs-theme='light'] .message-bubble {
+  background: var(--ui-surface, #ffffff);
+  border: 1px solid var(--ui-border, rgba(226, 232, 240, 0.8));
+  box-shadow:
     0 1px 3px rgba(0, 0, 0, 0.1),
     0 4px 12px rgba(0, 0, 0, 0.05);
-}
-
-@media (prefers-color-scheme: light) {
-  .message-bubble {
-    background: #ffffff;
-    border: 1px solid rgba(226, 232, 240, 0.8);
-    box-shadow: 
-      0 1px 3px rgba(0, 0, 0, 0.1),
-      0 4px 12px rgba(0, 0, 0, 0.05);
-  }
 }
 
 .neural-chat-message--user .message-bubble {
@@ -500,26 +488,16 @@ const formatTime = (timestamp) => {
   border-color: rgba($neon-blue, 0.3);
 }
 
-[data-bs-theme="light"] .neural-chat-message--user .message-bubble {
+[data-bs-theme='light'] .neural-chat-message--user .message-bubble {
   background: #f0f7ff;
   border-color: rgba(79, 143, 255, 0.3);
-  box-shadow: 
+  box-shadow:
     0 1px 3px rgba(79, 143, 255, 0.15),
     0 4px 12px rgba(79, 143, 255, 0.08);
 }
 
-@media (prefers-color-scheme: light) {
-  .neural-chat-message--user .message-bubble {
-    background: #f0f7ff;
-    border-color: rgba(79, 143, 255, 0.3);
-    box-shadow: 
-      0 1px 3px rgba(79, 143, 255, 0.15),
-      0 4px 12px rgba(79, 143, 255, 0.08);
-  }
-}
-
 .message-text {
-  font-size: $font-size-lg; // Увеличенный размер шрифта
+  font-size: $font-size-lg;
   line-height: $line-height-relaxed;
   color: var(--nc-text-primary, #{$dark-text-primary});
   word-wrap: break-word;
@@ -530,7 +508,7 @@ const formatTime = (timestamp) => {
     background: rgba(58, 232, 255, 0.15);
     padding: 0.2em 0.5em;
     border-radius: $radius-sm;
-    font-size: 0.95em; // Немного увеличенный размер
+    font-size: 0.95em;
     color: $neon-cyan;
   }
 
@@ -543,7 +521,6 @@ const formatTime = (timestamp) => {
     color: $neon-purple;
   }
 
-  // Стили для thinking блоков
   :deep(.think-block) {
     margin: $spacing-lg 0;
     padding: $spacing-lg;
@@ -555,14 +532,14 @@ const formatTime = (timestamp) => {
   }
 
   :deep(.think-block__header) {
-    font-size: $font-size-sm; // Увеличенный размер
+    font-size: $font-size-sm;
     font-weight: $font-weight-semibold;
     color: $neon-purple;
     margin-bottom: $spacing-md;
   }
 
   :deep(.think-block__content) {
-    font-size: $font-size-base; // Увеличенный размер
+    font-size: $font-size-base;
     color: var(--nc-text-secondary, #{$dark-text-secondary});
     line-height: $line-height-relaxed;
     white-space: pre-wrap;
@@ -570,7 +547,6 @@ const formatTime = (timestamp) => {
     overflow-wrap: break-word;
   }
 
-  // Стили для таблиц
   :deep(.markdown-table-wrapper) {
     margin: $spacing-lg 0;
     overflow-x: auto;
@@ -583,40 +559,41 @@ const formatTime = (timestamp) => {
     width: 100%;
     min-width: 500px;
     border-collapse: collapse;
-    font-size: $font-size-base; // Увеличенный размер шрифта в таблицах
+    font-size: $font-size-base;
     background: var(--nc-bg-elevated, #{$dark-bg-elevated});
     border: 1px solid rgba(58, 232, 255, 0.2);
-    
-    th, td {
-      padding: $spacing-md $spacing-lg; // Увеличенные отступы
+
+    th,
+    td {
+      padding: $spacing-md $spacing-lg;
       text-align: left;
       border-bottom: 1px solid rgba(58, 232, 255, 0.1);
       word-wrap: break-word;
       overflow-wrap: break-word;
       white-space: normal;
     }
-    
+
     th {
       background: rgba(58, 232, 255, 0.1);
       font-weight: $font-weight-semibold;
       color: var(--nc-text-primary, #{$dark-text-primary});
-      font-size: $font-size-sm; // Увеличенный размер для заголовков
+      font-size: $font-size-sm;
       position: sticky;
       top: 0;
       z-index: 1;
     }
-    
+
     td {
       color: var(--nc-text-secondary, #{$dark-text-secondary});
     }
-    
+
     tbody tr {
       transition: background 0.2s;
-      
+
       &:hover {
         background: rgba(58, 232, 255, 0.05);
       }
-      
+
       &:last-child td {
         border-bottom: none;
       }
@@ -624,132 +601,67 @@ const formatTime = (timestamp) => {
   }
 }
 
-[data-bs-theme="light"] .message-text {
-  color: #000000;
-  
+[data-bs-theme='light'] .message-text {
+  color: var(--ui-text, #000000);
+
   :deep(code) {
     background: rgba(15, 118, 138, 0.1);
     color: #0f768a;
   }
-  
+
   :deep(strong) {
-    color: #000000;
+    color: var(--ui-text, #000000);
   }
-  
+
   :deep(em) {
     color: #7c3aed;
   }
-  
+
   :deep(.think-block) {
     background: rgba(124, 58, 237, 0.08);
     border: 1px solid rgba(124, 58, 237, 0.2);
     border-left: 4px solid #7c3aed;
-    box-shadow: 
+    box-shadow:
       0 2px 8px rgba(0, 0, 0, 0.08),
       0 1px 2px rgba(0, 0, 0, 0.04);
   }
-  
+
   :deep(.think-block__header) {
     color: #7c3aed;
   }
-  
+
   :deep(.think-block__content) {
-    color: #000000;
+    color: var(--ui-text, #000000);
   }
-  
+
   :deep(.markdown-table-wrapper) {
-    box-shadow: 
+    box-shadow:
       0 2px 8px rgba(0, 0, 0, 0.08),
       0 1px 2px rgba(0, 0, 0, 0.04);
   }
-  
+
   :deep(.markdown-table) {
-    background: #ffffff;
-    border: 1px solid rgba(226, 232, 240, 0.8);
-    
-    th, td {
+    background: var(--ui-surface, #ffffff);
+    border: 1px solid var(--ui-border, rgba(226, 232, 240, 0.8));
+
+    th,
+    td {
       border-bottom: 1px solid rgba(226, 232, 240, 0.6);
     }
-    
+
     th {
-      background: #f1f5f9;
-      color: #000000;
-      border-bottom: 2px solid #e2e8f0;
+      background: var(--ui-surface-2, #f1f5f9);
+      color: var(--ui-text, #000000);
+      border-bottom: 2px solid var(--ui-border, #e2e8f0);
     }
-    
+
     td {
-      color: #000000;
-      background: #ffffff;
+      color: var(--ui-text, #000000);
+      background: var(--ui-surface, #ffffff);
     }
-    
+
     tbody tr:hover {
       background: rgba(15, 118, 138, 0.05);
-    }
-  }
-}
-
-@media (prefers-color-scheme: light) {
-  .message-text {
-    color: #000000;
-    
-    :deep(code) {
-      background: rgba(15, 118, 138, 0.1);
-      color: #0f768a;
-    }
-    
-    :deep(strong) {
-      color: #000000;
-    }
-    
-    :deep(em) {
-      color: #7c3aed;
-    }
-    
-    :deep(.think-block) {
-      background: rgba(124, 58, 237, 0.08);
-      border: 1px solid rgba(124, 58, 237, 0.2);
-      border-left: 4px solid #7c3aed;
-      box-shadow: 
-        0 2px 8px rgba(0, 0, 0, 0.08),
-        0 1px 2px rgba(0, 0, 0, 0.04);
-    }
-    
-    :deep(.think-block__header) {
-      color: #7c3aed;
-    }
-    
-    :deep(.think-block__content) {
-      color: #000000;
-    }
-    
-    :deep(.markdown-table-wrapper) {
-      box-shadow: 
-        0 2px 8px rgba(0, 0, 0, 0.08),
-        0 1px 2px rgba(0, 0, 0, 0.04);
-    }
-    
-    :deep(.markdown-table) {
-      background: #ffffff;
-      border: 1px solid rgba(226, 232, 240, 0.8);
-      
-      th, td {
-        border-bottom: 1px solid rgba(226, 232, 240, 0.6);
-      }
-      
-      th {
-        background: #f1f5f9;
-        color: #000000;
-        border-bottom: 2px solid #e2e8f0;
-      }
-      
-      td {
-        color: #000000;
-        background: #ffffff;
-      }
-      
-      tbody tr:hover {
-        background: rgba(15, 118, 138, 0.05);
-      }
     }
   }
 }
@@ -761,47 +673,27 @@ const formatTime = (timestamp) => {
   overflow: hidden;
   border: 1px solid $neon-cyan-medium;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  
+
   &--generating {
     border-color: $neon-purple-light;
-    
+
     .code-label {
       color: $neon-purple;
     }
   }
 }
-  
-@media (prefers-color-scheme: light) {
-  .message-code {
-    background: #f8fafc;
-    border: 1px solid rgba(226, 232, 240, 0.8);
-    box-shadow: 
-      0 2px 8px rgba(0, 0, 0, 0.08),
-      0 1px 2px rgba(0, 0, 0, 0.04);
-  }
-}
-  
-[data-bs-theme="light"] .message-code {
-  background: #f8fafc;
-  border: 1px solid rgba(226, 232, 240, 0.8);
-  box-shadow: 
+
+[data-bs-theme='light'] .message-code {
+  background: var(--ui-surface-2, #f8fafc);
+  border: 1px solid var(--ui-border, rgba(226, 232, 240, 0.8));
+  box-shadow:
     0 2px 8px rgba(0, 0, 0, 0.08),
     0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
-@media (prefers-color-scheme: light) {
-  .message-code--generating {
-    border-color: rgba(124, 58, 237, 0.2);
-    
-    .code-label {
-      color: #7c3aed;
-    }
-  }
-}
-
-[data-bs-theme="light"] .message-code--generating {
+[data-bs-theme='light'] .message-code--generating {
   border-color: rgba(124, 58, 237, 0.2);
-  
+
   .code-label {
     color: #7c3aed;
   }
@@ -814,20 +706,12 @@ const formatTime = (timestamp) => {
   padding: $spacing-sm $spacing-md;
   background: rgba(58, 232, 255, 0.15);
   border-bottom: 1px solid $dark-border;
-  font-size: $font-size-sm; // Увеличенный размер
+  font-size: $font-size-sm;
   font-weight: $font-weight-semibold;
   color: $neon-cyan;
 }
 
-@media (prefers-color-scheme: light) {
-  .code-label {
-    background: rgba(15, 118, 138, 0.1);
-    border-bottom: 1px solid rgba(226, 232, 240, 0.6);
-    color: #0f768a;
-  }
-}
-
-[data-bs-theme="light"] .code-label {
+[data-bs-theme='light'] .code-label {
   background: rgba(15, 118, 138, 0.1);
   border-bottom: 1px solid rgba(226, 232, 240, 0.6);
   color: #0f768a;
@@ -837,18 +721,12 @@ const formatTime = (timestamp) => {
   margin: 0;
   padding: $spacing-md;
   overflow-x: auto;
-  font-size: $font-size-base; // Увеличенный размер
+  font-size: $font-size-base;
   line-height: $line-height-relaxed;
   color: $neon-green;
 }
 
-@media (prefers-color-scheme: light) {
-  .message-code pre {
-    color: #059669;
-  }
-}
-
-[data-bs-theme="light"] .message-code pre {
+[data-bs-theme='light'] .message-code pre {
   color: #059669;
 }
 
@@ -860,18 +738,9 @@ const formatTime = (timestamp) => {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
-@media (prefers-color-scheme: light) {
-  .message-table {
-    border: 1px solid rgba(226, 232, 240, 0.8);
-    box-shadow: 
-      0 2px 8px rgba(0, 0, 0, 0.08),
-      0 1px 2px rgba(0, 0, 0, 0.04);
-  }
-}
-
-[data-bs-theme="light"] .message-table {
-  border: 1px solid rgba(226, 232, 240, 0.8);
-  box-shadow: 
+[data-bs-theme='light'] .message-table {
+  border: 1px solid var(--ui-border, rgba(226, 232, 240, 0.8));
+  box-shadow:
     0 2px 8px rgba(0, 0, 0, 0.08),
     0 1px 2px rgba(0, 0, 0, 0.04);
 }
@@ -884,43 +753,30 @@ const formatTime = (timestamp) => {
 .message-table table {
   width: 100%;
   border-collapse: collapse;
-  font-size: $font-size-base; // Увеличенный размер
+  font-size: $font-size-base;
   background: var(--nc-bg-elevated, #{$dark-bg-elevated});
 }
 
-@media (prefers-color-scheme: light) {
-  .message-table table {
-    background: #ffffff;
-  }
-}
-
-[data-bs-theme="light"] .message-table table {
-  background: #ffffff;
+[data-bs-theme='light'] .message-table table {
+  background: var(--ui-surface, #ffffff);
 }
 
 .message-table th,
 .message-table td {
-  padding: $spacing-md $spacing-lg; // Увеличенные отступы
+  padding: $spacing-md $spacing-lg;
   text-align: left;
   border-bottom: 1px solid $neon-green-light;
   white-space: nowrap;
 }
 
-@media (prefers-color-scheme: light) {
-  .message-table th,
-  .message-table td {
-    border-bottom: 1px solid rgba(226, 232, 240, 0.6);
-  }
-}
-
-[data-bs-theme="light"] .message-table th,
-[data-bs-theme="light"] .message-table td {
+[data-bs-theme='light'] .message-table th,
+[data-bs-theme='light'] .message-table td {
   border-bottom: 1px solid rgba(226, 232, 240, 0.6);
 }
 
 .message-table th {
   background: $neon-green-light;
-  font-size: $font-size-sm; // Увеличенный размер
+  font-size: $font-size-sm;
   font-weight: $font-weight-semibold;
   color: $neon-green;
   text-transform: uppercase;
@@ -928,55 +784,32 @@ const formatTime = (timestamp) => {
   top: 0;
 }
 
-@media (prefers-color-scheme: light) {
-  .message-table th {
-    background: #f1f5f9;
-    color: #000000;
-    border-bottom: 2px solid #e2e8f0;
-  }
-}
-
-[data-bs-theme="light"] .message-table th {
-  background: #f1f5f9;
-  color: #000000;
-  border-bottom: 2px solid #e2e8f0;
+[data-bs-theme='light'] .message-table th {
+  background: var(--ui-surface-2, #f1f5f9);
+  color: var(--ui-text, #000000);
+  border-bottom: 2px solid var(--ui-border, #e2e8f0);
 }
 
 .message-table td {
   color: var(--nc-text-primary, #{$dark-text-primary});
 }
 
-@media (prefers-color-scheme: light) {
-  .message-table td {
-    color: #000000;
-    background: #ffffff;
-  }
-}
-
-[data-bs-theme="light"] .message-table td {
-  color: #000000;
-  background: #ffffff;
+[data-bs-theme='light'] .message-table td {
+  color: var(--ui-text, #000000);
+  background: var(--ui-surface, #ffffff);
 }
 
 .table-meta {
   padding: $spacing-sm $spacing-md;
-  font-size: $font-size-sm; // Увеличенный размер
+  font-size: $font-size-sm;
   color: var(--nc-text-muted, #{$dark-text-muted});
   background: $neon-green-light;
   border-top: 1px solid $neon-green-light;
 }
 
-@media (prefers-color-scheme: light) {
-  .table-meta {
-    background: rgba(241, 245, 249, 0.8);
-    color: #64748b;
-    border-top: 1px solid rgba(226, 232, 240, 0.6);
-  }
-}
-
-[data-bs-theme="light"] .table-meta {
+[data-bs-theme='light'] .table-meta {
   background: rgba(241, 245, 249, 0.8);
-  color: #64748b;
+  color: var(--ui-text-muted, #64748b);
   border-top: 1px solid rgba(226, 232, 240, 0.6);
 }
 

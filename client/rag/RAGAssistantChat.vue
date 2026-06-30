@@ -76,47 +76,9 @@ const props = defineProps({
   },
 })
 
-// Синхронизация с общей темой приложения
-const getSystemTheme = () => {
-  const theme = localStorage.getItem('theme') || 'auto'
-  if (theme === 'auto') {
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
-  }
-  return theme
-}
+import { useThemeMode } from '@/composables/useThemeMode.js'
 
-const isLightTheme = ref(getSystemTheme() === 'light')
-
-const updateTheme = () => {
-  isLightTheme.value = getSystemTheme() === 'light'
-}
-
-let themeObserver = null
-
-onMounted(() => {
-  // Наблюдаем за изменениями data-bs-theme
-  themeObserver = new MutationObserver((mutations) => {
-    mutations.forEach((mutation) => {
-      if (mutation.attributeName === 'data-bs-theme') {
-        updateTheme()
-      }
-    })
-  })
-  
-  themeObserver.observe(document.documentElement, {
-    attributes: true,
-    attributeFilter: ['data-bs-theme']
-  })
-  
-  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', updateTheme)
-})
-
-onUnmounted(() => {
-  if (themeObserver) {
-    themeObserver.disconnect()
-  }
-  window.matchMedia('(prefers-color-scheme: dark)').removeEventListener('change', updateTheme)
-})
+const { isLight: isLightTheme } = useThemeMode()
 
 const messagesContainer = ref(null)
 const inputMessage = ref('')

@@ -163,7 +163,7 @@
 import { ref } from 'vue'
 import { Upload, FileText, File, X, Save } from 'lucide-vue-next'
 import { docsClient } from './js/docs-client.js'
-import { useToast } from 'vue-toastification'
+import { useToast } from '@/js/utils/toast.js'
 
 const toast = useToast()
 
