@@ -79,12 +79,10 @@ $accent-red-light: $neon-red-light;
 $accent-cyan: $neon-cyan;
 $accent-cyan-light: $neon-cyan-light;
 
-// === Typography - Geologica (Google Fonts) ===
-@import 'fonts';
-
-$font-family-display: 'Geologica', 'Orbitron', sans-serif;
-$font-family-base: 'Geologica', 'Rajdhani', -apple-system, BlinkMacSystemFont, sans-serif;
-$font-family-mono: 'JetBrains Mono', 'Fira Code', 'SF Mono', monospace;
+// === Typography — системный stack (без внешних CDN) ===
+$font-family-display: var(--font-family-base);
+$font-family-base: var(--font-family-base);
+$font-family-mono: var(--font-family-mono);
 
 $font-size-xs: 0.75rem;    // 12px
 $font-size-sm: 0.875rem;   // 14px
