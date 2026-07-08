@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 from django.contrib.auth import get_user_model
 from django.contrib.postgres.fields import ArrayField
@@ -11,7 +12,7 @@ class ChatSession(models.Model):
     Сессия чата - представляет один разговор с AI ассистентом
     """
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='chat_sessions')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='chat_sessions')
     title = models.CharField(max_length=255, blank=True, null=True)
     module = models.CharField(max_length=50, default='chat', help_text='Модуль AI ассистента (chat, bi, etc.)')
     created_at = models.DateTimeField(auto_now_add=True)
@@ -85,7 +86,7 @@ class KnowledgeDocument(models.Model):
     При наличии файла контент извлекается автоматически при индексации.
     """
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='knowledge_documents')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='knowledge_documents')
     title = models.CharField(max_length=500, help_text='Название документа')
     
     # Файл документа (Word, PDF и т.д.)
