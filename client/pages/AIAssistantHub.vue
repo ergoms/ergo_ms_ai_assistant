@@ -1226,9 +1226,13 @@ watch(activeModule, () => {
 
 const checkOllamaStatus = async () => {
   try {
-    const status = await ragClient.checkOllamaStatus()
+    const status = await ragClient.checkOllamaStatus(true)
     ollamaOnline.value = status.available
-    currentModel.value = status.available ? (status.model || 'Ollama') : 'Недоступен'
+    if (status.available) {
+      currentModel.value = status.model || status.models?.[0] || 'Ollama'
+    } else {
+      currentModel.value = status.message || 'Недоступен'
+    }
   } catch {
     ollamaOnline.value = false
     currentModel.value = 'Ошибка'
@@ -1259,6 +1263,12 @@ onMounted(() => {
   --text-placeholder: #{$dark-text-placeholder};
   --accent: #{$neon-cyan};
   --accent-glow: #{$neon-cyan-glow};
+  --nc-bg-base: var(--bg-base);
+  --nc-bg-elevated: var(--bg-elevated);
+  --nc-border: var(--border-subtle);
+  --nc-text-primary: var(--text-primary);
+  --nc-text-secondary: var(--text-secondary);
+  --nc-text-muted: var(--text-muted);
 
   display: flex;
   height: 100vh;

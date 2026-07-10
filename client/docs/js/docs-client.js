@@ -1,4 +1,5 @@
 import { apiClient } from '@/js/api/manager'
+import { fetchOllamaStatus } from '../../js/ollamaStatusApi.js'
 
 /**
  * API Endpoints для Docs модуля AI Assistant
@@ -37,43 +38,12 @@ class DocsClient {
   /**
    * Проверка доступности Ollama
    */
-  async checkOllamaStatus() {
-    const now = Date.now()
-    
-    if (this.lastCheck && (now - this.lastCheck < this.checkInterval)) {
-      return { 
-        available: this.ollamaAvailable,
-        embeddings: this.embeddingsAvailable 
-      }
-    }
-
-    try {
-      const [ollamaStatus, embeddingsStatus] = await Promise.all([
-        apiClient.get('ai_assistant/ollama_status/'),
-        apiClient.get(endpoints.embeddingsStatus)
-      ])
-      
-      this.ollamaAvailable = ollamaStatus.success && ollamaStatus.data?.available
-      this.embeddingsAvailable = embeddingsStatus.success && embeddingsStatus.data?.available
-      this.lastCheck = now
-      
-      return {
-        available: this.ollamaAvailable,
-        embeddings: this.embeddingsAvailable,
-        message: ollamaStatus.data?.message,
-        embeddingsMessage: embeddingsStatus.data?.message,
-      }
-    } catch (error) {
-      logError('Ошибка проверки статуса:', error)
-      this.ollamaAvailable = false
-      this.embeddingsAvailable = false
-      
-      return { 
-        available: false, 
-        embeddings: false,
-        message: error.message || 'Не удалось проверить статус'
-      }
-    }
+  async checkOllamaStatus(force = false) {
+    const result = await fetchOllamaStatus({ force, includeEmbeddings: true })
+    this.ollamaAvailable = result.available
+    this.embeddingsAvailable = Boolean(result.embeddings)
+    this.lastCheck = Date.now()
+    return result
   }
 
   /**

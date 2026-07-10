@@ -14,9 +14,7 @@ import json
 import math
 from datetime import datetime
 
-from .config import build_runtime_config
-from .llm_clients import build_llm_client, LLMClientError
-from .llm_utils import create_ollama_client as _create_ollama_client
+from .ollama_gateway import create_llm_client, check_health
 from src.core.utils.mixins import SwaggerSafeMixin
 from .models import ChatSession, ChatMessage, KnowledgeDocument, KnowledgeChunk
 from .skills import get_skills_manager
@@ -32,6 +30,7 @@ from .rag import (
 )
 from .settings import (
     OLLAMA_BASE_URL,
+    OLLAMA_DEFAULT_MODEL,
     OLLAMA_EMBEDDINGS_MODEL,
     RAG_CHUNK_SIZE,
     RAG_CHUNK_OVERLAP,
@@ -192,6 +191,7 @@ def _get_rag_services(ollama_config=None):
             base_url=base_url,
             model=embeddings_model,
             request_timeout=AI_ASSISTANT_REQUEST_TIMEOUT,
+            ollama_config=ollama_config,
         )
     
     if _rag_retrieval_service is None:
@@ -280,23 +280,20 @@ class OllamaStatusView(APIView):
     
     def get(self, request):
         try:
-            _, client = _create_ollama_client({'model': DEFAULT_MODEL})
-            
-            # Используем быстрый health check без генерации
-            health = client.check_health()
-            
+            health = check_health(model=OLLAMA_DEFAULT_MODEL)
+
             if health.get('available'):
                 return Response({
                     'available': True,
-                    'message': 'Ollama доступен',
-                    'model': DEFAULT_MODEL,
+                    'message': health.get('message', 'Ollama доступен'),
+                    'model': OLLAMA_DEFAULT_MODEL,
                     'model_exists': health.get('model_loaded', False),
                     'available_models': health.get('models', []),
                 })
             else:
                 return Response({
                     'available': False,
-                    'message': health.get('error', 'Ollama недоступен'),
+                    'message': health.get('error', health.get('message', 'Ollama недоступен')),
                 })
         except Exception as e:
             return Response({
@@ -431,7 +428,7 @@ class ChartAnalysisView(APIView):
                 yield f"data: {json.dumps({'type': 'stage', 'message': '💭 Анализирую график...'})}\n\n"
                 
                 analysis_prompt = self._generate_analysis_prompt(chart, df)
-                runtime_config, client = _create_ollama_client()
+                runtime_config, client = create_llm_client()
                 try:
                     analysis_text = client.complete(
                         analysis_prompt,
@@ -528,7 +525,7 @@ class ChartAnalysisView(APIView):
             df = pd.DataFrame(rows)
             
             analysis_prompt = self._generate_analysis_prompt(chart, df)
-            runtime_config, client = _create_ollama_client()
+            runtime_config, client = create_llm_client()
             response_text = client.complete(
                 analysis_prompt,
                 temperature=runtime_config.temperature_commentary,
@@ -944,7 +941,7 @@ class ChatView(APIView):
             # Засекаем время начала запроса
             request_started_at = timezone.now()
 
-            runtime_config, client = _create_ollama_client(ollama_config)
+            runtime_config, client = create_llm_client(ollama_config)
             temperature = (ollama_config or {}).get('temperature', 0)
             
             # Формируем массив сообщений для chat API с сохранением контекста
@@ -1296,7 +1293,7 @@ class ChatStreamView(APIView):
                 # Засекаем время начала запроса
                 request_started_at = timezone.now()
                 
-                runtime_config, client = _create_ollama_client(ollama_config)
+                runtime_config, client = create_llm_client(ollama_config)
                 temperature = (ollama_config or {}).get('temperature', 0)
                 
                 # Формируем массив сообщений для chat API с сохранением контекста

@@ -3,7 +3,7 @@ export default {
     "path": "/ai-assistant",
     "component": "@/modules/ai_assistant/client/pages/AIAssistantHub.vue",
     "meta": {
-      "title": "AI Hub",
+      "title": "AI-ассистент",
       "requiresAuth": true
     }
   }

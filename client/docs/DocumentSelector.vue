@@ -2,6 +2,13 @@
   <div class="document-selector">
     <div class="document-selector__header">
       <h6 class="mb-2">Выберите документ</h6>
+      <SearchInput
+        v-model="searchQuery"
+        placeholder="Поиск документов..."
+        layout="grow"
+        :show-icon="true"
+        class="mb-2"
+      />
       <div class="header-actions">
         <button class="btn btn-sm btn-outline-secondary" @click="refreshDocuments">
           <RefreshCw :size="14" class="me-1" :class="{ spinning: loading }" />
@@ -33,13 +40,17 @@
       {{ error }}
     </div>
 
-    <div v-else-if="documents.length === 0" class="empty-state">
+    <div v-else-if="filteredDocuments.length === 0" class="empty-state">
       <div class="empty-state__icon">
         <FileText :size="48" />
       </div>
-      <h6 class="empty-state__title">Нет документов</h6>
-      <p class="empty-state__text">Загрузите документ, чтобы начать работу с базой знаний</p>
-      <button class="btn btn-primary" @click="showUploader = true">
+      <h6 class="empty-state__title">
+        {{ searchQuery.trim() ? 'Ничего не найдено' : 'Нет документов' }}
+      </h6>
+      <p class="empty-state__text">
+        {{ searchQuery.trim() ? 'Измените запрос или загрузите новый документ' : 'Загрузите документ, чтобы начать работу с базой знаний' }}
+      </p>
+      <button v-if="!searchQuery.trim()" class="btn btn-primary" @click="showUploader = true">
         <Upload :size="16" class="me-2" />
         Загрузить первый документ
       </button>
@@ -47,7 +58,7 @@
 
     <div v-else class="document-list">
       <div
-        v-for="document in documents"
+        v-for="document in filteredDocuments"
         :key="document.id"
         class="document-item"
         :class="{ 'document-item--selected': selectedDocumentId === document.id }"
@@ -102,8 +113,9 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { RefreshCw, Upload, FileText, File, Check, Database, Trash2 } from 'lucide-vue-next'
+import SearchInput from '@/components/SearchInput.vue'
 import { docsClient } from './js/docs-client.js'
 import DocumentUploader from './DocumentUploader.vue'
 import { useToast } from '@/js/utils/toast.js'
@@ -118,6 +130,17 @@ const loading = ref(false)
 const error = ref(null)
 const selectedDocumentId = ref(null)
 const showUploader = ref(false)
+const searchQuery = ref('')
+
+const filteredDocuments = computed(() => {
+  const q = searchQuery.value.trim().toLowerCase()
+  if (!q) return documents.value
+  return documents.value.filter((doc) => {
+    const title = (doc.title || '').toLowerCase()
+    const preview = (doc.content_preview || '').toLowerCase()
+    return title.includes(q) || preview.includes(q)
+  })
+})
 
 const loadDocuments = async () => {
   loading.value = true

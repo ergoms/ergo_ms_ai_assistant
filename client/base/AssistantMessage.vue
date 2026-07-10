@@ -335,7 +335,7 @@ const formatMarkdown = (text) => {
           // Пропускаем все строки таблицы
           continue
         } else {
-          console.warn('[AssistantMessage] Не удалось распарсить таблицу (ID:', tableId, '), возвращаем исходный текст')
+          // парсинг не удался — оставляем исходный текст
         }
       } else {
       }
@@ -375,8 +375,6 @@ const formatMarkdown = (text) => {
     const replacement = `<div class="think-block"><div class="think-block__header">💭 Размышления:</div><div class="think-block__content">${think.content}</div></div>`
     if (content.includes(placeholder)) {
       content = content.replace(placeholder, replacement)
-    } else {
-      console.warn('[AssistantMessage] Плейсхолдер think не найден в контенте:', placeholder)
     }
   })
   
@@ -387,8 +385,6 @@ const formatMarkdown = (text) => {
     const regex = new RegExp(placeholder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')
     if (content.includes(placeholder)) {
       content = content.replace(regex, table.html)
-    } else {
-      console.warn('[AssistantMessage] Плейсхолдер таблицы не найден в контенте:', placeholder)
     }
   })
   

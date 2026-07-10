@@ -3,7 +3,7 @@
     class="neural-message" 
     :class="[
       `neural-message--${message.type}`,
-      { 'neural-message--streaming': message.streaming }
+      { 'neural-message--streaming': message.streaming || message.isStreaming }
     ]"
   >
     <!-- Connection line decoration -->
@@ -201,6 +201,8 @@ import {
 } from 'lucide-vue-next'
 import { apiClient } from '@/js/api/manager'
 import { sanitizeHtml } from '@/js/utils/sanitize'
+import { logError, logWarn } from '@/js/utils/logError.js'
+import { buildApexOptions } from '@/composables/useApexTheme.js'
 import ApexCharts from 'vue3-apexcharts'
 
 const props = defineProps({
@@ -557,68 +559,48 @@ const apexSeries = computed(() => {
 
 const apexOptions = computed(() => {
   if (!chartConfig.value) return {}
-  
+
   const config = chartConfig.value
   const data = config.data || []
-  const colors = config.colors && config.colors.length > 0 
-    ? config.colors 
-    : ['#10B981', '#3B82F6', '#8B5CF6', '#F59E0B', '#EF4444', '#06B6D4']
-  
-  const baseOptions = {
+  const colors = config.colors?.length ? config.colors : undefined
+
+  const overrides = {
     chart: {
       id: `chart-${props.message.id || Date.now()}`,
       type: config.chart_type,
-      toolbar: {
-        show: true,
-        tools: {
-          download: true
-        }
-      }
+      toolbar: { show: true, tools: { download: true } },
     },
     title: {
       text: config.title || 'График',
-      style: {
-        fontSize: '16px',
-        fontWeight: 600,
-        color: '#E5E7EB'
-      }
+      style: { fontSize: '16px', fontWeight: 600 },
     },
-    colors: colors,
     legend: {
       show: config.show_legend !== false,
-      position: 'bottom'
+      position: 'bottom',
     },
-    theme: {
-      mode: 'dark'
-    },
-    tooltip: {
-      theme: 'dark'
-    }
   }
-  
+
+  if (colors) {
+    overrides.colors = colors
+  }
+
   if (config.chart_type === 'pie') {
-    // Для pie графика
-    baseOptions.labels = data.map(item => item.label || '')
-    baseOptions.dataLabels = {
+    overrides.labels = data.map((item) => item.label || '')
+    overrides.dataLabels = {
       enabled: true,
-      formatter: (val) => `${val.toFixed(1)}%`
+      formatter: (val) => `${val.toFixed(1)}%`,
     }
   } else {
-    // Для остальных типов
-    baseOptions.xaxis = {
-      categories: data.map(item => String(item.x || '')),
-      title: {
-        text: config.x_axis_label || ''
-      }
+    overrides.xaxis = {
+      categories: data.map((item) => String(item.x || '')),
+      title: { text: config.x_axis_label || '' },
     }
-    baseOptions.yaxis = {
-      title: {
-        text: config.y_axis_label || ''
-      }
+    overrides.yaxis = {
+      title: { text: config.y_axis_label || '' },
     }
   }
-  
-  return baseOptions
+
+  return buildApexOptions(overrides)
 })
 
 const downloadChart = async () => {
@@ -644,7 +626,7 @@ const downloadChart = async () => {
         logWarn('Не удалось получить изображение графика через ApexCharts API')
       }
     } else {
-      console.warn('ApexCharts API недоступен')
+      logWarn('ApexCharts API недоступен для экспорта графика')
     }
   } catch (error) {
     logError('Ошибка при скачивании графика:', error)
@@ -663,7 +645,7 @@ const downloadChart = async () => {
   transition: all $transition-fast;
 
   &:hover {
-    background: rgba(58, 232, 255, 0.02);
+    background: color-mix(in srgb, var(--accent, #{$neon-cyan}) 4%, transparent);
 
     .connector-line {
       opacity: 0.5;
@@ -677,8 +659,12 @@ const downloadChart = async () => {
 
   &--user {
     .message-body {
-      background: linear-gradient(135deg, rgba(79, 143, 255, 0.1), rgba(79, 143, 255, 0.05));
-      border-color: rgba(79, 143, 255, 0.2);
+      background: linear-gradient(
+        135deg,
+        color-mix(in srgb, var(--avatar-color, #{$neon-blue}) 12%, transparent),
+        color-mix(in srgb, var(--avatar-color, #{$neon-blue}) 5%, transparent)
+      );
+      border-color: color-mix(in srgb, var(--avatar-color, #{$neon-blue}) 22%, transparent);
     }
 
     .connector-node {
@@ -688,8 +674,12 @@ const downloadChart = async () => {
 
   &--assistant {
     .message-body {
-      background: linear-gradient(135deg, rgba(58, 232, 255, 0.08), rgba(168, 85, 247, 0.05));
-      border-color: rgba(58, 232, 255, 0.15);
+      background: linear-gradient(
+        135deg,
+        color-mix(in srgb, var(--accent, #{$neon-cyan}) 10%, transparent),
+        color-mix(in srgb, #{$neon-purple} 6%, transparent)
+      );
+      border-color: color-mix(in srgb, var(--accent, #{$neon-cyan}) 18%, transparent);
     }
   }
 
@@ -772,7 +762,7 @@ const downloadChart = async () => {
   position: absolute;
   inset: 0;
   border: 2px solid var(--avatar-color);
-  border-radius: $radius-md + 2px;
+  border-radius: calc(#{$radius-md} + 2px);
   opacity: 0.5;
 }
 

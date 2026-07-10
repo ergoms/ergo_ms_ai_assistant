@@ -1,4 +1,5 @@
 import { apiClient } from '@/js/api/manager'
+import { fetchOllamaStatus } from '../../js/ollamaStatusApi.js'
 
 /**
  * API Endpoints для BI модуля AI Assistant
@@ -6,7 +7,7 @@ import { apiClient } from '@/js/api/manager'
 const endpoints = {
   files: 'ai_assistant/files/',
   biQuery: 'ai_assistant/bi_query/',
-  ollamaStatus: 'ai_assistant/ollama_status/',
+  ollamaStatus: 'ollama_framework/status/',
   chartAnalysis: 'ai_assistant/chart_analysis/',
 }
 
@@ -29,47 +30,11 @@ class BIClient {
     this.ollamaConfig = config
   }
 
-  async checkOllamaStatus() {
-    const now = Date.now()
-    
-    if (this.lastCheck && (now - this.lastCheck < this.checkInterval)) {
-      return { available: this.ollamaAvailable }
-    }
-
-    try {
-      const response = await apiClient.get(endpoints.ollamaStatus)
-      
-      if (response.success) {
-        this.ollamaAvailable = response.data.available
-        this.lastCheck = now
-        
-        return {
-          available: this.ollamaAvailable,
-          message: response.data.message,
-        }
-      }
-      
-      // Если success: false, но ответ получен
-      return { 
-        available: false, 
-        message: response.data?.message || response.data?.error || 'Ошибка проверки статуса' 
-      }
-    } catch (error) {
-      logError('Ошибка проверки Ollama:', error)
-      this.ollamaAvailable = false
-      
-      // Извлекаем сообщение об ошибке из разных возможных мест
-      const errorMessage = 
-        error.response?.data?.error ||
-        error.response?.data?.message ||
-        error.message ||
-        'Не удалось подключиться к Ollama'
-      
-      return { 
-        available: false, 
-        message: errorMessage
-      }
-    }
+  async checkOllamaStatus(force = false) {
+    const result = await fetchOllamaStatus({ force })
+    this.ollamaAvailable = result.available
+    this.lastCheck = Date.now()
+    return result
   }
 
   async getUserFiles() {
