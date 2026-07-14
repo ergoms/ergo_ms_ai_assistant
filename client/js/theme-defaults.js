@@ -1,9 +1,11 @@
 /**
  * Дефолты модульной темы AI-ассистента (синхронизировать с theme_seed.py на сервере).
+ * Пара light+dark: modulePair связывает варианты; активный вариант — по глобальному режиму сайта.
  */
 export default {
   moduleKey: 'ai_assistant',
   displayName: 'AI-ассистент',
+  modulePair: 'default',
   baseTheme: 'dark',
   colors: {
     headerBackground: 'rgba(10, 12, 18, 0.92)',
@@ -28,16 +30,18 @@ export default {
   },
   systemThemes: [
     {
-      name: 'Neural Dark (AI-ассистент)',
-      description: 'Системная тёмная тема AI-ассистента',
+      name: 'Neural (AI-ассистент)',
+      description: 'Системная пара тем AI-ассистента',
       base_theme: 'dark',
+      module_pair: 'default',
       is_default: true,
     },
     {
-      name: 'Frost Light (AI-ассистент)',
-      description: 'Системная светлая тема AI-ассистента',
+      name: 'Neural (AI-ассистент)',
+      description: 'Системная пара тем AI-ассистента',
       base_theme: 'light',
-      is_default: false,
+      module_pair: 'default',
+      is_default: true,
       colors: {
         headerBackground: 'rgba(248, 250, 252, 0.92)',
         authBackground: 'rgba(248, 250, 252, 0.95)',
