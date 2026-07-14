@@ -25,24 +25,14 @@ __all__ = [
 ]
 
 
-def _invoke_local(operation: str, **kwargs):
-    from src.core.integrations import bridge
-
-    op_name = f'ollama_framework.{operation}'
-    if not bridge.has(op_name):
-        raise LLMClientError(f'Операция {op_name} не зарегистрирована в ModuleBridge')
-    result = bridge.call(op_name, **kwargs)
-    if result is None and operation != 'health':
-        raise LLMClientError(f'Операция {op_name} вернула пустой результат')
-    return result
-
-
 def _invoke(operation: str, **kwargs):
     if get_transport() == 'http':
         from modules.ollama_framework.api.transport.dispatcher import ollama_invoke
 
         return ollama_invoke(operation, transport='http', **kwargs)
-    return _invoke_local(operation, **kwargs)
+    from modules.ollama_framework.api.transport.local import invoke_local
+
+    return invoke_local(operation, **kwargs)
 
 
 def get_transport() -> str:

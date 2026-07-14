@@ -13,3 +13,4 @@ class AiAssistantConfig(AppConfig):
 
     def ready(self):
         import modules.ai_assistant.api.models  # noqa
+        from . import integrations  # noqa: F401

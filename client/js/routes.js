@@ -1,3 +1,5 @@
+import '../styles/theme-bootstrap.scss'
+
 export default {
   "AIAssistantHub": {
     "path": "/ai-assistant",

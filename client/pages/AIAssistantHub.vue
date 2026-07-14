@@ -304,184 +304,8 @@
         </div>
       </template>
 
-      <!-- BI Module -->
       <template v-else-if="activeModule === 'bi'">
-        <!-- Connection Selection -->
-        <div v-if="!selectedConnection" class="file-selector">
-          <div class="file-header">
-            <Database :size="24" />
-            <div>
-              <h3>Выберите подключение</h3>
-              <p>Выберите подключение для анализа данных с помощью AI</p>
-            </div>
-          </div>
-          
-          <div class="file-grid">
-            <div 
-              v-for="connection in connections" 
-              :key="connection.id"
-              class="file-card"
-              @click="selectConnection(connection)"
-            >
-              <div class="file-card__icon">
-                <Database :size="28" />
-              </div>
-              <div class="file-card__info">
-                <span class="file-card__name">{{ connection.name }}</span>
-                <span class="file-card__meta">{{ connection.connector_type_display || connection.connector_type }}</span>
-              </div>
-              <div class="file-card__action">
-                <ArrowRight :size="18" />
-              </div>
-            </div>
-
-            <div v-if="connections.length === 0" class="file-empty">
-              <FileQuestion :size="56" />
-              <h4>Нет подключений</h4>
-              <p>Создайте подключение для начала анализа</p>
-              <router-link to="/bi/connections/new" class="upload-link">
-                <Upload :size="18" />
-                <span>Создать подключение</span>
-              </router-link>
-            </div>
-          </div>
-        </div>
-
-        <!-- File Selection -->
-        <div v-else-if="!selectedFile" class="file-selector">
-          <div class="file-header">
-            <Database :size="24" />
-            <div>
-              <h3>Выберите файл</h3>
-              <p>Подключение: {{ selectedConnection.name }}</p>
-            </div>
-            <button class="btn btn-sm btn-outline-secondary ms-auto" @click="selectedConnection = null">
-              <X :size="14" class="me-1" />
-              Сменить подключение
-            </button>
-          </div>
-          
-          <div class="file-grid">
-            <div 
-              v-for="file in files" 
-              :key="file.id"
-              class="file-card"
-              @click="selectFile(file)"
-            >
-              <div class="file-card__icon">
-                <FileSpreadsheet :size="28" />
-              </div>
-              <div class="file-card__info">
-                <span class="file-card__name">{{ file.name }}</span>
-                <span class="file-card__meta">{{ file.file_type || 'file' }}</span>
-              </div>
-              <div class="file-card__action">
-                <ArrowRight :size="18" />
-              </div>
-            </div>
-
-            <div v-if="files.length === 0" class="file-empty">
-              <FileQuestion :size="56" />
-              <h4>Нет файлов</h4>
-              <p>В этом подключении нет файлов</p>
-            </div>
-          </div>
-        </div>
-
-        <!-- BI Chat -->
-        <template v-else>
-          <div class="selected-source">
-            <div class="source-info">
-              <Database :size="16" />
-              <span>{{ selectedConnection.name }}</span>
-              <span class="source-separator">/</span>
-              <FileSpreadsheet :size="16" />
-              <span>{{ selectedFile.name }}</span>
-            </div>
-            <button class="source-change" @click="selectedFile = null">
-              <X :size="16" />
-              <span>Сменить</span>
-            </button>
-          </div>
-
-          <div ref="biMessagesRef" class="messages-area">
-            <div class="messages-wrapper">
-              <HubMessage 
-                v-for="msg in biHistory" 
-                :key="msg.id" 
-                :message="msg" 
-                :module-config="currentModuleConfig"
-              />
-              
-              <div v-if="biLoading" class="typing-indicator">
-                <!-- Connection line decoration -->
-                <div class="message-connector">
-                  <div class="connector-line"></div>
-                  <div class="connector-node"></div>
-                </div>
-                
-                <!-- Avatar -->
-                <div class="typing-avatar" :style="`--avatar-color: ${currentModuleConfig?.color || '#3ae8ff'}`">
-                  <div class="avatar-core">
-                    <component :is="currentModuleConfig?.icon" :size="20" />
-                  </div>
-                  <div class="avatar-ring"></div>
-                  <div class="avatar-pulse"></div>
-                </div>
-                
-                <!-- Content -->
-                <div class="typing-content">
-                  <div class="typing-text">Анализ данных</div>
-                  <div class="typing-dots">
-                    <span></span><span></span><span></span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="input-area">
-            <div class="suggestions" v-if="biHistory.length <= 1">
-              <button 
-                v-for="s in currentModuleConfig?.suggestions" 
-                :key="s" 
-                class="suggestion-chip"
-                @click="sendBIMessage(s)"
-              >
-                <Zap :size="14" />
-                <span>{{ s }}</span>
-              </button>
-            </div>
-
-            <div class="input-container">
-              <div class="input-decoration">
-                <div class="input-corner input-corner--tl"></div>
-                <div class="input-corner input-corner--tr"></div>
-                <div class="input-corner input-corner--bl"></div>
-                <div class="input-corner input-corner--br"></div>
-              </div>
-              
-              <textarea
-                v-model="biInput"
-                class="input-field"
-                :placeholder="currentModuleConfig?.settings?.placeholder"
-                @keydown.enter.exact.prevent="sendBIMessage()"
-                :disabled="biLoading"
-                rows="1"
-              ></textarea>
-              
-              <button 
-                class="send-btn"
-                :style="{ '--btn-color': currentModuleConfig?.color }"
-                @click="sendBIMessage()"
-                :disabled="!biInput.trim() || biLoading"
-              >
-                <div class="send-btn__bg"></div>
-                <Send :size="20" />
-              </button>
-            </div>
-          </div>
-        </template>
+        <div class="p-4 text-muted">Модуль BI Analysis отключён.</div>
       </template>
 
     </main>
@@ -500,12 +324,12 @@ import HubMessage from '../components/HubMessage.vue'
 import ChatTypeSelector from '../components/ChatTypeSelector.vue'
 import DocsAssistantChat from '../docs/DocsAssistantChat.vue'
 import { ragClient } from '../rag/js/rag-client.js'
-import { biClient } from '../bi/js/bi-client.js'
+import { biClient } from '../js/bi-client-stub.js'
 import { useToast } from '@/js/utils/toast.js'
 
-import { useThemeMode } from '@/composables/useThemeMode.js'
+import { useModuleThemeMode } from '@/composables/useModuleThemeMode.js'
 
-const { isLight: isLightTheme } = useThemeMode()
+const { isLight: isLightTheme } = useModuleThemeMode('ai_assistant')
 
 // Module state
 const activeModule = ref('chat')
