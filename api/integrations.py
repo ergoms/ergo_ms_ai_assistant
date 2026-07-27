@@ -4,7 +4,7 @@ ModuleBridge — публичный API ai_assistant для других мод�
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Type
+from typing import Any, Dict, List, Optional
 from uuid import UUID
 
 from src.core.integrations import bridge
@@ -17,41 +17,6 @@ def _parse_uuid(value: Any) -> Optional[UUID]:
         return UUID(str(value))
     except (TypeError, ValueError):
         return None
-
-
-@bridge.provide_op('ai_assistant.model.chat_session')
-def _model_chat_session() -> Type[Any]:
-    from modules.ai_assistant.api.models import ChatSession
-
-    return ChatSession
-
-
-@bridge.provide_op('ai_assistant.model.chat_message')
-def _model_chat_message() -> Type[Any]:
-    from modules.ai_assistant.api.models import ChatMessage
-
-    return ChatMessage
-
-
-@bridge.provide_op('ai_assistant.model.knowledge_document')
-def _model_knowledge_document() -> Type[Any]:
-    from modules.ai_assistant.api.models import KnowledgeDocument
-
-    return KnowledgeDocument
-
-
-@bridge.provide_op('ai_assistant.model.knowledge_chunk')
-def _model_knowledge_chunk() -> Type[Any]:
-    from modules.ai_assistant.api.models import KnowledgeChunk
-
-    return KnowledgeChunk
-
-
-@bridge.provide_op('ai_assistant.rag.document_parser_service')
-def _document_parser_service() -> Type[Any]:
-    from modules.ai_assistant.api.rag import DocumentParserService
-
-    return DocumentParserService
 
 
 @bridge.provide_op('ai_assistant.chat.session.get_or_create')

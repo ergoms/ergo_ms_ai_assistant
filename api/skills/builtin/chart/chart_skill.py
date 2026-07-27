@@ -24,8 +24,8 @@ class ChartSkill(BaseSkill):
 Используй ТОЛЬКО когда пользователь ЯВНО просит: "построй график", "создай график", "покажи график", "визуализируй данные", "нарисуй график".
 НЕ используй для простых ответов текстом.
 
-ВАЖНО: Если пользователь просит построить график в модуле BI и в предыдущих сообщениях есть данные (таблица), 
-используй эти данные для графика. Параметр "data" можно не указывать - данные будут взяты автоматически из последнего ответа с данными.
+ВАЖНО: Если пользователь просит построить график и в предыдущих сообщениях есть табличные данные,
+используй эти данные для графика. Параметр "data" можно не указывать — данные будут взяты автоматически из последнего ответа с данными.
 
 Поддерживаемые типы графиков:
 - line: линейный график (для временных рядов, трендов)
@@ -51,7 +51,7 @@ class ChartSkill(BaseSkill):
                 },
                 "data": {
                     "type": "array",
-                    "description": "Массив данных для графика. Для line/bar/area/scatter: массив объектов {x: значение, y: значение}. Для pie: массив объектов {label: название, value: значение}. Если не указано и есть данные в контексте BI, будут использованы они",
+                    "description": "Массив данных для графика. Для line/bar/area/scatter: массив объектов {x: значение, y: значение}. Для pie: массив объектов {label: название, value: значение}. Если не указано и есть табличные данные в контексте сессии, будут использованы они",
                     "items": {
                         "type": "object"
                     }
@@ -107,11 +107,10 @@ class ChartSkill(BaseSkill):
         title = parameters.get("title", "График")
         data = parameters.get("data", [])
         
-        # Если данных нет в параметрах, пытаемся взять из контекста BI
+        # Если данных нет в параметрах, пытаемся взять из контекста сессии
         if not data and context:
             session = context.get("session")
             if session:
-                # Получаем последнее сообщение с данными из этой сессии
                 from modules.ai_assistant.api.models import ChatMessage
                 last_data_message = ChatMessage.objects.filter(
                     session=session,
@@ -122,21 +121,20 @@ class ChartSkill(BaseSkill):
                 ).order_by('-created_at').first()
                 
                 if last_data_message and last_data_message.metadata:
-                    bi_data = last_data_message.metadata.get("data", [])
-                    bi_columns = last_data_message.metadata.get("columns", [])
+                    table_data = last_data_message.metadata.get("data", [])
+                    columns = last_data_message.metadata.get("columns", [])
                     
-                    if bi_data and bi_columns:
-                        # Преобразуем данные BI в формат для графика
-                        data = self._convert_bi_data_to_chart_data(
-                            bi_data, 
-                            bi_columns, 
+                    if table_data and columns:
+                        data = self._convert_table_data_to_chart_data(
+                            table_data, 
+                            columns, 
                             chart_type
                         )
         
         if not data:
             return SkillResult(
                 success=False,
-                error="Не указаны данные для графика и нет данных в контексте BI"
+                error="Не указаны данные для графика и нет табличных данных в контексте сессии"
             )
         
         # Валидация данных
@@ -190,24 +188,24 @@ class ChartSkill(BaseSkill):
             metadata={'chart_config': chart_config}
         )
     
-    def _convert_bi_data_to_chart_data(
+    def _convert_table_data_to_chart_data(
         self, 
-        bi_data: list, 
+        table_data: list, 
         columns: list, 
         chart_type: str
     ) -> list:
         """
-        Преобразует данные BI (список словарей) в формат для графика.
+        Преобразует табличные данные (список словарей) в формат для графика.
         
         Args:
-            bi_data: Список словарей с данными из BI
+            table_data: Список словарей со строками таблицы
             columns: Список названий колонок
             chart_type: Тип графика
         
         Returns:
             Список данных в формате для графика
         """
-        if not bi_data or not columns:
+        if not table_data or not columns:
             return []
         
         # Для pie графика используем первые две колонки (label, value)
@@ -219,7 +217,7 @@ class ChartSkill(BaseSkill):
             value_col = columns[1]
             
             result = []
-            for row in bi_data[:20]:  # Ограничиваем до 20 элементов для pie
+            for row in table_data[:20]:  # Ограничиваем до 20 элементов для pie
                 if isinstance(row, dict):
                     label = str(row.get(label_col, ""))
                     try:
@@ -239,7 +237,7 @@ class ChartSkill(BaseSkill):
             y_col = columns[1]
             
             result = []
-            for row in bi_data[:100]:  # Ограничиваем до 100 элементов
+            for row in table_data[:100]:  # Ограничиваем до 100 элементов
                 if isinstance(row, dict):
                     x = row.get(x_col, "")
                     try:
@@ -249,4 +247,3 @@ class ChartSkill(BaseSkill):
                     if x is not None:
                         result.append({"x": str(x), "y": y})
             return result
-

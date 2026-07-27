@@ -1,10 +1,10 @@
 <template>
   <div class="document-selector">
     <div class="document-selector__header">
-      <h6 class="mb-2">Выберите документ</h6>
+      <h6 class="mb-2">{{ t('ai_assistant.docs.selector.title') }}</h6>
       <SearchInput
         v-model="searchQuery"
-        placeholder="Поиск документов..."
+        :placeholder="t('ai_assistant.docs.selector.searchPlaceholder')"
         layout="grow"
         :show-icon="true"
         class="mb-2"
@@ -12,11 +12,11 @@
       <div class="header-actions">
         <button class="btn btn-sm btn-outline-secondary" @click="refreshDocuments">
           <RefreshCw :size="14" class="me-1" :class="{ spinning: loading }" />
-          Обновить
+          {{ t('common.refresh') }}
         </button>
         <button class="btn btn-sm btn-primary" @click="showUploader = !showUploader">
           <Upload :size="14" class="me-1" />
-          Загрузить
+          {{ t('ai_assistant.upload') }}
         </button>
       </div>
     </div>
@@ -32,7 +32,7 @@
     <!-- Список документов -->
     <div v-if="loading" class="text-center py-3">
       <div class="spinner-border spinner-border-sm" role="status">
-        <span class="visually-hidden">Загрузка...</span>
+        <span class="visually-hidden">{{ t('common.loading') }}</span>
       </div>
     </div>
 
@@ -45,14 +45,14 @@
         <FileText :size="48" />
       </div>
       <h6 class="empty-state__title">
-        {{ searchQuery.trim() ? 'Ничего не найдено' : 'Нет документов' }}
+        {{ searchQuery.trim() ? t('ai_assistant.docs.selector.notFound') : t('ai_assistant.docs.selector.noDocuments') }}
       </h6>
       <p class="empty-state__text">
-        {{ searchQuery.trim() ? 'Измените запрос или загрузите новый документ' : 'Загрузите документ, чтобы начать работу с базой знаний' }}
+        {{ searchQuery.trim() ? t('ai_assistant.docs.selector.changeQueryHint') : t('ai_assistant.docs.selector.emptyHint') }}
       </p>
       <button v-if="!searchQuery.trim()" class="btn btn-primary" @click="showUploader = true">
         <Upload :size="16" class="me-2" />
-        Загрузить первый документ
+        {{ t('ai_assistant.docs.selector.uploadFirst') }}
       </button>
     </div>
 
@@ -77,10 +77,10 @@
               {{ document.file_type.toUpperCase() }}
             </span>
             <span v-if="document.is_indexed" class="badge bg-success me-2">
-              Индексирован ({{ document.chunks_count }})
+              {{ t('ai_assistant.docs.selector.indexedWithCount', { count: document.chunks_count }) }}
             </span>
             <span v-else class="badge bg-warning me-2">
-              Не индексирован
+              {{ t('ai_assistant.docs.selectedInfo.notIndexed') }}
             </span>
             <span class="document-item__date">{{ formatDate(document.created_at) }}</span>
           </div>
@@ -94,14 +94,14 @@
         <div class="document-item__actions">
           <button
             class="action-btn"
-            :title="document.is_indexed ? 'Переиндексировать' : 'Индексировать'"
+            :title="document.is_indexed ? t('ai_assistant.docs.selector.reindex') : t('ai_assistant.docs.selector.index')"
             @click.stop="toggleIndex(document)"
           >
             <Database :size="14" />
           </button>
           <button
             class="action-btn text-danger"
-            title="Удалить"
+            :title="t('common.delete')"
             @click.stop="deleteDocument(document)"
           >
             <Trash2 :size="14" />
@@ -116,11 +116,14 @@
 import { ref, computed, onMounted } from 'vue'
 import { RefreshCw, Upload, FileText, File, Check, Database, Trash2 } from 'lucide-vue-next'
 import SearchInput from '@/components/SearchInput.vue'
+import { useAppI18n } from '@/i18n/useAppI18n.js'
+import { getCurrentBcp47 } from '@/i18n/index.js'
 import { docsClient } from './js/docs-client.js'
 import DocumentUploader from './DocumentUploader.vue'
 import { useToast } from '@/js/utils/toast.js'
 import { confirmDelete } from '@/js/utils/confirm.js'
 
+const { t } = useAppI18n()
 const toast = useToast()
 
 const emit = defineEmits(['document-selected'])
@@ -152,10 +155,10 @@ const loadDocuments = async () => {
     if (result.success) {
       documents.value = result.documents
     } else {
-      error.value = result.error || 'Не удалось загрузить документы'
+      error.value = result.error || t('ai_assistant.docs.api.loadFailed')
     }
   } catch (err) {
-    error.value = 'Ошибка загрузки документов: ' + err.message
+    error.value = t('ai_assistant.docs.selector.loadErrorPrefix', { message: err.message })
   } finally {
     loading.value = false
   }
@@ -192,29 +195,32 @@ const toggleIndex = async (document) => {
       // Переиндексировать
       const result = await docsClient.indexDocument(document.id, true)
       if (result.success) {
-        toast.success('Документ переиндексирован')
+        toast.success(t('ai_assistant.docs.selector.reindexedToast'))
         loadDocuments()
       } else {
-        toast.error(result.error || 'Ошибка индексации')
+        toast.error(result.error || t('ai_assistant.docs.selector.indexErrorToast'))
       }
     } else {
       // Индексировать
       const result = await docsClient.indexDocument(document.id, false)
       if (result.success) {
-        toast.success('Документ индексирован')
+        toast.success(t('ai_assistant.docs.selector.indexedToast'))
         loadDocuments()
         selectDocument({ ...document, is_indexed: true })
       } else {
-        toast.error(result.error || 'Ошибка индексации')
+        toast.error(result.error || t('ai_assistant.docs.selector.indexErrorToast'))
       }
     }
   } catch (err) {
-    toast.error(err.message || 'Ошибка индексации')
+    toast.error(err.message || t('ai_assistant.docs.selector.indexErrorToast'))
   }
 }
 
 const deleteDocument = async (document) => {
-  const ok = await confirmDelete('Удаление', `Удалить документ "${document.title}"?`)
+  const ok = await confirmDelete(
+    t('ai_assistant.docs.selector.deleteDocument'),
+    t('ai_assistant.docs.selector.deleteDocumentConfirm', { title: document.title }),
+  )
   if (!ok) {
     return
   }
@@ -222,24 +228,24 @@ const deleteDocument = async (document) => {
   try {
     const result = await docsClient.deleteDocument(document.id)
     if (result.success) {
-      toast.success('Документ удален')
+      toast.success(t('ai_assistant.docs.selector.deletedToast'))
       if (selectedDocumentId.value === document.id) {
         selectedDocumentId.value = null
         emit('document-selected', null)
       }
       loadDocuments()
     } else {
-      toast.error(result.error || 'Ошибка удаления')
+      toast.error(result.error || t('ai_assistant.docs.selector.deleteErrorToast'))
     }
   } catch (err) {
-    toast.error(err.message || 'Ошибка удаления')
+    toast.error(err.message || t('ai_assistant.docs.selector.deleteErrorToast'))
   }
 }
 
 const formatDate = (dateStr) => {
   if (!dateStr) return ''
   const date = new Date(dateStr)
-  return date.toLocaleDateString('ru-RU', {
+  return date.toLocaleDateString(getCurrentBcp47(), {
     year: 'numeric',
     month: 'short',
     day: 'numeric',

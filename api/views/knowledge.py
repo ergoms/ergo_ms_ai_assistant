@@ -4,6 +4,7 @@ import logging
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import permissions, status
+from ..permissions import CanViewAiAssistant
 from rest_framework.viewsets import ViewSet
 from rest_framework.decorators import action
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
@@ -33,7 +34,7 @@ class KnowledgeDocumentViewSet(ViewSet, SwaggerSafeMixin):
     - Создание документов из текста через JSON
     - Автоматическое извлечение текста из файлов при индексации
     """
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, CanViewAiAssistant]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
     
     def list(self, request):
@@ -478,7 +479,7 @@ class GeneratedDocumentDownloadView(APIView):
     GET /api/ai_assistant/documents/download/<path:file_path>
     Скачать сгенерированный документ
     """
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, CanViewAiAssistant]
 
     @staticmethod
     def _user_owns_file(user, full_path, normalized_path: str) -> bool:

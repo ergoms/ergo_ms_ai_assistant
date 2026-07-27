@@ -1,5 +1,6 @@
 import { apiClient } from '@/js/api/manager'
 import { fetchOllamaStatus } from '../../js/ollamaStatusApi.js'
+import { tGlobal } from '@/i18n/index.js'
 
 /**
  * API Endpoints для Docs модуля AI Assistant
@@ -64,14 +65,14 @@ class DocsClient {
       return {
         success: false,
         documents: [],
-        error: response.data?.error || 'Не удалось загрузить документы'
+        error: response.data?.error || tGlobal('ai_assistant.docs.api.loadFailed')
       }
     } catch (error) {
       logError('Ошибка загрузки документов:', error)
       return {
         success: false,
         documents: [],
-        error: error.message || 'Не удалось загрузить документы'
+        error: error.message || tGlobal('ai_assistant.docs.api.loadFailed')
       }
     }
   }
@@ -92,13 +93,13 @@ class DocsClient {
       
       return {
         success: false,
-        error: response.data?.error || 'Документ не найден'
+        error: response.data?.error || tGlobal('ai_assistant.docs.api.notFound')
       }
     } catch (error) {
       logError('Ошибка получения документа:', error)
       return {
         success: false,
-        error: error.message || 'Не удалось получить документ'
+        error: error.message || tGlobal('ai_assistant.docs.api.getFailed')
       }
     }
   }
@@ -126,13 +127,13 @@ class DocsClient {
       
       return {
         success: false,
-        error: response.data?.error || 'Не удалось создать документ'
+        error: response.data?.error || tGlobal('ai_assistant.docs.api.createFailed')
       }
     } catch (error) {
       logError('Ошибка создания документа:', error)
       return {
         success: false,
-        error: error.response?.data?.error || error.message || 'Не удалось создать документ'
+        error: error.response?.data?.error || error.message || tGlobal('ai_assistant.docs.api.createFailed')
       }
     }
   }
@@ -167,13 +168,13 @@ class DocsClient {
       
       return {
         success: false,
-        error: response.data?.error || 'Не удалось загрузить документ'
+        error: response.data?.error || tGlobal('ai_assistant.docs.api.uploadFailed')
       }
     } catch (error) {
       logError('Ошибка загрузки документа:', error)
       return {
         success: false,
-        error: error.response?.data?.error || error.message || 'Не удалось загрузить документ'
+        error: error.response?.data?.error || error.message || tGlobal('ai_assistant.docs.api.uploadFailed')
       }
     }
   }
@@ -194,13 +195,13 @@ class DocsClient {
       
       return {
         success: false,
-        error: response.data?.error || 'Не удалось обновить документ'
+        error: response.data?.error || tGlobal('ai_assistant.docs.api.updateFailed')
       }
     } catch (error) {
       logError('Ошибка обновления документа:', error)
       return {
         success: false,
-        error: error.response?.data?.error || error.message || 'Не удалось обновить документ'
+        error: error.response?.data?.error || error.message || tGlobal('ai_assistant.docs.api.updateFailed')
       }
     }
   }
@@ -215,19 +216,19 @@ class DocsClient {
       if (response.success) {
         return {
           success: true,
-          message: response.data?.message || 'Документ удален'
+          message: response.data?.message || tGlobal('ai_assistant.docs.api.deleted')
         }
       }
       
       return {
         success: false,
-        error: response.data?.error || 'Не удалось удалить документ'
+        error: response.data?.error || tGlobal('ai_assistant.docs.api.deleteFailed')
       }
     } catch (error) {
       logError('Ошибка удаления документа:', error)
       return {
         success: false,
-        error: error.message || 'Не удалось удалить документ'
+        error: error.message || tGlobal('ai_assistant.docs.api.deleteFailed')
       }
     }
   }
@@ -251,13 +252,13 @@ class DocsClient {
       
       return {
         success: false,
-        error: response.data?.error || 'Не удалось проиндексировать документ'
+        error: response.data?.error || tGlobal('ai_assistant.docs.api.indexFailed')
       }
     } catch (error) {
       logError('Ошибка индексации документа:', error)
       return {
         success: false,
-        error: error.response?.data?.error || error.message || 'Не удалось проиндексировать документ'
+        error: error.response?.data?.error || error.message || tGlobal('ai_assistant.docs.api.indexFailed')
       }
     }
   }
@@ -272,20 +273,20 @@ class DocsClient {
       if (response.success) {
         return {
           success: true,
-          message: response.data?.message || 'Документ деиндексирован',
+          message: response.data?.message || tGlobal('ai_assistant.docs.api.unindexed'),
           document: response.data.document,
         }
       }
       
       return {
         success: false,
-        error: response.data?.error || 'Не удалось деиндексировать документ'
+        error: response.data?.error || tGlobal('ai_assistant.docs.api.unindexFailed')
       }
     } catch (error) {
       logError('Ошибка деиндексации документа:', error)
       return {
         success: false,
-        error: error.message || 'Не удалось деиндексировать документ'
+        error: error.message || tGlobal('ai_assistant.docs.api.unindexFailed')
       }
     }
   }
@@ -395,7 +396,7 @@ class DocsClient {
     } catch (error) {
       logError('Ошибка streaming сообщения:', error)
       if (onError) {
-        onError(error.message || 'Не удалось отправить сообщение')
+        onError(error.message || tGlobal('ai_assistant.rag.api.sendMessageFailed'))
       }
     }
   }

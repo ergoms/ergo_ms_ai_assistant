@@ -3,14 +3,14 @@
     <div v-if="show" class="chat-type-selector-overlay" @click.self="close">
       <div class="chat-type-selector">
         <div class="chat-type-selector__header">
-          <h2 class="chat-type-selector__title">Создать новый чат</h2>
-          <button class="chat-type-selector__close" @click="close" title="Закрыть">
+          <h2 class="chat-type-selector__title">{{ t('ai_assistant.newChat.title') }}</h2>
+          <button class="chat-type-selector__close" @click="close" :title="t('common.close')">
             <X :size="20" />
           </button>
         </div>
         
         <div class="chat-type-selector__content">
-          <p class="chat-type-selector__description">Выберите тип чата для создания:</p>
+          <p class="chat-type-selector__description">{{ t('ai_assistant.newChat.description') }}</p>
           
           <div class="chat-type-selector__grid">
             <div
@@ -40,6 +40,9 @@ import { computed } from 'vue'
 import { X } from 'lucide-vue-next'
 import { Teleport } from 'vue'
 import { modules } from '../modules/index.js'
+import { useAppI18n } from '@/i18n/useAppI18n.js'
+
+const { t } = useAppI18n()
 
 const props = defineProps({
   show: {

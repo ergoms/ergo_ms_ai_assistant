@@ -26,7 +26,7 @@
         <div v-if="message.sqlGenerating" class="message-code message-code--generating">
           <div class="code-label">
             <Loader2 :size="12" class="spinning" />
-            <span>Генерация...</span>
+            <span>{{ t('ai_assistant.message.generatingShort') }}</span>
           </div>
           <pre><code>{{ message.sqlGenerating }}</code></pre>
         </div>
@@ -47,7 +47,7 @@
               </tbody>
             </table>
           </div>
-          <div class="table-meta">{{ message.data.data.length }} строк</div>
+          <div class="table-meta">{{ t('ai_assistant.message.rowsCount', message.data.data.length) }}</div>
         </div>
 
         <!-- Error -->
@@ -71,6 +71,11 @@
 <script setup>
 import { Sparkles, User, Terminal, Loader2, AlertCircle } from 'lucide-vue-next'
 import { sanitizeHtml } from '@/js/utils/sanitize'
+import { logError } from '@/js/utils/logError.js'
+import { useAppI18n } from '@/i18n/useAppI18n.js'
+import { getCurrentBcp47 } from '@/i18n/index.js'
+
+const { t } = useAppI18n()
 
 defineProps({
   message: {
@@ -372,7 +377,7 @@ const formatMarkdown = (text) => {
   // Заменяем плейсхолдеры thinking блоков на HTML
   thinkBlocks.forEach(think => {
     const placeholder = `__THINK_PLACEHOLDER_${think.id}__`
-    const replacement = `<div class="think-block"><div class="think-block__header">💭 Размышления:</div><div class="think-block__content">${think.content}</div></div>`
+    const replacement = `<div class="think-block"><div class="think-block__header">💭 ${escapeHtml(t('ai_assistant.message.thinking'))}</div><div class="think-block__content">${think.content}</div></div>`
     if (content.includes(placeholder)) {
       content = content.replace(placeholder, replacement)
     }
@@ -404,7 +409,7 @@ const formatMarkdown = (text) => {
 const formatTime = (timestamp) => {
   if (!timestamp) return ''
   const date = new Date(timestamp)
-  return date.toLocaleTimeString('ru-RU', {
+  return date.toLocaleTimeString(getCurrentBcp47(), {
     hour: '2-digit',
     minute: '2-digit',
   })
@@ -412,428 +417,5 @@ const formatTime = (timestamp) => {
 </script>
 
 <style lang="scss" scoped>
-@import '../styles/variables';
-
-.neural-chat-message {
-  display: flex;
-  flex-direction: column;
-  margin-bottom: 1rem;
-
-  &--user {
-    align-items: flex-end;
-
-    .message-row {
-      flex-direction: row-reverse;
-    }
-  }
-
-  &--assistant {
-    align-items: flex-start;
-  }
-}
-
-.message-row {
-  display: flex;
-  gap: 0.75rem;
-  max-width: 85%;
-  align-items: flex-start;
-}
-
-.message-avatar {
-  flex-shrink: 0;
-  width: 32px;
-  height: 32px;
-  border-radius: $radius-md;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  color: white;
-
-  &--user {
-    background: $neon-blue;
-  }
-
-  &--assistant {
-    background: $neon-cyan;
-  }
-}
-
-.message-bubble {
-  flex: 1;
-  padding: 1rem 1.5rem;
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--nc-bg-elevated, #{$dark-bg-elevated}) 88%, transparent);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid var(--nc-border, #{$dark-border});
-  position: relative;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-[data-bs-theme='light'] .message-bubble {
-  background: var(--ui-surface, #ffffff);
-  border: 1px solid var(--ui-border, rgba(226, 232, 240, 0.8));
-  box-shadow:
-    0 1px 3px rgba(0, 0, 0, 0.1),
-    0 4px 12px rgba(0, 0, 0, 0.05);
-}
-
-.neural-chat-message--user .message-bubble {
-  background: rgba($neon-blue, 0.1);
-  border-color: rgba($neon-blue, 0.3);
-}
-
-[data-bs-theme='light'] .neural-chat-message--user .message-bubble {
-  background: #f0f7ff;
-  border-color: rgba(79, 143, 255, 0.3);
-  box-shadow:
-    0 1px 3px rgba(79, 143, 255, 0.15),
-    0 4px 12px rgba(79, 143, 255, 0.08);
-}
-
-.message-text {
-  font-size: $font-size-lg;
-  line-height: $line-height-relaxed;
-  color: var(--nc-text-primary, #{$dark-text-primary});
-  word-wrap: break-word;
-  overflow-wrap: break-word;
-  word-break: break-word;
-
-  :deep(code) {
-    background: rgba(58, 232, 255, 0.15);
-    padding: 0.2em 0.5em;
-    border-radius: $radius-sm;
-    font-size: 0.95em;
-    color: $neon-cyan;
-  }
-
-  :deep(strong) {
-    color: var(--nc-text-primary, white);
-    font-weight: $font-weight-semibold;
-  }
-
-  :deep(em) {
-    color: $neon-purple;
-  }
-
-  :deep(.think-block) {
-    margin: $spacing-lg 0;
-    padding: $spacing-lg;
-    background: rgba(168, 85, 247, 0.1);
-    border: 1px solid rgba(168, 85, 247, 0.3);
-    border-radius: $radius-lg;
-    border-left: 4px solid $neon-purple;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  }
-
-  :deep(.think-block__header) {
-    font-size: $font-size-sm;
-    font-weight: $font-weight-semibold;
-    color: $neon-purple;
-    margin-bottom: $spacing-md;
-  }
-
-  :deep(.think-block__content) {
-    font-size: $font-size-base;
-    color: var(--nc-text-secondary, #{$dark-text-secondary});
-    line-height: $line-height-relaxed;
-    white-space: pre-wrap;
-    word-wrap: break-word;
-    overflow-wrap: break-word;
-  }
-
-  :deep(.markdown-table-wrapper) {
-    margin: $spacing-lg 0;
-    overflow-x: auto;
-    border-radius: $radius-lg;
-    max-width: 100%;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  }
-
-  :deep(.markdown-table) {
-    width: 100%;
-    min-width: 500px;
-    border-collapse: collapse;
-    font-size: $font-size-base;
-    background: var(--nc-bg-elevated, #{$dark-bg-elevated});
-    border: 1px solid rgba(58, 232, 255, 0.2);
-
-    th,
-    td {
-      padding: $spacing-md $spacing-lg;
-      text-align: left;
-      border-bottom: 1px solid rgba(58, 232, 255, 0.1);
-      word-wrap: break-word;
-      overflow-wrap: break-word;
-      white-space: normal;
-    }
-
-    th {
-      background: rgba(58, 232, 255, 0.1);
-      font-weight: $font-weight-semibold;
-      color: var(--nc-text-primary, #{$dark-text-primary});
-      font-size: $font-size-sm;
-      position: sticky;
-      top: 0;
-      z-index: 1;
-    }
-
-    td {
-      color: var(--nc-text-secondary, #{$dark-text-secondary});
-    }
-
-    tbody tr {
-      transition: background 0.2s;
-
-      &:hover {
-        background: rgba(58, 232, 255, 0.05);
-      }
-
-      &:last-child td {
-        border-bottom: none;
-      }
-    }
-  }
-}
-
-[data-bs-theme='light'] .message-text {
-  color: var(--ui-text, #000000);
-
-  :deep(code) {
-    background: rgba(15, 118, 138, 0.1);
-    color: #0f768a;
-  }
-
-  :deep(strong) {
-    color: var(--ui-text, #000000);
-  }
-
-  :deep(em) {
-    color: #7c3aed;
-  }
-
-  :deep(.think-block) {
-    background: rgba(124, 58, 237, 0.08);
-    border: 1px solid rgba(124, 58, 237, 0.2);
-    border-left: 4px solid #7c3aed;
-    box-shadow:
-      0 2px 8px rgba(0, 0, 0, 0.08),
-      0 1px 2px rgba(0, 0, 0, 0.04);
-  }
-
-  :deep(.think-block__header) {
-    color: #7c3aed;
-  }
-
-  :deep(.think-block__content) {
-    color: var(--ui-text, #000000);
-  }
-
-  :deep(.markdown-table-wrapper) {
-    box-shadow:
-      0 2px 8px rgba(0, 0, 0, 0.08),
-      0 1px 2px rgba(0, 0, 0, 0.04);
-  }
-
-  :deep(.markdown-table) {
-    background: var(--ui-surface, #ffffff);
-    border: 1px solid var(--ui-border, rgba(226, 232, 240, 0.8));
-
-    th,
-    td {
-      border-bottom: 1px solid rgba(226, 232, 240, 0.6);
-    }
-
-    th {
-      background: var(--ui-surface-2, #f1f5f9);
-      color: var(--ui-text, #000000);
-      border-bottom: 2px solid var(--ui-border, #e2e8f0);
-    }
-
-    td {
-      color: var(--ui-text, #000000);
-      background: var(--ui-surface, #ffffff);
-    }
-
-    tbody tr:hover {
-      background: rgba(15, 118, 138, 0.05);
-    }
-  }
-}
-
-.message-code {
-  margin-top: $spacing-md;
-  background: var(--nc-bg-base, #{$dark-bg-secondary});
-  border-radius: $radius-lg;
-  overflow: hidden;
-  border: 1px solid $neon-cyan-medium;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-
-  &--generating {
-    border-color: $neon-purple-light;
-
-    .code-label {
-      color: $neon-purple;
-    }
-  }
-}
-
-[data-bs-theme='light'] .message-code {
-  background: var(--ui-surface-2, #f8fafc);
-  border: 1px solid var(--ui-border, rgba(226, 232, 240, 0.8));
-  box-shadow:
-    0 2px 8px rgba(0, 0, 0, 0.08),
-    0 1px 2px rgba(0, 0, 0, 0.04);
-}
-
-[data-bs-theme='light'] .message-code--generating {
-  border-color: rgba(124, 58, 237, 0.2);
-
-  .code-label {
-    color: #7c3aed;
-  }
-}
-
-.code-label {
-  display: flex;
-  align-items: center;
-  gap: $spacing-sm;
-  padding: $spacing-sm $spacing-md;
-  background: rgba(58, 232, 255, 0.15);
-  border-bottom: 1px solid $dark-border;
-  font-size: $font-size-sm;
-  font-weight: $font-weight-semibold;
-  color: $neon-cyan;
-}
-
-[data-bs-theme='light'] .code-label {
-  background: rgba(15, 118, 138, 0.1);
-  border-bottom: 1px solid rgba(226, 232, 240, 0.6);
-  color: #0f768a;
-}
-
-.message-code pre {
-  margin: 0;
-  padding: $spacing-md;
-  overflow-x: auto;
-  font-size: $font-size-base;
-  line-height: $line-height-relaxed;
-  color: $neon-green;
-}
-
-[data-bs-theme='light'] .message-code pre {
-  color: #059669;
-}
-
-.message-table {
-  margin-top: $spacing-md;
-  border-radius: $radius-lg;
-  overflow: hidden;
-  border: 1px solid $neon-green-light;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-[data-bs-theme='light'] .message-table {
-  border: 1px solid var(--ui-border, rgba(226, 232, 240, 0.8));
-  box-shadow:
-    0 2px 8px rgba(0, 0, 0, 0.08),
-    0 1px 2px rgba(0, 0, 0, 0.04);
-}
-
-.table-scroll {
-  max-height: 250px;
-  overflow: auto;
-}
-
-.message-table table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: $font-size-base;
-  background: var(--nc-bg-elevated, #{$dark-bg-elevated});
-}
-
-[data-bs-theme='light'] .message-table table {
-  background: var(--ui-surface, #ffffff);
-}
-
-.message-table th,
-.message-table td {
-  padding: $spacing-md $spacing-lg;
-  text-align: left;
-  border-bottom: 1px solid $neon-green-light;
-  white-space: nowrap;
-}
-
-[data-bs-theme='light'] .message-table th,
-[data-bs-theme='light'] .message-table td {
-  border-bottom: 1px solid rgba(226, 232, 240, 0.6);
-}
-
-.message-table th {
-  background: $neon-green-light;
-  font-size: $font-size-sm;
-  font-weight: $font-weight-semibold;
-  color: $neon-green;
-  text-transform: uppercase;
-  position: sticky;
-  top: 0;
-}
-
-[data-bs-theme='light'] .message-table th {
-  background: var(--ui-surface-2, #f1f5f9);
-  color: var(--ui-text, #000000);
-  border-bottom: 2px solid var(--ui-border, #e2e8f0);
-}
-
-.message-table td {
-  color: var(--nc-text-primary, #{$dark-text-primary});
-}
-
-[data-bs-theme='light'] .message-table td {
-  color: var(--ui-text, #000000);
-  background: var(--ui-surface, #ffffff);
-}
-
-.table-meta {
-  padding: $spacing-sm $spacing-md;
-  font-size: $font-size-sm;
-  color: var(--nc-text-muted, #{$dark-text-muted});
-  background: $neon-green-light;
-  border-top: 1px solid $neon-green-light;
-}
-
-[data-bs-theme='light'] .table-meta {
-  background: rgba(241, 245, 249, 0.8);
-  color: var(--ui-text-muted, #64748b);
-  border-top: 1px solid rgba(226, 232, 240, 0.6);
-}
-
-.message-error {
-  display: flex;
-  align-items: center;
-  gap: $spacing-sm;
-  margin-top: $spacing-sm;
-  padding: $spacing-sm $spacing-sm;
-  background: $neon-red-light;
-  border-radius: $radius-sm;
-  font-size: $font-size-sm;
-  color: $neon-red;
-}
-
-.message-stage {
-  display: flex;
-  align-items: center;
-  gap: $spacing-sm;
-  margin-top: $spacing-sm;
-  font-size: $font-size-sm;
-  color: var(--nc-text-muted, #{$dark-text-muted});
-}
-
-.message-time {
-  font-size: 0.7rem;
-  color: var(--nc-text-muted, #{$dark-text-muted});
-  margin-top: $spacing-xs;
-  padding: 0 $spacing-sm;
-}
+@import './AssistantMessage.scss';
 </style>

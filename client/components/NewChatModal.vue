@@ -2,12 +2,12 @@
   <ModalCenter
     standalone
     modal-id="aiAssistantNewChat"
-    title="Создать новый чат"
+    :title="t('ai_assistant.newChat.title')"
     :visible="visible"
     size="md"
     @close="$emit('close')"
   >
-    <p class="text-muted mb-3">Выберите тип чата для создания:</p>
+    <p class="text-muted mb-3">{{ t('ai_assistant.newChat.description') }}</p>
     <div class="new-chat-grid">
       <button
         v-for="module in availableModules"
@@ -31,6 +31,9 @@
 import { computed } from 'vue'
 import ModalCenter from '@/components/ModalCenter.vue'
 import { modules } from '../modules/index.js'
+import { useAppI18n } from '@/i18n/useAppI18n.js'
+
+const { t } = useAppI18n()
 
 defineProps({
   visible: { type: Boolean, default: false },

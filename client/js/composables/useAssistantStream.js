@@ -1,4 +1,5 @@
 import { ref } from 'vue'
+import { tGlobal } from '@/i18n/index.js'
 
 let localMessageId = 1
 
@@ -116,7 +117,7 @@ export function useMessageHistory() {
     if (streamingMsgId) {
       const msg = messages.value.find((m) => m.id === streamingMsgId)
       if (msg) {
-        msg.content = `Ошибка: ${errorMsg}`
+        msg.content = tGlobal('ai_assistant.message.errorPrefix', { message: errorMsg })
         msg.streaming = false
         streamingMsgId = null
         return
@@ -125,7 +126,7 @@ export function useMessageHistory() {
     messages.value.push({
       id: nextLocalMessageId(),
       type: 'assistant',
-      content: `Ошибка: ${errorMsg}`,
+      content: tGlobal('ai_assistant.message.errorPrefix', { message: errorMsg }),
       timestamp: new Date(),
     })
     streamingMsgId = null

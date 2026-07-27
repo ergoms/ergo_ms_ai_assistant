@@ -1,5 +1,6 @@
 import { apiClient } from '@/js/api/manager'
 import { logError } from '@/js/utils/logError.js'
+import { tGlobal } from '@/i18n/index.js'
 
 const OLLAMA_STATUS_ENDPOINT = 'ollama_framework/status/'
 const EMBEDDINGS_STATUS_ENDPOINT = 'ai_assistant/embeddings_status/'
@@ -27,7 +28,9 @@ function normalizeOllamaResponse(data) {
     modelLoaded: Boolean(data?.model_loaded),
     baseUrl: data?.base_url || null,
     processRunning: Boolean(data?.process_running),
-    message: data?.message || (available ? 'Ollama доступен' : data?.error || 'Ollama недоступен'),
+    message:
+      data?.message ||
+      (available ? tGlobal('ai_assistant.ollama.available') : data?.error || tGlobal('ai_assistant.ollama.unavailable')),
     error: data?.error || null,
   }
 }
@@ -58,7 +61,7 @@ export async function fetchOllamaStatus(options = {}) {
         ollamaResponse.data?.message ||
         ollamaResponse.data?.error ||
         ollamaResponse.message ||
-        'Ошибка проверки статуса Ollama'
+        tGlobal('ai_assistant.ollama.statusCheckError')
 
       cachedStatus = {
         available: false,
@@ -92,7 +95,7 @@ export async function fetchOllamaStatus(options = {}) {
       error.response?.data?.error ||
       error.response?.data?.message ||
       error.message ||
-      'Не удалось подключиться к Ollama'
+      tGlobal('ai_assistant.ollama.connectFailed')
 
     cachedStatus = {
       available: false,

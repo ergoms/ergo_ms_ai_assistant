@@ -11,21 +11,21 @@
     <div v-if="!hideHeader" class="assistant-chat__header">
       <div class="assistant-chat__title">
         <FileText :size="20" class="me-2" />
-        <span>AI Ассистент - База знаний</span>
+        <span>{{ t('ai_assistant.docs.header.title') }}</span>
       </div>
       <div class="assistant-chat__controls">
         <button 
           class="control-btn btn-primary" 
           @click="showUploader = !showUploader"
-          title="Загрузить документ"
+          :title="t('ai_assistant.docs.header.uploadTooltip')"
         >
           <Upload :size="18" />
-          <span class="ms-1">Загрузить</span>
+          <span class="ms-1">{{ t('ai_assistant.upload') }}</span>
         </button>
         <router-link 
           to="/ai-assistant" 
           class="control-btn" 
-          title="Открыть AI Hub"
+          :title="t('ai_assistant.docs.header.openHub')"
         >
           <ExternalLink :size="18" />
         </router-link>
@@ -39,7 +39,7 @@
         @click="showUploader = !showUploader"
       >
         <Upload :size="20" class="me-2" />
-        Загрузить документ
+        {{ t('ai_assistant.docs.compactUpload') }}
       </button>
     </div>
 
@@ -50,9 +50,9 @@
           <div class="upload-modal__header">
             <div class="upload-modal__title">
               <Upload :size="24" class="me-2" />
-              <h5 class="mb-0">Загрузка документа</h5>
+              <h5 class="mb-0">{{ t('ai_assistant.docs.uploadModalTitle') }}</h5>
             </div>
-            <button class="upload-modal__close" @click="showUploader = false" title="Закрыть">
+            <button class="upload-modal__close" @click="showUploader = false" :title="t('common.close')">
               <X :size="20" />
             </button>
           </div>
@@ -80,18 +80,18 @@
           {{ selectedDocument.file_type.toUpperCase() }}
         </span>
         <span v-if="selectedDocument.is_indexed" class="badge bg-success ms-2">
-          Индексирован
+          {{ t('ai_assistant.docs.selectedInfo.indexed') }}
         </span>
         <span v-else class="badge bg-warning ms-2">
-          Не индексирован
+          {{ t('ai_assistant.docs.selectedInfo.notIndexed') }}
         </span>
       </div>
       <div class="selected-info-actions">
         <button class="btn btn-sm btn-outline-secondary" @click="showDocumentSelector = true; selectedDocument = null">
-          Сменить документ
+          {{ t('ai_assistant.docs.selectedInfo.changeDocument') }}
         </button>
         <button class="btn btn-sm btn-outline-secondary" @click="selectedDocument = null">
-          Убрать фильтр
+          {{ t('ai_assistant.docs.selectedInfo.removeFilter') }}
         </button>
       </div>
     </div>
@@ -101,11 +101,11 @@
       <div class="document-actions">
         <button class="btn btn-sm btn-primary" @click="showUploader = !showUploader">
           <Upload :size="14" class="me-1" />
-          Загрузить документ
+          {{ t('ai_assistant.docs.compactUpload') }}
         </button>
         <button class="btn btn-sm btn-outline-primary" @click="showDocumentSelector = !showDocumentSelector">
           <FileText :size="14" class="me-1" />
-          {{ showDocumentSelector ? 'Скрыть список' : 'Выбрать документ' }}
+          {{ showDocumentSelector ? t('ai_assistant.docs.toggle.hideList') : t('ai_assistant.docs.toggle.selectDocument') }}
         </button>
       </div>
     </div>
@@ -133,7 +133,7 @@
           <button
             class="btn btn-outline-primary"
             @click="showUploader = !showUploader"
-            title="Загрузить документ"
+            :title="t('ai_assistant.docs.compactUpload')"
             :disabled="isTyping"
           >
             <Upload :size="18" />
@@ -142,7 +142,7 @@
             v-model="inputMessage"
             type="text"
             class="form-control"
-            :placeholder="selectedDocument ? 'Задайте вопрос к документу...' : 'Задайте вопрос по базе знаний...'"
+            :placeholder="selectedDocument ? t('ai_assistant.docs.placeholderDocument') : t('ai_assistant.docs.placeholderKnowledgeBase')"
             @keypress.enter="sendMessage"
             :disabled="isTyping"
           />
@@ -156,7 +156,7 @@
         </div>
         <div v-if="showUploader" class="upload-hint mt-2">
           <small class="text-muted">
-            💡 Перетащите файл в область выше или используйте форму загрузки
+            {{ t('ai_assistant.docs.uploadHint') }}
           </small>
         </div>
       </div>
@@ -167,6 +167,7 @@
 <script setup>
 import { ref, nextTick, watch, computed, onMounted } from 'vue'
 import { Send, FileText, ExternalLink, Upload, X } from 'lucide-vue-next'
+import { useAppI18n } from '@/i18n/useAppI18n.js'
 import AssistantMessage from '../base/AssistantMessage.vue'
 import AssistantTyping from '../base/AssistantTyping.vue'
 import DocumentSelector from './DocumentSelector.vue'
@@ -174,6 +175,8 @@ import DocumentUploader from './DocumentUploader.vue'
 import { docsClient } from './js/docs-client.js'
 import { ragClient } from '../rag/js/rag-client.js'
 import { getModuleById } from '../modules/index.js'
+
+const { t } = useAppI18n()
 
 const props = defineProps({
   isVisible: {
@@ -194,8 +197,6 @@ const emit = defineEmits(['session-updated'])
 
 // Метод для сброса чата (вызывается из родительского компонента)
 const resetChat = () => {
-  console.log('Resetting docs chat...')
-  
   // Сбрасываем текущую сессию
   currentSessionId = null
   historyLoaded = false
@@ -209,7 +210,7 @@ const resetChat = () => {
   messages.value = [{
     id: messageIdCounter++,
     type: 'assistant',
-    content: 'Привет! Я ваш AI ассистент для работы с базой знаний.\n\n**Что я умею:**\n• Отвечать на вопросы на основе загруженных документов\n• Искать информацию в базе знаний\n• Работать с документами Word, PDF и текстовыми файлами\n\n**Начните работу:**\n1. Нажмите кнопку "Загрузить" вверху для добавления документов\n2. Или выберите существующий документ из списка\n3. После загрузки документ будет автоматически проиндексирован (если выбрана опция)\n4. Затем задавайте вопросы к документам!',
+    content: t('ai_assistant.docs.welcomeMessage'),
     timestamp: new Date(),
   }]
   
@@ -251,7 +252,7 @@ const messages = ref([
   {
     id: messageIdCounter++,
     type: 'assistant',
-    content: 'Привет! Я ваш AI ассистент для работы с базой знаний.\n\n**Что я умею:**\n• Отвечать на вопросы на основе загруженных документов\n• Искать информацию в базе знаний\n• Работать с документами Word, PDF и текстовыми файлами\n\n**Начните работу:**\n1. Нажмите кнопку "Загрузить" вверху для добавления документов\n2. Или выберите существующий документ из списка\n3. После загрузки документ будет автоматически проиндексирован (если выбрана опция)\n4. Затем задавайте вопросы к документам!',
+    content: t('ai_assistant.docs.welcomeMessage'),
     timestamp: new Date(),
   },
 ])
@@ -277,7 +278,7 @@ const onDocumentSelected = (document) => {
   if (!document) {
     selectedDocument.value = null
     showDocumentSelector.value = false
-    addAssistantMessage('Документ отменен. Теперь поиск будет по всем документам.')
+    addAssistantMessage(t('ai_assistant.docs.documentCancelled'))
     showMessages.value = true
     return
   }
@@ -287,26 +288,16 @@ const onDocumentSelected = (document) => {
   showMessages.value = true
   
   if (document.is_indexed) {
-    const chunksText = document.chunks_count > 0 
-      ? `${document.chunks_count} ${document.chunks_count === 1 ? 'фрагмент' : document.chunks_count < 5 ? 'фрагмента' : 'фрагментов'}`
-      : 'готов к поиску'
-    
+    const chunksInfo = document.chunks_count > 0
+      ? ` (${t('ai_assistant.docs.chunksCount', document.chunks_count)})`
+      : ''
+
     addAssistantMessage(
-      `Выбран документ: **${document.title}**\n\n` +
-      `✅ Документ проиндексирован${document.chunks_count > 0 ? ` (${chunksText})` : ''}. ` +
-      `Теперь поиск будет выполняться только в этом документе. ` +
-      `Вы можете задавать вопросы к документу. Например:\n\n` +
-      `• "О чем этот документ?"\n` +
-      `• "Найди информацию о..."\n` +
-      `• "Что говорится про..."`
+      t('ai_assistant.docs.selectedIndexed', { title: document.title, chunksInfo })
     )
   } else {
     addAssistantMessage(
-      `Выбран документ: **${document.title}**\n\n` +
-      `⚠️ **Внимание:** Документ не проиндексирован. ` +
-      `Для поиска по документу необходимо его индексировать. ` +
-      `Используйте кнопку индексации в списке документов. ` +
-      `Пока поиск будет выполняться по всем проиндексированным документам.`
+      t('ai_assistant.docs.selectedNotIndexed', { title: document.title })
     )
   }
 }
@@ -330,14 +321,14 @@ const handleDocumentUploaded = (document) => {
     // Автоматически выбираем документ, если он был индексирован
     selectedDocument.value = document
     addAssistantMessage(
-      `✅ Документ **${document.title}** успешно загружен и проиндексирован (${document.chunks_count} фрагментов). ` +
-      `Теперь вы можете задавать вопросы к этому документу.`
+      t('ai_assistant.docs.uploadedIndexed', {
+        title: document.title,
+        chunks: t('ai_assistant.docs.chunksCount', document.chunks_count),
+      })
     )
   } else {
     addAssistantMessage(
-      `✅ Документ **${document.title}** успешно загружен. ` +
-      `⚠️ Для поиска по документу необходимо его проиндексировать. ` +
-      `Используйте кнопку индексации в списке документов.`
+      t('ai_assistant.docs.uploadedNotIndexed', { title: document.title })
     )
   }
 }
@@ -355,14 +346,14 @@ const handleDocumentCreated = (document) => {
     // Автоматически выбираем документ, если он был индексирован
     selectedDocument.value = document
     addAssistantMessage(
-      `✅ Документ **${document.title}** успешно создан и проиндексирован (${document.chunks_count} фрагментов). ` +
-      `Теперь вы можете задавать вопросы к этому документу.`
+      t('ai_assistant.docs.createdIndexed', {
+        title: document.title,
+        chunks: t('ai_assistant.docs.chunksCount', document.chunks_count),
+      })
     )
   } else {
     addAssistantMessage(
-      `✅ Документ **${document.title}** успешно создан. ` +
-      `⚠️ Для поиска по документу необходимо его проиндексировать. ` +
-      `Используйте кнопку индексации в списке документов.`
+      t('ai_assistant.docs.createdNotIndexed', { title: document.title })
     )
   }
 }
@@ -410,21 +401,15 @@ const sendMessage = async () => {
     if (!status.available) {
       isTyping.value = false
       addAssistantMessage(
-        `**Ошибка подключения к Ollama**\n\n` +
-        `${status.message || 'Ollama недоступен'}\n\n` +
-        `**Что нужно сделать:**\n` +
-        `1. Убедитесь, что Ollama установлен и запущен\n` +
-        `2. Проверьте доступность Ollama по адресу: http://localhost:11434\n` +
-        `3. Установите Ollama: https://ollama.com/download`
+        `${t('ai_assistant.docs.ollamaErrorTitle')}\n\n` +
+        `${status.message || t('ai_assistant.ollama.unavailable')}\n\n` +
+        t('ai_assistant.docs.ollamaErrorSteps')
       )
       return
     }
 
     if (!status.embeddings) {
-      addAssistantMessage(
-        `⚠️ **Внимание:** Сервис embeddings недоступен. ` +
-        `Ответы могут быть не основаны на ваших документах.`
-      )
+      addAssistantMessage(t('ai_assistant.docs.embeddingsUnavailable'))
     }
   }
 
@@ -472,20 +457,17 @@ const sendMessage = async () => {
       },
       // onError
       (errorMsg) => {
-        let errorMessage = errorMsg || 'Неизвестная ошибка'
+        let errorMessage = errorMsg || t('ai_assistant.docs.unknownError')
         
         if (errorMessage.includes('Ollama') || errorMessage.includes('ollama')) {
-          errorMessage = `**Ошибка подключения к Ollama**\n\n` +
+          errorMessage = `${t('ai_assistant.docs.ollamaErrorTitle')}\n\n` +
             `${errorMessage}\n\n` +
-            `**Что нужно сделать:**\n` +
-            `1. Убедитесь, что Ollama установлен и запущен\n` +
-            `2. Проверьте доступность Ollama по адресу: http://localhost:11434\n` +
-            `3. Установите Ollama: https://ollama.com/download`
+            t('ai_assistant.docs.ollamaErrorSteps')
         }
         
         const msg = messages.value.find(m => m.id === streamingMessageId)
         if (msg) {
-          msg.content = `**Ошибка:** ${errorMessage}`
+          msg.content = t('ai_assistant.docs.errorPrefix', { message: errorMessage })
           msg.isStreaming = false
         }
         isTyping.value = false
@@ -499,7 +481,9 @@ const sendMessage = async () => {
     logError('Ошибка отправки сообщения:', error)
     const msg = messages.value.find(m => m.id === streamingMessageId)
     if (msg) {
-      msg.content = `**Ошибка:** ${error.message || 'Не удалось отправить сообщение'}`
+      msg.content = t('ai_assistant.docs.errorPrefix', {
+        message: error.message || t('ai_assistant.rag.api.sendMessageFailed'),
+      })
       msg.isStreaming = false
     }
     isTyping.value = false
@@ -530,9 +514,7 @@ const handleDrop = async (event) => {
   })
   
   if (validFiles.length === 0) {
-    addAssistantMessage(
-      '⚠️ **Ошибка:** Поддерживаются только файлы форматов PDF, DOCX и TXT.'
-    )
+    addAssistantMessage(t('ai_assistant.docs.unsupportedFileTypes'))
     return
   }
   
@@ -543,10 +525,7 @@ const handleDrop = async (event) => {
   await nextTick()
   
   // Можно добавить автоматическое заполнение формы, но пока просто открываем панель
-  addAssistantMessage(
-    `📁 Обнаружен файл: **${validFiles[0].name}**\n\n` +
-    `Используйте форму загрузки выше для загрузки файла.`
-  )
+  addAssistantMessage(t('ai_assistant.docs.fileDetected', { name: validFiles[0].name }))
 }
 
 watch(() => props.forceShowUploader, (newVal) => {
@@ -625,335 +604,6 @@ onMounted(() => {
 })
 </script>
 
-<style scoped>
-.assistant-chat {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  width: 100%;
-  background: 
-    radial-gradient(ellipse at top, color-mix(in srgb, var(--module-color, #8b5cf6) 8%, transparent) 0%, transparent 50%),
-    radial-gradient(ellipse at bottom, color-mix(in srgb, var(--module-color, #8b5cf6) 5%, transparent) 0%, transparent 50%);
-  position: relative;
-  overflow: hidden;
-  z-index: 1;
-}
-
-.assistant-chat::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-image: 
-    radial-gradient(circle at 20% 50%, color-mix(in srgb, var(--module-color, #8b5cf6) 6%, transparent) 0%, transparent 50%),
-    radial-gradient(circle at 80% 80%, color-mix(in srgb, var(--module-color, #8b5cf6) 4%, transparent) 0%, transparent 50%);
-  pointer-events: none;
-  z-index: 0;
-}
-
-.assistant-chat.drag-over::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: color-mix(in srgb, var(--module-color, #8b5cf6) 10%, transparent);
-  border: 2px dashed var(--module-color, #8b5cf6);
-  border-radius: 0.5rem;
-  z-index: 100;
-  pointer-events: none;
-}
-
-.assistant-chat.drag-over::after {
-  content: 'Перетащите файл сюда для загрузки';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background: var(--module-color, #8b5cf6);
-  color: white;
-  padding: 1rem 2rem;
-  border-radius: 0.5rem;
-  font-weight: 600;
-  z-index: 101;
-  pointer-events: none;
-  white-space: nowrap;
-}
-
-.assistant-chat__header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1rem;
-  border-bottom: 1px solid var(--bs-border-color);
-}
-
-.assistant-chat__title {
-  display: flex;
-  align-items: center;
-  font-weight: 600;
-}
-
-.assistant-chat__controls {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.control-btn {
-  display: flex;
-  align-items: center;
-  padding: 0.25rem 0.5rem;
-  color: var(--bs-secondary);
-  text-decoration: none;
-  border-radius: 0.25rem;
-  transition: all 0.2s;
-}
-
-.control-btn:hover {
-  color: var(--module-color, #8b5cf6);
-  background-color: color-mix(in srgb, var(--module-color, #8b5cf6) 10%, transparent);
-}
-
-.control-btn.btn-primary {
-  background-color: var(--module-color, #8b5cf6);
-  color: white;
-  padding: 0.375rem 0.75rem;
-  border-radius: 0.375rem;
-  display: flex;
-  align-items: center;
-  border: none;
-  cursor: pointer;
-}
-
-.control-btn.btn-primary:hover {
-  background-color: var(--module-color, #8b5cf6);
-  opacity: 0.9;
-  opacity: 0.9;
-  color: white;
-}
-
-/* Модальное окно загрузки */
-.upload-modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.75);
-  backdrop-filter: blur(8px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 10000;
-  animation: fadeIn 0.2s ease-out;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-.upload-modal {
-  background: linear-gradient(135deg, 
-    color-mix(in srgb, var(--bs-body-bg) 95%, transparent) 0%,
-    color-mix(in srgb, var(--module-color, #8b5cf6) 15%, var(--bs-body-bg)) 100%
-  );
-  backdrop-filter: blur(20px);
-  border-radius: 1rem;
-  box-shadow: 
-    0 20px 60px rgba(0, 0, 0, 0.5),
-    0 0 0 1px color-mix(in srgb, var(--module-color, #8b5cf6) 30%, transparent),
-    0 0 40px color-mix(in srgb, var(--module-color, #8b5cf6) 20%, transparent);
-  width: 90%;
-  max-width: 600px;
-  max-height: 90vh;
-  display: flex;
-  flex-direction: column;
-  animation: slideUp 0.3s ease-out;
-  overflow: hidden;
-}
-
-@keyframes slideUp {
-  from {
-    transform: translateY(30px);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
-}
-
-.upload-modal__header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1.5rem;
-  border-bottom: 1px solid color-mix(in srgb, var(--module-color, #8b5cf6) 30%, transparent);
-  background: color-mix(in srgb, var(--module-color, #8b5cf6) 10%, transparent);
-}
-
-.upload-modal__title {
-  display: flex;
-  align-items: center;
-  color: var(--module-color, #8b5cf6);
-  font-weight: 600;
-}
-
-.upload-modal__close {
-  background: transparent;
-  border: 1px solid color-mix(in srgb, var(--bs-border-color) 40%, transparent);
-  color: var(--bs-secondary);
-  width: 36px;
-  height: 36px;
-  border-radius: 0.5rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.upload-modal__close:hover {
-  background: color-mix(in srgb, var(--bs-danger) 20%, transparent);
-  border-color: var(--bs-danger);
-  color: var(--bs-danger);
-  transform: rotate(90deg);
-}
-
-.upload-modal__body {
-  padding: 1.5rem;
-  overflow-y: auto;
-  flex: 1;
-}
-
-.upload-hint {
-  text-align: center;
-}
-
-.assistant-chat__document-selector {
-  flex: 1;
-  overflow-y: auto;
-  position: relative;
-  z-index: 1;
-}
-
-.assistant-chat__document-selector-toggle {
-  padding: 0.75rem 1rem;
-  border-bottom: 1px solid color-mix(in srgb, var(--bs-border-color) 50%, transparent);
-  background: transparent;
-}
-
-.document-actions {
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
-}
-
-.assistant-chat__document-selector-collapsed {
-  max-height: 400px;
-  overflow-y: auto;
-  border-bottom: 1px solid color-mix(in srgb, var(--bs-border-color) 50%, transparent);
-  background: transparent;
-}
-
-.assistant-chat__selected-info {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.75rem 1rem;
-  border-bottom: 1px solid color-mix(in srgb, var(--bs-border-color) 50%, transparent);
-  background: color-mix(in srgb, var(--module-color, #8b5cf6) 10%, transparent);
-  backdrop-filter: blur(5px);
-  gap: 0.5rem;
-}
-
-.selected-info-actions {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.selected-info-item {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex: 1;
-  min-width: 0;
-}
-
-.selected-info-item span:not(.badge) {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.assistant-chat__messages {
-  flex: 1;
-  overflow-y: auto;
-  padding: 1rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  background: transparent;
-  position: relative;
-  z-index: 1;
-}
-
-.assistant-chat__messages::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: 
-    radial-gradient(ellipse at center, transparent 0%, color-mix(in srgb, var(--module-color, #8b5cf6) 3%, transparent) 100%);
-  pointer-events: none;
-  z-index: -1;
-}
-
-.assistant-chat__compact-upload {
-  padding: 2rem;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  background: transparent;
-  position: relative;
-  z-index: 1;
-}
-
-.assistant-chat__input {
-  padding: 1rem;
-  border-top: 1px solid color-mix(in srgb, var(--bs-border-color) 50%, transparent);
-  background: color-mix(in srgb, var(--bs-body-bg) 70%, transparent);
-  backdrop-filter: blur(10px);
-  position: relative;
-  z-index: 2;
-}
-
-.input-wrapper {
-  width: 100%;
-}
-
-.input-group {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.form-control {
-  flex: 1;
-}
-
-.streaming {
-  opacity: 0.8;
-}
+<style scoped lang="scss">
+@import './DocsAssistantChat.scss';
 </style>
-
-

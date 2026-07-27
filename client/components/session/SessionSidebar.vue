@@ -3,7 +3,7 @@
     <div class="session-sidebar__toolbar">
       <SearchInput
         :model-value="searchQuery"
-        placeholder="Поиск чатов..."
+        :placeholder="t('ai_assistant.sidebar.searchPlaceholder')"
         layout="grow"
         :show-icon="true"
         @update:model-value="$emit('update:searchQuery', $event)"
@@ -14,12 +14,12 @@
         value-key="id"
         label-key="name"
         include-all-option
-        all-label="Все модули"
+        :all-label="t('ai_assistant.sidebar.allModules')"
         @update:model-value="$emit('update:filterModule', $event)"
       />
       <button type="button" class="btn btn-primary btn-sm w-100" @click="$emit('new-chat')">
         <Plus :size="16" class="me-1" />
-        Новый чат
+        {{ t('ai_assistant.sidebar.newChat') }}
       </button>
     </div>
 
@@ -33,7 +33,7 @@
         </div>
         <div class="session-item__content">
           <span class="session-item__title">{{ draftSession.title }}</span>
-          <span class="session-item__meta">Сохранится после ответа</span>
+          <span class="session-item__meta">{{ t('ai_assistant.sidebar.draftMeta') }}</span>
         </div>
       </div>
 
@@ -55,7 +55,7 @@
               <component :is="module.icon" :size="16" />
             </div>
             <div class="session-item__content">
-              <span class="session-item__title">{{ session.title || 'Без названия' }}</span>
+              <span class="session-item__title">{{ session.title || t('ai_assistant.untitled') }}</span>
               <span class="session-item__meta">{{ formatSessionTime(session.updated_at || session.created_at) }}</span>
             </div>
             <DropDown class="session-item__menu" @click.stop>
@@ -69,7 +69,7 @@
                     @click="$emit('delete-session', session.id)"
                   >
                     <Trash2 :size="14" />
-                    Удалить
+                    {{ t('ai_assistant.sidebar.delete') }}
                   </span>
                 </li>
               </template>
@@ -80,8 +80,8 @@
 
       <div v-if="!loading && !draftSession && totalCount === 0" class="session-empty">
         <MessageSquare :size="32" class="session-empty__icon" />
-        <p class="mb-1">Нет чатов</p>
-        <p class="session-empty__hint mb-0">Нажмите «Новый чат» или начните диалог в рабочей области.</p>
+        <p class="mb-1">{{ t('ai_assistant.noChats') }}</p>
+        <p class="session-empty__hint mb-0">{{ t('ai_assistant.sidebar.emptyHint') }}</p>
       </div>
     </LoadingContentArea>
   </aside>
@@ -96,6 +96,9 @@ import DropDown from '@/components/DropDown.vue'
 import LoadingContentArea from '@/components/LoadingContentArea.vue'
 import { getRelativeTime } from '@/js/utils/timeUtils.js'
 import { modules, getModuleById } from '../../modules/index.js'
+import { useAppI18n } from '@/i18n/useAppI18n.js'
+
+const { t } = useAppI18n()
 
 const props = defineProps({
   loading: { type: Boolean, default: false },

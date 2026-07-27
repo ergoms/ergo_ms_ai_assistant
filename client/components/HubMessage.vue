@@ -64,7 +64,7 @@
             <Terminal :size="14" />
             <span>SQL QUERY</span>
           </div>
-          <button class="code-copy" @click="copySql" :title="sqlCopied ? 'Скопировано!' : 'Копировать'">
+          <button class="code-copy" @click="copySql" :title="sqlCopied ? t('common.copied') : t('common.copy')">
             <Check v-if="sqlCopied" :size="14" />
             <Copy v-else :size="14" />
           </button>
@@ -82,7 +82,7 @@
             <Database :size="14" />
             <span>{{ chartConfig.title }}</span>
           </div>
-          <button class="chart-download" @click="downloadChart" title="Скачать график">
+          <button class="chart-download" @click="downloadChart" :title="t('ai_assistant.message.downloadChart')">
             <Download :size="14" />
           </button>
         </div>
@@ -102,10 +102,10 @@
         <div class="data-header">
           <div class="data-header__left">
             <Grid3x3 :size="14" />
-            <span>РЕЗУЛЬТАТ</span>
+            <span>{{ t('ai_assistant.message.resultLabel') }}</span>
           </div>
           <div class="data-header__right">
-            <span class="data-count">{{ message.data.rows }} строк</span>
+            <span class="data-count">{{ t('ai_assistant.message.rowsCount', message.data.rows) }}</span>
           </div>
         </div>
         
@@ -174,12 +174,12 @@
               @click="goToInputPage"
               :disabled="!pageInput || pageInput < 1 || pageInput > totalPages"
             >
-              Перейти
+              {{ t('ai_assistant.message.goToPage') }}
             </button>
           </div>
           
           <span class="pagination-info">
-            {{ paginationStart }}-{{ paginationEnd }} из {{ message.data.data.length }}
+            {{ paginationStart }}-{{ paginationEnd }} {{ t('common.of') }} {{ message.data.data.length }}
           </span>
         </div>
       </div>
@@ -203,7 +203,11 @@ import { apiClient } from '@/js/api/manager'
 import { sanitizeHtml } from '@/js/utils/sanitize'
 import { logError, logWarn } from '@/js/utils/logError.js'
 import { buildApexOptions } from '@/composables/useApexTheme.js'
+import { useAppI18n } from '@/i18n/useAppI18n.js'
+import { getCurrentBcp47 } from '@/i18n/index.js'
 import ApexCharts from 'vue3-apexcharts'
+
+const { t } = useAppI18n()
 
 const props = defineProps({
   message: {
@@ -296,21 +300,21 @@ const avatarStyle = computed(() => {
 })
 
 const authorName = computed(() => {
-  if (props.message.type === 'user') return 'Вы'
+  if (props.message.type === 'user') return t('ai_assistant.you')
   return props.moduleConfig?.name || 'Neural'
 })
 
 const formattedTime = computed(() => {
   if (!props.message.timestamp) return ''
   const date = new Date(props.message.timestamp)
-  return date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
+  return date.toLocaleTimeString(getCurrentBcp47(), { hour: '2-digit', minute: '2-digit' })
 })
 
 const formatProcessingTime = (ms) => {
   if (!ms) return ''
-  if (ms < 1000) return `${ms}мс`
+  if (ms < 1000) return t('ai_assistant.message.durationMs', { ms })
   const seconds = (ms / 1000).toFixed(1)
-  return `${seconds}с`
+  return t('ai_assistant.message.durationSec', { sec: seconds })
 }
 
 const formattedContent = computed(() => {
@@ -551,7 +555,7 @@ const apexSeries = computed(() => {
   } else {
     // Для остальных типов возвращаем серию с данными
     return [{
-      name: config.series_name || 'Данные',
+      name: config.series_name || t('ai_assistant.message.seriesDefaultName'),
       data: data.map(item => item.y || 0)
     }]
   }
@@ -571,7 +575,7 @@ const apexOptions = computed(() => {
       toolbar: { show: true, tools: { download: true } },
     },
     title: {
-      text: config.title || 'График',
+      text: config.title || t('ai_assistant.message.chartDefaultTitle'),
       style: { fontSize: '16px', fontWeight: 600 },
     },
     legend: {
@@ -635,787 +639,5 @@ const downloadChart = async () => {
 </script>
 
 <style lang="scss" scoped>
-@import '../styles/variables';
-
-.neural-message {
-  display: flex;
-  gap: $spacing-md;
-  padding: $spacing-lg $spacing-xl;
-  position: relative;
-  transition: all $transition-fast;
-
-  &:hover {
-    background: color-mix(in srgb, var(--accent, #{$neon-cyan}) 4%, transparent);
-
-    .connector-line {
-      opacity: 0.5;
-    }
-
-    .connector-node {
-      transform: scale(1.2);
-      box-shadow: $glow-cyan;
-    }
-  }
-
-  &--user {
-    .message-body {
-      background: linear-gradient(
-        135deg,
-        color-mix(in srgb, var(--avatar-color, #{$neon-blue}) 12%, transparent),
-        color-mix(in srgb, var(--avatar-color, #{$neon-blue}) 5%, transparent)
-      );
-      border-color: color-mix(in srgb, var(--avatar-color, #{$neon-blue}) 22%, transparent);
-    }
-
-    .connector-node {
-      background: $neon-blue;
-    }
-  }
-
-  &--assistant {
-    .message-body {
-      background: linear-gradient(
-        135deg,
-        color-mix(in srgb, var(--accent, #{$neon-cyan}) 10%, transparent),
-        color-mix(in srgb, #{$neon-purple} 6%, transparent)
-      );
-      border-color: color-mix(in srgb, var(--accent, #{$neon-cyan}) 18%, transparent);
-    }
-  }
-
-  &--streaming {
-    .message-content {
-      &::after {
-        content: '';
-        display: inline-block;
-        width: 2px;
-        height: 1.2em;
-        background: var(--accent, #{$neon-cyan});
-        margin-left: 4px;
-        animation: cursor-blink 1s step-end infinite;
-        vertical-align: text-bottom;
-      }
-    }
-  }
-}
-
-// Connector decoration
-.message-connector {
-  position: absolute;
-  left: calc(#{$spacing-xl} + 22px);
-  top: 0;
-  bottom: 0;
-  width: 20px;
-  pointer-events: none;
-}
-
-.connector-line {
-  position: absolute;
-  left: 50%;
-  top: 0;
-  bottom: 0;
-  width: 1px;
-  background: linear-gradient(
-    to bottom,
-    transparent,
-    var(--avatar-color, #{$neon-cyan}),
-    transparent
-  );
-  opacity: 0.2;
-  transition: opacity $transition-fast;
-}
-
-.connector-node {
-  position: absolute;
-  left: 50%;
-  top: calc(#{$spacing-lg} + 22px);
-  width: 8px;
-  height: 8px;
-  background: var(--avatar-color, #{$neon-cyan});
-  border-radius: 50%;
-  transform: translateX(-50%);
-  transition: all $transition-fast;
-}
-
-// Avatar
-.message-avatar {
-  width: $message-avatar-size;
-  height: $message-avatar-size;
-  position: relative;
-  flex-shrink: 0;
-  z-index: 1;
-}
-
-.avatar-core {
-  position: absolute;
-  inset: 4px;
-  background: linear-gradient(135deg, var(--avatar-color), rgba(0, 0, 0, 0.5));
-  border-radius: $radius-md;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  z-index: 2;
-}
-
-.avatar-ring {
-  position: absolute;
-  inset: 0;
-  border: 2px solid var(--avatar-color);
-  border-radius: calc(#{$radius-md} + 2px);
-  opacity: 0.5;
-}
-
-.avatar-pulse {
-  position: absolute;
-  inset: -4px;
-  border: 1px solid var(--avatar-color);
-  border-radius: $radius-lg;
-  animation: avatar-pulse 2s ease-out infinite;
-}
-
-@keyframes avatar-pulse {
-  0% { transform: scale(0.9); opacity: 0.8; }
-  100% { transform: scale(1.2); opacity: 0; }
-}
-
-// Body
-.message-body {
-  flex: 1;
-  min-width: 0;
-  max-width: $message-max-width;
-  background: color-mix(in srgb, var(--bg-elevated) 30%, transparent);
-  backdrop-filter: blur(30px);
-  -webkit-backdrop-filter: blur(30px);
-  border: 1px solid var(--border-subtle);
-  border-radius: $radius-lg;
-  padding: $spacing-md $spacing-lg;
-  position: relative;
-
-  // Corner cuts decoration
-  &::before,
-  &::after {
-    content: '';
-    position: absolute;
-    width: 12px;
-    height: 12px;
-    border-style: solid;
-    border-color: var(--avatar-color, #{$neon-cyan});
-    opacity: 0.3;
-  }
-
-  &::before {
-    top: -1px;
-    left: -1px;
-    border-width: 1px 0 0 1px;
-    border-radius: $radius-lg 0 0 0;
-  }
-
-  &::after {
-    bottom: -1px;
-    right: -1px;
-    border-width: 0 1px 1px 0;
-    border-radius: 0 0 $radius-lg 0;
-  }
-}
-
-.message-header {
-  display: flex;
-  align-items: center;
-  gap: $spacing-sm;
-  margin-bottom: $spacing-sm;
-}
-
-.message-author {
-  font-family: $font-family-display;
-  font-size: $font-size-sm;
-  font-weight: 600;
-  color: var(--text-primary);
-  letter-spacing: $letter-spacing-wide;
-}
-
-.message-time-info {
-  display: flex;
-  align-items: center;
-  gap: $spacing-xs;
-}
-
-.message-time {
-  font-family: $font-family-mono;
-  font-size: $font-size-xs;
-  color: var(--text-muted);
-}
-
-.message-processing-time {
-  font-family: $font-family-mono;
-  font-size: $font-size-xs;
-  color: var(--accent);
-  padding: 2px 6px;
-  background: rgba(58, 232, 255, 0.1);
-  border-radius: $radius-sm;
-  border: 1px solid rgba(58, 232, 255, 0.2);
-}
-
-.message-skill-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-family: $font-family-mono;
-  font-size: $font-size-xs;
-  font-weight: 600;
-  color: #a855f7;
-  padding: 2px 8px;
-  background: rgba(168, 85, 247, 0.15);
-  border-radius: $radius-sm;
-  border: 1px solid rgba(168, 85, 247, 0.3);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  cursor: help;
-  transition: all $transition-fast;
-  white-space: pre-wrap;
-  
-  svg {
-    color: #a855f7;
-  }
-  
-  &:hover {
-    background: rgba(168, 85, 247, 0.25);
-    border-color: rgba(168, 85, 247, 0.5);
-    box-shadow: 0 0 8px rgba(168, 85, 247, 0.3);
-  }
-}
-
-.message-content {
-  font-family: Arial, sans-serif;
-  font-size: $message-font-size;
-  font-weight: 200;
-  line-height: $line-height-relaxed;
-  color: var(--text-secondary);
-  word-wrap: break-word;
-
-  :deep(strong) {
-    font-weight: 600;
-    color: var(--text-primary);
-  }
-
-  :deep(em) {
-    font-style: italic;
-    color: var(--accent);
-  }
-
-  :deep(code) {
-    font-family: $font-family-mono;
-    font-size: 0.9em;
-    background: rgba(58, 232, 255, 0.1);
-    padding: 2px 8px;
-    border-radius: $radius-sm;
-    color: $neon-cyan;
-    border: 1px solid rgba(58, 232, 255, 0.2);
-  }
-
-  :deep(.download-link) {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 8px 16px;
-    background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(16, 185, 129, 0.08));
-    border: 1px solid rgba(16, 185, 129, 0.4);
-    border-radius: $radius-md;
-    color: $neon-green;
-    font-weight: 600;
-    text-decoration: none;
-    transition: all $transition-fast;
-    cursor: pointer;
-
-    &::before {
-      content: '📄';
-      font-size: 1.1em;
-    }
-
-    &:hover {
-      background: linear-gradient(135deg, rgba(16, 185, 129, 0.25), rgba(16, 185, 129, 0.15));
-      border-color: $neon-green;
-      box-shadow: 0 0 12px rgba(16, 185, 129, 0.3);
-      transform: translateY(-1px);
-    }
-
-    &:active {
-      transform: translateY(0);
-    }
-  }
-
-  :deep(.markdown-table-wrapper) {
-    margin: $spacing-md 0;
-    overflow-x: auto;
-    border-radius: $radius-md;
-    max-width: 100%;
-  }
-
-  :deep(.markdown-table) {
-    width: 100%;
-    min-width: 500px;
-    border-collapse: collapse;
-    font-family: Arial, sans-serif;
-    font-size: $font-size-sm;
-    background: var(--bg-base);
-    border: 1px solid rgba(58, 232, 255, 0.2);
-    
-    th, td {
-      padding: $spacing-sm $spacing-md;
-      text-align: left;
-      border-bottom: 1px solid rgba(58, 232, 255, 0.1);
-      word-wrap: break-word;
-      white-space: normal;
-      font-family: Arial, sans-serif;
-    }
-    
-    th {
-      background: rgba(58, 232, 255, 0.1);
-      font-weight: 600;
-      color: var(--text-primary);
-      font-family: Arial, sans-serif;
-      text-transform: uppercase;
-      font-size: $font-size-xs;
-      letter-spacing: $letter-spacing-wide;
-      position: sticky;
-      top: 0;
-      z-index: 1;
-    }
-    
-    td {
-      color: var(--text-secondary);
-      font-family: Arial, sans-serif;
-    }
-    
-    tbody tr {
-      transition: background $transition-fast;
-      
-      &:hover {
-        background: rgba(58, 232, 255, 0.05);
-      }
-      
-      &:last-child td {
-        border-bottom: none;
-      }
-    }
-  }
-
-  // Chart styles
-  .message-chart {
-    margin-top: $spacing-md;
-    background: rgba(0, 0, 0, 0.3);
-    border: 1px solid rgba(58, 232, 255, 0.2);
-    border-radius: $radius-md;
-    overflow: hidden;
-
-    .chart-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: $spacing-sm $spacing-md;
-      background: rgba(58, 232, 255, 0.05);
-      border-bottom: 1px solid rgba(58, 232, 255, 0.1);
-
-      &__left {
-        display: flex;
-        align-items: center;
-        gap: $spacing-sm;
-        color: $neon-cyan;
-        font-weight: 600;
-        font-size: 0.9rem;
-      }
-
-      .chart-download {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 32px;
-        height: 32px;
-        background: rgba(16, 185, 129, 0.1);
-        border: 1px solid rgba(16, 185, 129, 0.3);
-        border-radius: $radius-sm;
-        color: $neon-green;
-        cursor: pointer;
-        transition: all $transition-fast;
-
-        &:hover {
-          background: rgba(16, 185, 129, 0.2);
-          border-color: $neon-green;
-          transform: translateY(-1px);
-        }
-
-        &:active {
-          transform: translateY(0);
-        }
-      }
-    }
-
-    .chart-wrapper {
-      padding: $spacing-md;
-      background: rgba(0, 0, 0, 0.2);
-    }
-  }
-}
-
-@keyframes cursor-blink {
-  0%, 50% { opacity: 1; }
-  51%, 100% { opacity: 0; }
-}
-
-// Stage indicator
-.message-stage {
-  display: inline-flex;
-  align-items: center;
-  gap: $spacing-sm;
-  margin-top: $spacing-md;
-  padding: $spacing-sm $spacing-md;
-  background: rgba(58, 232, 255, 0.1);
-  border: 1px solid rgba(58, 232, 255, 0.2);
-  border-radius: $radius-full;
-  font-family: $font-family-mono;
-  font-size: $font-size-sm;
-  color: $neon-cyan;
-}
-
-.stage-spinner {
-  width: 16px;
-  height: 16px;
-  position: relative;
-}
-
-.spinner-ring {
-  position: absolute;
-  inset: 0;
-  border: 2px solid transparent;
-  border-top-color: $neon-cyan;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-// Code block
-.message-code-block {
-  margin-top: $spacing-md;
-  border-radius: $radius-lg;
-  overflow: hidden;
-  background: var(--bg-base);
-  border: 1px solid rgba(58, 232, 255, 0.2);
-}
-
-.code-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: $spacing-sm $spacing-md;
-  background: rgba(58, 232, 255, 0.05);
-  border-bottom: 1px solid rgba(58, 232, 255, 0.1);
-}
-
-.code-header__left {
-  display: flex;
-  align-items: center;
-  gap: $spacing-sm;
-  font-family: $font-family-mono;
-  font-size: $font-size-xs;
-  font-weight: 600;
-  color: $neon-cyan;
-  letter-spacing: $letter-spacing-wider;
-}
-
-.code-copy {
-  padding: $spacing-xs;
-  background: transparent;
-  border: 1px solid rgba(58, 232, 255, 0.3);
-  border-radius: $radius-sm;
-  color: $neon-cyan;
-  cursor: pointer;
-  transition: all $transition-fast;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  &:hover {
-    background: $neon-cyan;
-    color: $dark-bg-primary;
-  }
-}
-
-.code-content {
-  position: relative;
-  padding: $spacing-md;
-  overflow-x: auto;
-
-  pre {
-    margin: 0;
-    font-family: $font-family-mono;
-    font-size: $font-size-sm;
-    line-height: $line-height-base;
-    color: #a3e635;
-  }
-}
-
-.code-glow {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 40px;
-  background: linear-gradient(to bottom, rgba(163, 230, 53, 0.05), transparent);
-  pointer-events: none;
-}
-
-// Data table
-.message-data {
-  margin-top: $spacing-md;
-  border-radius: $radius-lg;
-  overflow: hidden;
-  border: 1px solid rgba(16, 185, 129, 0.2);
-  background: var(--bg-base);
-}
-
-.data-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: $spacing-sm $spacing-md;
-  background: rgba(16, 185, 129, 0.05);
-  border-bottom: 1px solid rgba(16, 185, 129, 0.1);
-}
-
-.data-header__left {
-  display: flex;
-  align-items: center;
-  gap: $spacing-sm;
-  font-family: $font-family-mono;
-  font-size: $font-size-xs;
-  font-weight: 600;
-  color: $neon-green;
-  letter-spacing: $letter-spacing-wider;
-}
-
-.data-count {
-  font-family: $font-family-mono;
-  font-size: $font-size-xs;
-  color: var(--text-muted);
-  padding: 2px 8px;
-  background: rgba(16, 185, 129, 0.1);
-  border-radius: $radius-sm;
-}
-
-.data-table-wrapper {
-  overflow-x: auto;
-  max-height: 300px;
-}
-
-.data-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: $font-size-sm;
-
-  th, td {
-    padding: $spacing-sm $spacing-md;
-    text-align: left;
-    border-bottom: 1px solid rgba(16, 185, 129, 0.1);
-    white-space: nowrap;
-  }
-
-  th {
-    background: rgba(16, 185, 129, 0.05);
-    font-family: $font-family-mono;
-    font-weight: 600;
-    color: $neon-green;
-    font-size: $font-size-xs;
-    text-transform: uppercase;
-    letter-spacing: $letter-spacing-wide;
-    position: sticky;
-    top: 0;
-    z-index: 1;
-  }
-
-  td {
-    color: var(--text-primary);
-  }
-
-  tbody tr {
-    transition: background $transition-fast;
-
-    &:hover {
-      background: rgba(16, 185, 129, 0.05);
-    }
-  }
-}
-
-.cell-value {
-  display: inline-block;
-  max-width: 200px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-// Pagination
-.data-pagination {
-  display: flex;
-  align-items: center;
-  gap: $spacing-sm;
-  padding: $spacing-sm $spacing-md;
-  background: rgba(16, 185, 129, 0.02);
-  border-top: 1px solid rgba(16, 185, 129, 0.1);
-}
-
-.pagination-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  background: transparent;
-  border: 1px solid rgba(16, 185, 129, 0.3);
-  border-radius: $radius-sm;
-  color: $neon-green;
-  cursor: pointer;
-  transition: all $transition-fast;
-
-  &:hover:not(:disabled) {
-    background: rgba(16, 185, 129, 0.1);
-    border-color: $neon-green;
-  }
-
-  &:disabled {
-    opacity: 0.3;
-    cursor: not-allowed;
-  }
-}
-
-.pagination-pages {
-  display: flex;
-  gap: 4px;
-}
-
-.pagination-page {
-  min-width: 32px;
-  height: 32px;
-  padding: 0 $spacing-sm;
-  background: transparent;
-  border: 1px solid rgba(16, 185, 129, 0.2);
-  border-radius: $radius-sm;
-  color: var(--text-secondary);
-  font-family: $font-family-mono;
-  font-size: $font-size-sm;
-  cursor: pointer;
-  transition: all $transition-fast;
-
-  &:hover {
-    background: rgba(16, 185, 129, 0.1);
-    border-color: rgba(16, 185, 129, 0.4);
-    color: $neon-green;
-  }
-
-  &--active {
-    background: $neon-green;
-    border-color: $neon-green;
-    color: $dark-bg-primary;
-    font-weight: 600;
-
-    &:hover {
-      background: $neon-green;
-      color: $dark-bg-primary;
-    }
-  }
-}
-
-.pagination-goto {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-left: $spacing-sm;
-  padding-left: $spacing-sm;
-  border-left: 1px solid rgba(16, 185, 129, 0.2);
-}
-
-.pagination-input {
-  width: 60px;
-  height: 28px;
-  padding: 0 $spacing-sm;
-  background: var(--bg-elevated);
-  border: 1px solid rgba(16, 185, 129, 0.3);
-  border-radius: $radius-sm;
-  color: var(--text-primary);
-  font-family: $font-family-mono;
-  font-size: $font-size-sm;
-  text-align: center;
-  outline: none;
-  transition: all $transition-fast;
-
-  &:focus {
-    border-color: $neon-green;
-    box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.15);
-  }
-
-  &::placeholder {
-    color: var(--text-muted);
-  }
-
-  // Hide spinners
-  &::-webkit-outer-spin-button,
-  &::-webkit-inner-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
-  }
-  -moz-appearance: textfield;
-}
-
-.pagination-goto-label {
-  font-family: $font-family-mono;
-  font-size: $font-size-sm;
-  color: var(--text-muted);
-}
-
-.pagination-goto-btn {
-  padding: 4px $spacing-sm;
-  background: transparent;
-  border: 1px solid rgba(16, 185, 129, 0.3);
-  border-radius: $radius-sm;
-  color: $neon-green;
-  font-size: $font-size-xs;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all $transition-fast;
-
-  &:hover:not(:disabled) {
-    background: rgba(16, 185, 129, 0.1);
-    border-color: $neon-green;
-  }
-
-  &:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-  }
-}
-
-.pagination-info {
-  margin-left: auto;
-  font-family: $font-family-mono;
-  font-size: $font-size-xs;
-  color: var(--text-muted);
-}
-
-// Error
-.message-error {
-  display: inline-flex;
-  align-items: center;
-  gap: $spacing-sm;
-  margin-top: $spacing-md;
-  padding: $spacing-sm $spacing-md;
-  background: rgba(255, 51, 102, 0.1);
-  border: 1px solid rgba(255, 51, 102, 0.3);
-  border-radius: $radius-md;
-  font-size: $font-size-sm;
-  color: $neon-red;
-}
+@import './HubMessage.scss';
 </style>
-
-
-

@@ -1,64 +1,40 @@
 # AI Assistant (клиент)
 
-Ассистент в toolbar меню. Модуль чата выбирается по текущему URL.
+Единый хаб AI-ассистента: чат, документы и код. Тип чата выбирается при создании сессии.
 
 ## Как работает
 
-1. В `module-config.json` у подмодуля — паттерны URL
-2. При смене страницы подгружается нужный чат и клиент API
-3. У каждого подмодуля свои настройки Ollama (модель, температура)
+1. В `modules/index.js` зарегистрированы конфиги подмодулей (`chat`, `docs`, `code`)
+2. `AIAssistantHub.vue` переключает UI по `activeModule`
+3. API-клиенты — `rag/js/rag-client.js` (чат/сессии) и `docs/js/docs-client.js` (документы)
+4. Статус Ollama — через `ollama_framework/status/` (см. `js/ollamaStatusApi.js`)
 
 ## Каталог
 
 ```
 modules/ai_assistant/client/
-├── base/           # общие элементы чата
-├── core/           # module-config.js, AssistantModuleManager.js
-├── bi/, rag/, docs/  # подмодули по разделам
-├── modules/        # реестр конфигов
+├── base/           # общие элементы чата (сообщение, индикатор набора)
+├── components/     # UI хаба (HubMessage, ChatTypeSelector, NeuralBackground, …)
+├── docs/           # подмодуль документов (DocsAssistantChat, uploader, docs-client)
+├── rag/            # rag-client и module-config для чата/сессий
+├── modules/        # реестр конфигов: chat, docs, code
 ├── pages/          # AIAssistantHub.vue
-├── js/             # routes, menu, assistantService.js
-└── components/
+├── js/             # routes, endpoints, theme-defaults, composables
+└── styles/         # theme-bootstrap, переменные, стили чата
 ```
 
 ## Встроенные подмодули
 
-| Подмодуль | URL | Назначение |
-|-----------|-----|------------|
-| bi | `/bi/*` | SQL, файлы, графики |
-| rag | остальное (default) | простой чат |
-| docs | документы | загрузка и Q&A |
+| Подмодуль | Назначение |
+|-----------|------------|
+| chat | обычный чат с ассистентом |
+| docs | загрузка документов и Q&A (RAG) |
+| code | чат по коду |
 
 ## Новый подмодуль
 
-1. Папка в `modules/ai_assistant/client/<имя>/`
-2. `module-config.json` — `routePatterns`, блок `ollama`
-3. `<Имя>AssistantChat.vue` + `js/<имя>-client.js`
-4. Перезапуск клиента — регистрация автоматическая
+1. Конфиг в `modules/<имя>/config.js` и регистрация в `modules/index.js`
+2. При необходимости — UI-ветка в `AIAssistantHub.vue` и клиент API в своей папке
+3. Перезапуск клиента
 
-Пример `module-config.json`:
-
-```json
-{
-  "name": "my-part",
-  "routePatterns": ["^/my-part"],
-  "isDefault": false,
-  "ollama": {
-    "model": "mistral7b-tuned",
-    "temperature": 0.3,
-    "contextWindow": 4096,
-    "maxTokens": 512
-  }
-}
-```
-
-API-клиент — через `@/js/api/manager`, настройки Ollama передавай в теле запроса как `ollama_config`.
-
-## Программный доступ
-
-```javascript
-import { assistantModuleManager } from '../core/AssistantModuleManager.js'
-
-const mod = await assistantModuleManager.loadModuleForRoute('/bi/...')
-// mod.component, mod.client, mod.config
-```
+API-клиент — через `@/js/api/manager`. Настройки Ollama передавай в теле запроса как `ollama_config`.

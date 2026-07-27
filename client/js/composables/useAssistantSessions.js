@@ -3,6 +3,7 @@ import { useRouteQueryState } from '@/composables/useRouteQueryState.js'
 import { ragClient } from '../../rag/js/rag-client.js'
 import { modules } from '../../modules/index.js'
 import { logError } from '@/js/utils/logError.js'
+import { tGlobal } from '@/i18n/index.js'
 
 const MODULE_IDS = modules.filter((m) => !m.comingSoon).map((m) => m.id)
 
@@ -32,7 +33,7 @@ export function useAssistantSessions() {
 
     const q = searchQuery.value.trim().toLowerCase()
     if (q) {
-      list = list.filter((s) => (s.title || 'Без названия').toLowerCase().includes(q))
+      list = list.filter((s) => (s.title || tGlobal('ai_assistant.untitled')).toLowerCase().includes(q))
     }
 
     return list
@@ -74,7 +75,8 @@ export function useAssistantSessions() {
 
   async function createSession(moduleId, title) {
     const moduleConfig = modules.find((m) => m.id === moduleId)
-    const sessionTitle = title || `Новый чат: ${moduleConfig?.name || moduleId}`
+    const sessionTitle =
+      title || tGlobal('ai_assistant.newChatWithModule', { name: moduleConfig?.name || moduleId })
     return ragClient.createChatSession(sessionTitle, moduleId)
   }
 
@@ -97,7 +99,7 @@ export function useAssistantSessions() {
   }
 
   function startDraft(moduleId) {
-    draftSession.value = { module: moduleId, title: 'Новый диалог…' }
+    draftSession.value = { module: moduleId, title: tGlobal('ai_assistant.newDialogDraft') }
     return patchState({ session: '', module: moduleId }, { immediate: true })
   }
 

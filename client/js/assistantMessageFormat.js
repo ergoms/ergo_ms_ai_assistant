@@ -1,6 +1,7 @@
 import { sanitizeHtml } from '@/js/utils/sanitize'
 import { logError } from '@/js/utils/logError.js'
 import { apiClient } from '@/js/api/manager'
+import { tGlobal, getCurrentBcp47 } from '@/i18n/index.js'
 
 function escapeHtml(text) {
   if (!text) return ''
@@ -112,8 +113,8 @@ export function formatMessageContent(content) {
 
 export function formatProcessingTime(ms) {
   if (!ms) return ''
-  if (ms < 1000) return `${ms} мс`
-  return `${(ms / 1000).toFixed(1)} с`
+  if (ms < 1000) return tGlobal('ai_assistant.message.durationMs', { ms })
+  return tGlobal('ai_assistant.message.durationSec', { sec: (ms / 1000).toFixed(1) })
 }
 
 export function formatCell(value) {
@@ -128,7 +129,7 @@ export function formatCell(value) {
 export function formatMessageTime(timestamp) {
   if (!timestamp) return ''
   const date = new Date(timestamp)
-  return date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
+  return date.toLocaleTimeString(getCurrentBcp47(), { hour: '2-digit', minute: '2-digit' })
 }
 
 export async function handleDocumentDownloadClick(event) {

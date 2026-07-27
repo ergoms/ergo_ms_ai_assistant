@@ -14,12 +14,11 @@ class ChatSession(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='chat_sessions')
     title = models.CharField(max_length=255, blank=True, null=True)
-    module = models.CharField(max_length=50, default='chat', help_text='Модуль AI ассистента (chat, bi, etc.)')
+    module = models.CharField(max_length=50, default='chat', help_text='Модуль AI ассистента (chat, docs, code и т.д.)')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
-    # Метаданные для BI модуля (file_id для связи с файлом)
-    metadata = models.JSONField(default=dict, blank=True, help_text='Дополнительные данные сессии (file_id для BI и т.д.)')
+    metadata = models.JSONField(default=dict, blank=True, help_text='Дополнительные данные сессии')
     
     class Meta:
         ordering = ['-updated_at']

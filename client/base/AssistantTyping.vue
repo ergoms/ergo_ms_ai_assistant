@@ -5,7 +5,7 @@
       <div class="avatar-pulse"></div>
     </div>
     <div class="typing-content">
-      <div class="typing-label">Neural обрабатывает</div>
+      <div class="typing-label">{{ t('ai_assistant.message.processing') }}</div>
       <div class="typing-wave">
         <span></span>
         <span></span>
@@ -19,6 +19,9 @@
 
 <script setup>
 import { Sparkles } from 'lucide-vue-next'
+import { useAppI18n } from '@/i18n/useAppI18n.js'
+
+const { t } = useAppI18n()
 </script>
 
 <style lang="scss" scoped>

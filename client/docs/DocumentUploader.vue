@@ -1,7 +1,7 @@
 <template>
   <div class="document-uploader">
     <div class="document-uploader__header">
-      <h6 class="mb-0">Загрузить документ</h6>
+      <h6 class="mb-0">{{ t('ai_assistant.docs.uploader.title') }}</h6>
     </div>
 
     <div class="document-uploader__tabs">
@@ -11,7 +11,7 @@
         @click="mode = 'file'"
       >
         <Upload :size="16" class="me-1" />
-        Файл
+        {{ t('ai_assistant.docs.uploader.tabFile') }}
       </button>
       <button
         class="tab-btn"
@@ -19,24 +19,24 @@
         @click="mode = 'text'"
       >
         <FileText :size="16" class="me-1" />
-        Текст
+        {{ t('ai_assistant.docs.uploader.tabText') }}
       </button>
     </div>
 
     <!-- Загрузка файла -->
     <div v-if="mode === 'file'" class="document-uploader__content">
       <div class="mb-3">
-        <label class="form-label">Название документа</label>
+        <label class="form-label">{{ t('ai_assistant.docs.uploader.nameLabel') }}</label>
         <input
           v-model="fileTitle"
           type="text"
           class="form-control"
-          placeholder="Введите название..."
+          :placeholder="t('ai_assistant.docs.uploader.namePlaceholder')"
         />
       </div>
 
       <div class="mb-3">
-        <label class="form-label">Файл</label>
+        <label class="form-label">{{ t('ai_assistant.docs.uploader.fileLabel') }}</label>
         <div class="file-dropzone" :class="{ 'dragover': isDragging }" 
              @dragover.prevent="isDragging = true"
              @dragleave.prevent="isDragging = false"
@@ -51,12 +51,12 @@
           <div class="dropzone-content">
             <Upload :size="32" />
             <p class="mb-0 mt-2">
-              Перетащите файл сюда или
+              {{ t('ai_assistant.docs.uploader.dropzoneHint') }}
               <button class="btn-link" @click="$refs.fileInput.click()">
-                выберите файл
+                {{ t('ai_assistant.docs.uploader.chooseFile') }}
               </button>
             </p>
-            <small class="text-muted">Поддерживаемые форматы: PDF, DOCX, TXT</small>
+            <small class="text-muted">{{ t('ai_assistant.docs.uploader.supportedFormats') }}</small>
           </div>
         </div>
         <div v-if="selectedFile" class="mt-2">
@@ -80,7 +80,7 @@
             id="indexFile"
           />
           <label class="form-check-label" for="indexFile">
-            Индексировать сразу после загрузки
+            {{ t('ai_assistant.docs.uploader.indexImmediatelyFile') }}
           </label>
         </div>
       </div>
@@ -92,11 +92,11 @@
       >
         <span v-if="uploading">
           <span class="spinner-border spinner-border-sm me-2" role="status"></span>
-          Загрузка...
+          {{ t('ai_assistant.docs.uploader.uploading') }}
         </span>
         <span v-else>
           <Upload :size="16" class="me-1" />
-          Загрузить
+          {{ t('ai_assistant.docs.uploader.uploadBtn') }}
         </span>
       </button>
     </div>
@@ -104,22 +104,22 @@
     <!-- Ввод текста -->
     <div v-else class="document-uploader__content">
       <div class="mb-3">
-        <label class="form-label">Название документа</label>
+        <label class="form-label">{{ t('ai_assistant.docs.uploader.nameLabel') }}</label>
         <input
           v-model="textTitle"
           type="text"
           class="form-control"
-          placeholder="Введите название..."
+          :placeholder="t('ai_assistant.docs.uploader.namePlaceholder')"
         />
       </div>
 
       <div class="mb-3">
-        <label class="form-label">Текст документа</label>
+        <label class="form-label">{{ t('ai_assistant.docs.uploader.textLabel') }}</label>
         <textarea
           v-model="textContent"
           class="form-control"
           rows="8"
-          placeholder="Введите текст документа..."
+          :placeholder="t('ai_assistant.docs.uploader.textPlaceholder')"
         ></textarea>
       </div>
 
@@ -132,7 +132,7 @@
             id="indexText"
           />
           <label class="form-check-label" for="indexText">
-            Индексировать сразу после создания
+            {{ t('ai_assistant.docs.uploader.indexImmediatelyText') }}
           </label>
         </div>
       </div>
@@ -144,11 +144,11 @@
       >
         <span v-if="uploading">
           <span class="spinner-border spinner-border-sm me-2" role="status"></span>
-          Создание...
+          {{ t('ai_assistant.docs.uploader.creating') }}
         </span>
         <span v-else>
           <Save :size="16" class="me-1" />
-          Создать
+          {{ t('ai_assistant.docs.uploader.createBtn') }}
         </span>
       </button>
     </div>
@@ -162,9 +162,11 @@
 <script setup>
 import { ref } from 'vue'
 import { Upload, FileText, File, X, Save } from 'lucide-vue-next'
+import { useAppI18n } from '@/i18n/useAppI18n.js'
 import { docsClient } from './js/docs-client.js'
 import { useToast } from '@/js/utils/toast.js'
 
+const { t } = useAppI18n()
 const toast = useToast()
 
 const emit = defineEmits(['document-uploaded', 'document-created'])
@@ -232,7 +234,7 @@ const uploadFile = async () => {
     )
 
     if (result.success) {
-      toast.success('Документ успешно загружен')
+      toast.success(t('ai_assistant.docs.uploader.uploadSuccess'))
       emit('document-uploaded', result.document)
       
       // Сброс формы
@@ -243,11 +245,11 @@ const uploadFile = async () => {
       }
       indexImmediately.value = false
     } else {
-      error.value = result.error || 'Ошибка загрузки документа'
+      error.value = result.error || t('ai_assistant.docs.uploader.uploadErrorDefault')
       toast.error(error.value)
     }
   } catch (err) {
-    error.value = err.message || 'Неожиданная ошибка'
+    error.value = err.message || t('ai_assistant.docs.uploader.unexpectedError')
     toast.error(error.value)
   } finally {
     uploading.value = false
@@ -270,7 +272,7 @@ const createFromText = async () => {
     )
 
     if (result.success) {
-      toast.success('Документ успешно создан')
+      toast.success(t('ai_assistant.docs.uploader.createSuccess'))
       emit('document-created', result.document)
       
       // Сброс формы
@@ -278,11 +280,11 @@ const createFromText = async () => {
       textContent.value = ''
       indexImmediately.value = false
     } else {
-      error.value = result.error || 'Ошибка создания документа'
+      error.value = result.error || t('ai_assistant.docs.uploader.createErrorDefault')
       toast.error(error.value)
     }
   } catch (err) {
-    error.value = err.message || 'Неожиданная ошибка'
+    error.value = err.message || t('ai_assistant.docs.uploader.unexpectedError')
     toast.error(error.value)
   } finally {
     uploading.value = false

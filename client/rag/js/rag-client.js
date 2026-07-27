@@ -1,5 +1,6 @@
 import { apiClient } from '@/js/api/manager'
 import { fetchOllamaStatus } from '../../js/ollamaStatusApi.js'
+import { tGlobal } from '@/i18n/index.js'
 
 /**
  * API Endpoints для RAG модуля AI Assistant
@@ -92,7 +93,7 @@ class RAGClient {
         
         return {
           success: false,
-          error: response.data?.error || response.data?.message || 'Ошибка обработки запроса',
+          error: response.data?.error || response.data?.message || tGlobal('ai_assistant.rag.api.processingError'),
         }
       }
       
@@ -124,7 +125,7 @@ class RAGClient {
       // Если success: false, но ответ получен
       return {
         success: false,
-        error: response.data?.error || response.data?.message || 'Ошибка обработки запроса',
+        error: response.data?.error || response.data?.message || tGlobal('ai_assistant.rag.api.processingError'),
       }
     } catch (error) {
       logError('Ошибка отправки сообщения:', error)
@@ -134,7 +135,7 @@ class RAGClient {
         error.response?.data?.error ||
         error.response?.data?.message ||
         error.message ||
-        'Не удалось отправить сообщение'
+        tGlobal('ai_assistant.rag.api.sendMessageFailed')
       
       return {
         success: false,
@@ -308,7 +309,7 @@ class RAGClient {
     } catch (error) {
       logError('Ошибка streaming сообщения:', error)
       if (onError) {
-        onError(error.message || 'Не удалось отправить сообщение')
+        onError(error.message || tGlobal('ai_assistant.rag.api.sendMessageFailed'))
       }
     }
   }
@@ -333,13 +334,13 @@ class RAGClient {
       
       return {
         success: false,
-        error: response.data?.error || 'Ошибка получения списка чатов',
+        error: response.data?.error || tGlobal('ai_assistant.rag.api.sessionsListError'),
       }
     } catch (error) {
       logError('Ошибка получения списка чатов:', error)
       return {
         success: false,
-        error: error.message || 'Не удалось получить список чатов',
+        error: error.message || tGlobal('ai_assistant.rag.api.sessionsListFailed'),
       }
     }
   }
@@ -363,13 +364,13 @@ class RAGClient {
       
       return {
         success: false,
-        error: response.data?.error || 'Ошибка получения чата',
+        error: response.data?.error || tGlobal('ai_assistant.rag.api.sessionError'),
       }
     } catch (error) {
       logError('Ошибка получения чата:', error)
       return {
         success: false,
-        error: error.message || 'Не удалось получить чат',
+        error: error.message || tGlobal('ai_assistant.rag.api.sessionFailed'),
       }
     }
   }
@@ -380,10 +381,10 @@ class RAGClient {
    * @param {string} module - Модуль AI ассистента
    * @returns {Promise<Object>}
    */
-  async createChatSession(title = 'Новый чат', module = 'chat') {
+  async createChatSession(title = null, module = 'chat') {
     try {
       const response = await apiClient.post(endpoints.chatSessions, {
-        title,
+        title: title || tGlobal('ai_assistant.sidebar.newChat'),
         module,
       })
       
@@ -396,13 +397,13 @@ class RAGClient {
       
       return {
         success: false,
-        error: response.data?.error || 'Ошибка создания чата',
+        error: response.data?.error || tGlobal('ai_assistant.chatCreateError'),
       }
     } catch (error) {
       logError('Ошибка создания чата:', error)
       return {
         success: false,
-        error: error.message || 'Не удалось создать чат',
+        error: error.message || tGlobal('ai_assistant.chatCreateFail'),
       }
     }
   }
@@ -419,19 +420,19 @@ class RAGClient {
       if (response.success) {
         return {
           success: true,
-          message: response.data?.message || 'Чат удален',
+          message: response.data?.message || tGlobal('ai_assistant.chatDeleted'),
         }
       }
       
       return {
         success: false,
-        error: response.data?.error || 'Ошибка удаления чата',
+        error: response.data?.error || tGlobal('ai_assistant.chatDeleteError'),
       }
     } catch (error) {
       logError('Ошибка удаления чата:', error)
       return {
         success: false,
-        error: error.message || 'Не удалось удалить чат',
+        error: error.message || tGlobal('ai_assistant.chatDeleteFail'),
       }
     }
   }
