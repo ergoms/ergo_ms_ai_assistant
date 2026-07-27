@@ -39,7 +39,7 @@ export default {
       newChatWithModule: 'Новый чат: {name}',
       newDialogDraft: 'Новый диалог…',
       routes: {
-        hub: 'AI-ассистент',
+        hub: 'AI Hub',
       },
       access: {
         title: 'Доступ к AI-ассистенту ограничен',
@@ -264,7 +264,7 @@ export default {
       newChatWithModule: 'New chat: {name}',
       newDialogDraft: 'New dialog…',
       routes: {
-        hub: 'AI Assistant',
+        hub: 'AI Hub',
       },
       access: {
         title: 'Access to AI Assistant is restricted',
@@ -489,7 +489,7 @@ export default {
       newChatWithModule: 'Nouveau chat : {name}',
       newDialogDraft: 'Nouveau dialogue…',
       routes: {
-        hub: 'Assistant IA',
+        hub: 'AI Hub',
       },
       access: {
         title: "L'accès à l'assistant IA est restreint",
