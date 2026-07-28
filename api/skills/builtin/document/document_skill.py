@@ -4,14 +4,18 @@
 """
 import uuid
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple
 from datetime import datetime
-
-from django.conf import settings
 
 from ...base import BaseSkill, SkillResult
 from .template_loader import get_template_loader
 from .generators import PDFGenerator
+from ....media_storage import (
+    commit_generated_document,
+    scratch_session,
+    signed_url,
+)
+from ....file_uploads import assign_knowledge_file
 
 
 class DocumentSkill(BaseSkill):
@@ -147,36 +151,23 @@ class DocumentSkill(BaseSkill):
         # Рендерим шаблон
         rendered_content = template.render(variables)
         
-        # Генерируем документ
         try:
-            output_path = self._get_output_path(title, doc_format, context)
-            
-            # Только PDF формат поддерживается
-            file_path = self._pdf_generator.generate(
-                rendered_content, 
-                output_path, 
-                title=title
+            storage_path, filename, download_url = self._generate_and_store(
+                rendered_content, title, doc_format, context
             )
-            
-            # Сохраняем информацию о документе в БД
             document_info = self._save_document_info(
                 title=title,
-                file_path=file_path,
+                storage_path=storage_path,
                 doc_format=doc_format,
                 template_id=template_id,
-                context=context
+                context=context,
             )
-            
-            # Формируем ссылку на скачивание
-            download_url = self._get_download_url(file_path)
-            filename = file_path.name
-            
             return SkillResult(
                 success=True,
-                result=f"Документ '{title}' успешно создан.\n\n📄 [Скачать {filename}]({download_url})",
+                result=f"Документ '{title}' успешно создан.\n\n[Скачать {filename}]({download_url})",
                 metadata={
                     'document_id': document_info.get('id'),
-                    'file_path': str(file_path),
+                    'file_path': storage_path,
                     'filename': filename,
                     'download_url': download_url,
                     'format': doc_format,
@@ -222,33 +213,22 @@ class DocumentSkill(BaseSkill):
 """
         
         try:
-            output_path = self._get_output_path(title, doc_format, context)
-            
-            # Только PDF формат поддерживается
-            file_path = self._pdf_generator.generate(
-                markdown_content, 
-                output_path, 
-                title=title
+            storage_path, filename, download_url = self._generate_and_store(
+                markdown_content, title, doc_format, context
             )
-            
             document_info = self._save_document_info(
                 title=title,
-                file_path=file_path,
+                storage_path=storage_path,
                 doc_format=doc_format,
                 template_id='simple',
-                context=context
+                context=context,
             )
-            
-            # Формируем ссылку на скачивание
-            download_url = self._get_download_url(file_path)
-            filename = file_path.name
-            
             return SkillResult(
                 success=True,
-                result=f"Документ '{title}' успешно создан.\n\n📄 [Скачать {filename}]({download_url})",
+                result=f"Документ '{title}' успешно создан.\n\n[Скачать {filename}]({download_url})",
                 metadata={
                     'document_id': document_info.get('id'),
-                    'file_path': str(file_path),
+                    'file_path': storage_path,
                     'filename': filename,
                     'download_url': download_url,
                     'format': doc_format,
@@ -259,43 +239,42 @@ class DocumentSkill(BaseSkill):
                 success=False,
                 error=f"Ошибка создания документа: {str(e)}"
             )
-    
-    def _get_output_path(
-        self, 
-        title: str, 
-        doc_format: str, 
-        context: Optional[Dict[str, Any]]
-    ) -> Path:
-        """Возвращает путь для сохранения документа."""
-        # Используем настройки из settings
-        base_dir = getattr(settings, 'GENERATED_DOCUMENTS_DIR', None)
-        if not base_dir:
-            base_dir = Path(settings.BASE_DIR).parent / 'generated_documents'
-        else:
-            base_dir = Path(base_dir)
-        
-        # Добавляем папку пользователя если есть
-        user = context.get('user') if context else None
-        if user and hasattr(user, 'id'):
-            base_dir = base_dir / f'user_{user.id}'
-        
-        # Создаём уникальное имя файла
+
+    def _build_filename(self, title: str, doc_format: str) -> str:
         safe_title = "".join(c for c in title if c.isalnum() or c in (' ', '-', '_')).strip()
         safe_title = safe_title[:50] or 'document'
         unique_id = str(uuid.uuid4())[:8]
-        filename = f"{safe_title}_{unique_id}.{doc_format}"
-        
-        return base_dir / filename
+        return f"{safe_title}_{unique_id}.{doc_format}"
+
+    def _generate_and_store(
+        self,
+        content: str,
+        title: str,
+        doc_format: str,
+        context: Optional[Dict[str, Any]],
+    ) -> Tuple[str, str, str]:
+        """Генерирует PDF в scratch и коммитит в media_api."""
+        user = context.get('user') if context else None
+        user_id = getattr(user, 'id', None) if user else None
+        filename = self._build_filename(title, doc_format)
+
+        with scratch_session('ai_assistant_generated') as workdir:
+            local_path = Path(workdir) / filename
+            generated = self._pdf_generator.generate(content, local_path, title=title)
+            storage_path = commit_generated_document(generated, user_id, filename)
+
+        download_url = signed_url(storage_path) or ''
+        return storage_path, filename, download_url
     
     def _save_document_info(
         self,
         title: str,
-        file_path: Path,
+        storage_path: str,
         doc_format: str,
         template_id: str,
         context: Optional[Dict[str, Any]]
     ) -> Dict[str, Any]:
-        """Сохраняет информацию о документе в БД."""
+        """Сохраняет информацию о документе в БД и привязывает файл media_api."""
         try:
             from ....models import KnowledgeDocument
             
@@ -311,27 +290,14 @@ class DocumentSkill(BaseSkill):
                     'created_by': 'ai_assistant',
                     'skill': 'document_creation',
                     'template': template_id,
-                    'file_path': str(file_path),
+                    'storage_path': storage_path,
                 }
             )
+            assign_knowledge_file(document, file_path=storage_path)
             
             return {
                 'id': str(document.id),
                 'title': document.title,
             }
         except Exception:
-            # Если не удалось сохранить в БД, возвращаем пустой результат
             return {'id': None, 'title': title}
-    
-    def _get_download_url(self, file_path: Path) -> str:
-        """Возвращает URL для скачивания документа."""
-        # Получаем относительный путь от MEDIA_ROOT
-        media_root = Path(settings.MEDIA_ROOT)
-        
-        try:
-            relative_path = file_path.relative_to(media_root)
-            # Формируем URL через API endpoint
-            return f"/api/ai_assistant/documents/download/{relative_path}"
-        except ValueError:
-            # Если файл не в MEDIA_ROOT, используем имя файла
-            return f"/api/ai_assistant/documents/download/{file_path.name}"

@@ -302,7 +302,7 @@ const onDocumentSelected = (document) => {
   }
 }
 
-const changeDocument = () => {
+const _changeDocument = () => {
   selectedDocument.value = null
   showDocumentSelector.value = true
   showMessages.value = true

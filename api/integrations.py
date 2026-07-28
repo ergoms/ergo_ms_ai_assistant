@@ -70,13 +70,19 @@ def _chat_message_add(
     if session is None:
         return None
 
+    message_type = role if role in ('user', 'assistant') else 'user'
     message = ChatMessage.objects.create(
         session=session,
-        type=role if role in ('user', 'assistant', 'system') else 'user',
+        message_type=message_type,
         content=content,
         metadata=metadata or {},
     )
-    return {'id': str(message.id), 'type': message.type, 'content': message.content}
+    return {
+        'id': str(message.id),
+        'type': message.message_type,
+        'message_type': message.message_type,
+        'content': message.content,
+    }
 
 
 @bridge.provide_op('ai_assistant.knowledge.document.create')

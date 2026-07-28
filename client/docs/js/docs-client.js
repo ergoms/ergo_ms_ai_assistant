@@ -1,4 +1,5 @@
 import { apiClient } from '@/js/api/manager'
+import { mediaApiClient } from '@/js/api/media-api-client'
 import { fetchOllamaStatus } from '../../js/ollamaStatusApi.js'
 import { tGlobal } from '@/i18n/index.js'
 
@@ -139,23 +140,22 @@ class DocsClient {
   }
 
   /**
-   * Загрузить документ из файла
+   * Загрузить документ из файла через media_api
    */
   async uploadDocument(file, title, source = '', metadata = {}, indexImmediately = false) {
     try {
-      const formData = new FormData()
-      formData.append('file', file)
-      formData.append('title', title)
-      if (source) formData.append('source', source)
-      if (Object.keys(metadata).length > 0) {
-        formData.append('metadata', JSON.stringify(metadata))
-      }
-      formData.append('index_immediately', indexImmediately)
-      
-      const response = await apiClient.post(endpoints.documents, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
+      const media = await mediaApiClient.upload(file, {
+        targetDir: 'ai_assistant/rag_documents',
+        allowedTypes: ['pdf', 'docx', 'doc', 'txt', 'md'],
+      })
+
+      const response = await apiClient.post(endpoints.documents, {
+        title,
+        source: source || file.name,
+        metadata,
+        index_immediately: indexImmediately,
+        file_path: media.path,
+        original_filename: media.original_name || file.name,
       })
       
       if (response.success) {

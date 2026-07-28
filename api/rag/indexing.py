@@ -178,18 +178,18 @@ class RAGIndexingService:
             }
         
         try:
-            # Если есть файл, но нет контента - извлекаем текст из файла
+            # Если есть файл, но нет контента - извлекаем текст из файла через media_api
             text_content = document.content
             if document.file and not text_content:
                 try:
                     logger.info(f"Извлекаем текст из файла {document.file.name} для документа {document.id}")
-                    file_path = document.file.path if hasattr(document.file, 'path') else None
-                    text_content, file_type = DocumentParserService.parse_document(
-                        file_path=file_path,
-                        filename=document.file.name
+                    from ..media_storage import parse_localized_document
+
+                    text_content, file_type = parse_localized_document(
+                        document.file.name,
+                        filename=document.file.name.split('/')[-1],
                     )
                     
-                    # Сохраняем извлеченный контент и тип файла
                     document.content = text_content
                     if not document.file_type:
                         document.file_type = file_type

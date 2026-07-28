@@ -226,6 +226,7 @@ const formatMarkdown = (text) => {
   const tablePattern = /\|.*\|/g
   const tableMatches = text.match(tablePattern)
   if (tableMatches) {
+    /* no-op */
   }
   
   // Сначала обрабатываем блоки <think> для thinking (ДО обработки таблиц, чтобы не конфликтовало)
@@ -261,7 +262,7 @@ const formatMarkdown = (text) => {
   const processedLines = []
   let i = 0
   
-  lines.slice(0, 20).forEach((line, idx) => {
+  lines.slice(0, 20).forEach((_line, _idx) => {
   })
   
   while (i < lines.length) {
@@ -302,7 +303,7 @@ const formatMarkdown = (text) => {
         break
       }
       
-      tableLines.forEach((tl, idx) => {
+      tableLines.forEach((_tl, _idx) => {
       })
       
       // Проверяем, что это действительно таблица (есть разделитель)
@@ -343,6 +344,7 @@ const formatMarkdown = (text) => {
           // парсинг не удался — оставляем исходный текст
         }
       } else {
+        /* no-op */
       }
       
       // Если не удалось распарсить как таблицу, добавляем строки как есть
@@ -360,11 +362,12 @@ const formatMarkdown = (text) => {
   // Собираем контент обратно
   content = processedLines.join('\n')
   if (tables.length > 0) {
-    tables.forEach((table, idx) => {
+    tables.forEach((_table, _idx) => {
     })
   } else {
     const linesWithPipe = processedLines.filter(l => l.includes('|'))
     if (linesWithPipe.length > 0) {
+      /* no-op */
     }
   }
   

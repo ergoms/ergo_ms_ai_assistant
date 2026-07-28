@@ -1,17 +1,17 @@
-// AI Hub - ERGO Neural Interface - SCSS Variables
-// Уникальный футуристичный дизайн в стиле Cybernetic/Neural Network
+// AI Hub — SCSS helpers. Настраиваемые цвета — через theme-defaults / --ai-*.
+// Hex ниже — fallback для Sass rgba() и compile-time mixins (CSS var в rgba() нельзя).
 
 // === Core Dark Theme - Deep Space ===
-$dark-bg-primary: #050508;
-$dark-bg-secondary: #0a0c12;
-$dark-bg-tertiary: #0e1118;
-$dark-bg-elevated: #13161f;
-$dark-bg-hover: #191d28;
+$dark-bg-primary: var(--ai-bg-primary, #050508);
+$dark-bg-secondary: var(--ai-bg-secondary, #0a0c12);
+$dark-bg-tertiary: var(--ai-bg-tertiary, #0e1118);
+$dark-bg-elevated: var(--ai-bg-elevated, #13161f);
+$dark-bg-hover: var(--ai-bg-elevated, #191d28);
 $dark-bg-panel: linear-gradient(145deg, rgba(15, 18, 28, 0.95), rgba(8, 10, 16, 0.98));
-$dark-border: rgba(58, 232, 255, 0.12);
+$dark-border: var(--ai-border, rgba(58, 232, 255, 0.12));
 $dark-border-accent: rgba(58, 232, 255, 0.25);
-$dark-text-primary: #e8ecf4;
-$dark-text-secondary: #a0aec0;
+$dark-text-primary: var(--ai-text-primary, #e8ecf4);
+$dark-text-secondary: var(--ai-text-secondary, #a0aec0);
 $dark-text-muted: #5a6882;
 $dark-text-placeholder: #3d4a5c;
 
@@ -27,22 +27,25 @@ $light-text-secondary: #334155;
 $light-text-muted: #64748b;
 $light-text-placeholder: #94a3b8;
 
-// === Neon Accent Colors - Cybernetic Palette ===
-// Primary - Cyan Neon (главный акцент)
-$neon-cyan: #3ae8ff;
+// === Neon Accent Colors — runtime через --ai-neon-*; hex для Sass rgba() ===
+$_neon-cyan-hex: #3ae8ff;
+$_neon-purple-hex: #a855f7;
+$_neon-green-hex: #22ff8d;
+$_neon-pink-hex: #ff6eb4;
+$_neon-blue-hex: #4f8fff;
+
+$neon-cyan: var(--ai-neon-cyan, #{$_neon-cyan-hex});
 $neon-cyan-glow: #00d4ff;
-$neon-cyan-light: rgba(58, 232, 255, 0.12);
-$neon-cyan-medium: rgba(58, 232, 255, 0.25);
+$neon-cyan-light: rgba($_neon-cyan-hex, 0.12);
+$neon-cyan-medium: rgba($_neon-cyan-hex, 0.25);
 
-// Secondary - Electric Purple
-$neon-purple: #a855f7;
+$neon-purple: var(--ai-neon-purple, #{$_neon-purple-hex});
 $neon-purple-glow: #9333ea;
-$neon-purple-light: rgba(168, 85, 247, 0.12);
+$neon-purple-light: rgba($_neon-purple-hex, 0.12);
 
-// Success - Matrix Green
-$neon-green: #22ff8d;
+$neon-green: var(--ai-neon-green, #{$_neon-green-hex});
 $neon-green-glow: #00ff6a;
-$neon-green-light: rgba(34, 255, 141, 0.12);
+$neon-green-light: rgba($_neon-green-hex, 0.12);
 
 // Warning - Solar Orange
 $neon-orange: #ff9f2e;
@@ -54,15 +57,13 @@ $neon-red: #ff3366;
 $neon-red-glow: #ff0044;
 $neon-red-light: rgba(255, 51, 102, 0.12);
 
-// AI/Assistant - Plasma Pink
-$neon-pink: #ff6eb4;
+$neon-pink: var(--ai-neon-pink, #{$_neon-pink-hex});
 $neon-pink-glow: #ff4499;
-$neon-pink-light: rgba(255, 110, 180, 0.12);
+$neon-pink-light: rgba($_neon-pink-hex, 0.12);
 
-// User - Electric Blue
-$neon-blue: #4f8fff;
+$neon-blue: var(--ai-neon-blue, #{$_neon-blue-hex});
 $neon-blue-glow: #2563eb;
-$neon-blue-light: rgba(79, 143, 255, 0.12);
+$neon-blue-light: rgba($_neon-blue-hex, 0.12);
 
 // === Legacy Accent Colors (для совместимости) ===
 $accent-blue: $neon-blue;
@@ -150,11 +151,11 @@ $inner-glow-cyan: inset 0 0 20px rgba(58, 232, 255, 0.1);
 $inner-glow-purple: inset 0 0 20px rgba(168, 85, 247, 0.1);
 
 // === Gradients ===
-$gradient-neural: linear-gradient(135deg, $neon-cyan 0%, $neon-purple 50%, $neon-pink 100%);
-$gradient-cyber: linear-gradient(135deg, $neon-cyan 0%, $neon-blue 100%);
-$gradient-plasma: linear-gradient(135deg, $neon-purple 0%, $neon-pink 100%);
-$gradient-matrix: linear-gradient(135deg, $neon-green 0%, $neon-cyan 100%);
-$gradient-dark: linear-gradient(180deg, $dark-bg-primary 0%, $dark-bg-tertiary 100%);
+$gradient-neural: linear-gradient(135deg, $_neon-cyan-hex 0%, $_neon-purple-hex 50%, $_neon-pink-hex 100%);
+$gradient-cyber: linear-gradient(135deg, $_neon-cyan-hex 0%, $_neon-blue-hex 100%);
+$gradient-plasma: linear-gradient(135deg, $_neon-purple-hex 0%, $_neon-pink-hex 100%);
+$gradient-matrix: linear-gradient(135deg, $_neon-green-hex 0%, $_neon-cyan-hex 100%);
+$gradient-dark: linear-gradient(180deg, #050508 0%, #0e1118 100%);
 
 // === Transitions ===
 $transition-instant: 0.1s ease;
@@ -191,23 +192,23 @@ $message-max-width: 900px;
 $message-avatar-size: 44px;
 $message-font-size: $font-size-base;
 
-// === Mixins ===
-@mixin cyber-border($color: $neon-cyan, $width: 1px) {
+// === Mixins (hex-only args — Sass rgba не принимает CSS var) ===
+@mixin cyber-border($color: $_neon-cyan-hex, $width: 1px) {
   border: $width solid rgba($color, 0.3);
-  box-shadow: 
+  box-shadow:
     inset 0 1px 0 rgba($color, 0.1),
     0 0 8px rgba($color, 0.15);
 }
 
-@mixin cyber-glow($color: $neon-cyan) {
-  box-shadow: 
+@mixin cyber-glow($color: $_neon-cyan-hex) {
+  box-shadow:
     0 0 10px rgba($color, 0.3),
     0 0 20px rgba($color, 0.2),
     0 0 30px rgba($color, 0.1);
 }
 
-@mixin text-glow($color: $neon-cyan) {
-  text-shadow: 
+@mixin text-glow($color: $_neon-cyan-hex) {
+  text-shadow:
     0 0 10px rgba($color, 0.5),
     0 0 20px rgba($color, 0.3);
 }
@@ -239,7 +240,7 @@ $message-font-size: $font-size-base;
     rgba(8, 10, 16, 0.92)
   );
   backdrop-filter: blur(20px);
-  border: 1px solid rgba($neon-cyan, 0.1);
+  border: 1px solid rgba($_neon-cyan-hex, 0.1);
 }
 
 @mixin clip-corner($size: 12px) {

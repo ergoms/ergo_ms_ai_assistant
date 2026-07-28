@@ -1,6 +1,7 @@
 import json
 import logging
 
+from django.http import HttpResponseRedirect
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import permissions, status
@@ -8,14 +9,17 @@ from ..permissions import CanViewAiAssistant
 from rest_framework.viewsets import ViewSet
 from rest_framework.decorators import action
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
-from django.http import FileResponse
 
-from src.core.utils.mixins import SwaggerSafeMixin
+from src.core.utils.mixins import MediaApiFileMixin, SwaggerSafeMixin, validate_media_path
+from src.core.utils.media_signing import get_signed_media_url
+from ..file_uploads import assign_knowledge_file
+from ..media_storage import parse_localized_document, signed_url_from_field
 from ..models import KnowledgeDocument
 from ..rag import (
     RAGIndexingService,
     DocumentParserService,
     DocumentParseError,
+    RAGIndexingError,
 )
 from ..settings import (
     RAG_CHUNK_SIZE,
@@ -25,12 +29,12 @@ from .helpers import _get_rag_services
 
 logger = logging.getLogger(__name__)
 
-class KnowledgeDocumentViewSet(ViewSet, SwaggerSafeMixin):
+class KnowledgeDocumentViewSet(MediaApiFileMixin, ViewSet, SwaggerSafeMixin):
     """
     ViewSet для управления документами базы знаний RAG
     
     Поддерживает:
-    - Загрузку файлов (Word, PDF, TXT) через multipart/form-data
+    - Загрузку через media_api (file_path) или multipart fallback
     - Создание документов из текста через JSON
     - Автоматическое извлечение текста из файлов при индексации
     """
@@ -84,33 +88,28 @@ class KnowledgeDocumentViewSet(ViewSet, SwaggerSafeMixin):
         POST /api/ai_assistant/knowledge_documents/
         Создать новый документ
         
-        Поддерживает два режима:
-        1. Загрузка файла (multipart/form-data):
-           - file: файл (Word, PDF, TXT)
-           - title: название документа
-           - source: источник (опционально)
-           - metadata: JSON метаданные (опционально)
-           - index_immediately: индексировать сразу (опционально, default: false)
-        
-        2. Создание из текста (JSON):
-           - title: название документа
-           - content: текстовое содержимое
-           - source: источник (опционально)
-           - metadata: метаданные (опционально)
-           - index_immediately: индексировать сразу (опционально)
-        
-        Если указан и файл, и content, приоритет у файла.
+        Поддерживает:
+        1. Загрузка файла через media_api:
+           - file_path: путь в media_api
+           - original_filename: исходное имя (опционально)
+           - title, source, metadata, index_immediately
+        2. multipart fallback: file
+        3. Создание из текста (JSON): title + content
         """
         user = self.get_safe_user()
         
         title = request.data.get('title')
-        uploaded_file = request.FILES.get('file')
+        uploaded_file, file_path = self.get_file_or_path('file')
+        original_filename = request.data.get('original_filename') or (
+            uploaded_file.name if uploaded_file else (file_path.rsplit('/', 1)[-1] if file_path else '')
+        )
         content = request.data.get('content')
         source = request.data.get('source', '')
         metadata = request.data.get('metadata', {})
         index_immediately = request.data.get('index_immediately', False)
+        if isinstance(index_immediately, str):
+            index_immediately = index_immediately.lower() in ('true', '1', 'yes')
         
-        # Обработка metadata если это строка JSON
         if isinstance(metadata, str):
             try:
                 metadata = json.loads(metadata)
@@ -123,55 +122,51 @@ class KnowledgeDocumentViewSet(ViewSet, SwaggerSafeMixin):
                 'error': 'Не указано обязательное поле: title'
             }, status=status.HTTP_400_BAD_REQUEST)
         
-        if not uploaded_file and not content:
+        if not uploaded_file and not file_path and not content:
             return Response({
                 'success': False,
-                'error': 'Не указаны ни файл, ни текстовое содержимое. Укажите одно из: file или content'
+                'error': 'Не указаны ни файл, ни текстовое содержимое. Укажите file_path, file или content'
             }, status=status.HTTP_400_BAD_REQUEST)
         
         try:
             file_type = None
             extracted_content = None
             
-            # Если загружен файл - определяем его тип
-            if uploaded_file:
-                file_type = DocumentParserService.get_file_type(uploaded_file.name)
-                # Для файлов контент не обязателен, он извлечется при индексации
-                # Но можно попробовать извлечь сразу, если index_immediately
+            if uploaded_file or file_path:
+                file_type = DocumentParserService.get_file_type(original_filename)
                 if index_immediately:
                     try:
-                        from io import BytesIO
-                        file_obj = BytesIO(uploaded_file.read())
-                        extracted_content, detected_type = DocumentParserService.parse_document(
-                            file_obj=file_obj,
-                            filename=uploaded_file.name
-                        )
-                        file_type = detected_type
-                        file_obj.seek(0)  # Возвращаемся в начало для сохранения файла
-                        uploaded_file.seek(0)  # Возвращаемся в начало
+                        if file_path:
+                            extracted_content, detected_type = parse_localized_document(
+                                file_path, filename=original_filename
+                            )
+                            file_type = detected_type
+                        else:
+                            from io import BytesIO
+                            file_obj = BytesIO(uploaded_file.read())
+                            extracted_content, detected_type = DocumentParserService.parse_document(
+                                file_obj=file_obj,
+                                filename=uploaded_file.name
+                            )
+                            file_type = detected_type
+                            uploaded_file.seek(0)
                     except DocumentParseError as e:
-                        # Если не удалось извлечь, продолжаем - извлечем при индексации
                         logger.warning(f"Не удалось извлечь текст из файла сразу: {e}")
             
-            # Используем извлеченный контент или переданный
             final_content = extracted_content or content
             
-            # Создаем документ
             document = KnowledgeDocument.objects.create(
                 user=user,
                 title=title,
                 content=final_content,
-                source=source or (uploaded_file.name if uploaded_file else ''),
+                source=source or original_filename,
                 metadata=metadata,
                 file_type=file_type,
             )
             
-            # Сохраняем файл, если он был загружен
-            if uploaded_file:
-                document.file = uploaded_file
-                document.save(update_fields=['file'])
+            if uploaded_file or file_path:
+                assign_knowledge_file(document, file=uploaded_file, file_path=file_path)
             
-            # Индексируем документ, если запрошено
             indexing_result = None
             if index_immediately:
                 try:
@@ -182,13 +177,9 @@ class KnowledgeDocumentViewSet(ViewSet, SwaggerSafeMixin):
                         chunk_overlap=RAG_CHUNK_OVERLAP,
                     )
                     indexing_result = indexing_service.index_document(document)
-                    # Обновляем объект документа из БД, чтобы получить актуальный chunks_count
                     document.refresh_from_db()
                 except Exception as e:
-                    import logging
-                    logger = logging.getLogger(__name__)
                     logger.error(f"Ошибка индексации документа {document.id}: {e}", exc_info=True)
-                    # Не прерываем создание документа, просто логируем ошибку
             
             return Response({
                 'success': True,
@@ -239,14 +230,13 @@ class KnowledgeDocumentViewSet(ViewSet, SwaggerSafeMixin):
                     'metadata': chunk.metadata,
                 })
             
-            # Информация о файле
             file_info = None
             if document.file:
                 try:
                     file_info = {
                         'name': document.file.name.split('/')[-1],
                         'size': document.file.size,
-                        'url': document.file.url if hasattr(document.file, 'url') else None,
+                        'url': signed_url_from_field(document.file),
                         'type': document.file_type,
                     }
                 except Exception:
@@ -440,7 +430,7 @@ class KnowledgeDocumentViewSet(ViewSet, SwaggerSafeMixin):
     def download_file(self, request, pk=None):
         """
         GET /api/ai_assistant/knowledge_documents/{id}/download/
-        Скачать файл документа
+        Редирект на подписанный URL media_api.
         """
         user = self.get_safe_user()
         queryset = KnowledgeDocument.objects.filter(user=user)
@@ -455,17 +445,13 @@ class KnowledgeDocumentViewSet(ViewSet, SwaggerSafeMixin):
                     'error': 'У документа нет файла'
                 }, status=status.HTTP_404_NOT_FOUND)
             
-            try:
-                file_handle = document.file.open('rb')
-                filename = document.file.name.split('/')[-1]
-                response = FileResponse(file_handle, as_attachment=True, filename=filename)
-                return response
-            except Exception as e:
-                logger.error(f"Ошибка открытия файла документа {document.id}: {e}")
+            url = signed_url_from_field(document.file)
+            if not url:
                 return Response({
                     'success': False,
-                    'error': f'Ошибка открытия файла: {str(e)}'
+                    'error': 'Не удалось сформировать ссылку на файл'
                 }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return HttpResponseRedirect(url)
             
         except KnowledgeDocument.DoesNotExist:
             return Response({
@@ -477,111 +463,47 @@ class KnowledgeDocumentViewSet(ViewSet, SwaggerSafeMixin):
 class GeneratedDocumentDownloadView(APIView):
     """
     GET /api/ai_assistant/documents/download/<path:file_path>
-    Скачать сгенерированный документ
+    Редирект на подписанный URL сгенерированного документа в media_api.
     """
     permission_classes = [permissions.IsAuthenticated, CanViewAiAssistant]
 
     @staticmethod
-    def _user_owns_file(user, full_path, normalized_path: str) -> bool:
-        from pathlib import Path
-
-        path_str = str(full_path).replace('\\', '/')
+    def _user_owns_storage_path(user, storage_path: str) -> bool:
+        norm = storage_path.replace('\\', '/')
         user_prefix = f'user_{user.pk}/'
-        if user_prefix in path_str or path_str.endswith(f'/user_{user.pk}'):
+        if user_prefix in norm:
             return True
-
-        norm = normalized_path.replace('\\', '/')
         for doc in KnowledgeDocument.objects.filter(user=user).only('file', 'metadata'):
-            meta_path = (doc.metadata or {}).get('file_path', '')
-            if meta_path:
-                try:
-                    if Path(meta_path).resolve() == full_path:
-                        return True
-                except Exception:
-                    pass
-            if doc.file and doc.file.name.replace('\\', '/') in norm:
+            meta_path = (doc.metadata or {}).get('storage_path') or (doc.metadata or {}).get('file_path', '')
+            if meta_path and meta_path.replace('\\', '/') == norm:
+                return True
+            if doc.file and doc.file.name.replace('\\', '/') == norm:
                 return True
         return False
     
     def get(self, request, file_path):
-        from pathlib import Path
-        from django.conf import settings
         from urllib.parse import unquote
-        import mimetypes
-        import os
-        
-        # Декодируем URL (убираем %D0%A1 и т.д.)
-        decoded_path = unquote(file_path)
-        
-        # Нормализуем путь (заменяем forward slashes на системные)
-        normalized_path = decoded_path.replace('/', os.sep)
-        
-        # Строим полный путь к файлу
-        media_root = Path(settings.MEDIA_ROOT)
-        full_path = media_root / normalized_path
-        
-        logger.info(f"Запрос скачивания: file_path={file_path}, full_path={full_path}")
-        
-        # Проверяем безопасность пути (чтобы не выйти за пределы media)
+
+        decoded_path = unquote(file_path).replace('\\', '/')
         try:
-            full_path = full_path.resolve()
-            media_root = media_root.resolve()
-            
-            if not str(full_path).startswith(str(media_root)):
-                return Response({
-                    'success': False,
-                    'error': 'Недопустимый путь к файлу'
-                }, status=status.HTTP_403_FORBIDDEN)
+            storage_path = validate_media_path(decoded_path, 'file')
         except Exception:
             return Response({
                 'success': False,
                 'error': 'Неверный путь к файлу'
             }, status=status.HTTP_400_BAD_REQUEST)
 
-        if not self._user_owns_file(request.user, full_path, normalized_path):
+        if not self._user_owns_storage_path(request.user, storage_path):
             return Response({
                 'success': False,
                 'error': 'Нет доступа к файлу'
             }, status=status.HTTP_403_FORBIDDEN)
-        
-        # Проверяем существование файла
-        if not full_path.exists() or not full_path.is_file():
-            logger.error(f"Файл не найден: {full_path}")
-            return Response({
-                'success': False,
-                'error': f'Файл не найден: {full_path}'
-            }, status=status.HTTP_404_NOT_FOUND)
-        
-        # Проверяем размер файла
-        file_size = full_path.stat().st_size
-        logger.info(f"Размер файла: {file_size} байт")
-        
-        if file_size == 0:
-            logger.error(f"Файл пустой: {full_path}")
-            return Response({
-                'success': False,
-                'error': 'Файл пустой'
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
-        # Определяем MIME тип
-        content_type, _ = mimetypes.guess_type(str(full_path))
-        if not content_type:
-            content_type = 'application/octet-stream'
-        
-        # Возвращаем файл
-        try:
-            response = FileResponse(
-                open(full_path, 'rb'),
-                content_type=content_type,
-                as_attachment=True,
-                filename=full_path.name
-            )
-            return response
-        except Exception as e:
-            logger.error(f"Ошибка скачивания документа {full_path}: {e}")
-            return Response({
-                'success': False,
-                'error': f'Ошибка скачивания файла: {str(e)}'
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+        url = get_signed_media_url(storage_path)
+        if not url:
+            return Response({
+                'success': False,
+                'error': 'Не удалось сформировать ссылку на файл'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return HttpResponseRedirect(url)
 

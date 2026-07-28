@@ -10,18 +10,22 @@ from django.http import StreamingHttpResponse
 from django.utils import timezone
 
 from ..ollama_gateway import create_llm_client
-from ..models import ChatSession, ChatMessage, KnowledgeDocument
+from ..models import ChatSession, ChatMessage
 from ..skills.integration import execute_skill_from_llm_response
+from ..file_uploads import (
+    collect_chat_upload_infos,
+    create_temp_knowledge_document,
+    extract_text_from_upload_info,
+)
 from ..rag import (
     RAGIndexingService,
-    DocumentParserService,
     DocumentParseError,
 )
 from ..settings import (
     RAG_CHUNK_SIZE,
     RAG_CHUNK_OVERLAP,
 )
-from .helpers import _get_rag_context, _safe_json_dumps
+from .helpers import _get_rag_context, _safe_json_dumps, _get_rag_services
 
 logger = logging.getLogger(__name__)
 
@@ -51,12 +55,7 @@ class ChatStreamView(APIView):
         ollama_config = request.data.get('ollama_config')
         session_id = request.data.get('session_id')
         module = request.data.get('module', 'chat')
-        uploaded_files = request.FILES.getlist('files')  # Загруженные файлы (множественная загрузка)
-        # Для обратной совместимости поддерживаем и одиночный файл
-        if not uploaded_files:
-            single_file = request.FILES.get('file')
-            if single_file:
-                uploaded_files = [single_file]
+        upload_infos = collect_chat_upload_infos(request)
         
         # Получаем флаг векторизации
         enable_vectorization = request.data.get('enable_vectorization', False)
@@ -136,9 +135,8 @@ class ChatStreamView(APIView):
                 if session.metadata and 'vectorized_documents' in session.metadata:
                     vectorized_document_ids = session.metadata['vectorized_documents']
                 
-                if uploaded_files:
+                if upload_infos:
                     if enable_vectorization:
-                        # Векторизация: создаем временные KnowledgeDocument и индексируем их
                         try:
                             embeddings_service, _ = _get_rag_services(ollama_config)
                             indexing_service = RAGIndexingService(
@@ -148,35 +146,26 @@ class ChatStreamView(APIView):
                             )
                             
                             new_document_ids = []
-                            for uploaded_file in uploaded_files:
+                            for info in upload_infos:
+                                name = info.get('name') or 'file'
                                 try:
-                                    # Создаем временный KnowledgeDocument
-                                    temp_doc = KnowledgeDocument.objects.create(
+                                    temp_doc = create_temp_knowledge_document(
                                         user=request.user,
-                                        title=f"Временный документ: {uploaded_file.name}",
-                                        file=uploaded_file,
-                                        source=f"chat_upload_{session.id}",
-                                        metadata={
-                                            'session_id': str(session.id),
-                                            'is_temporary': True,
-                                            'uploaded_at': timezone.now().isoformat(),
-                                        }
+                                        session=session,
+                                        info=info,
                                     )
-                                    
-                                    # Индексируем документ
                                     indexing_result = indexing_service.index_document(temp_doc, force_reindex=True)
                                     
                                     if indexing_result.get('success'):
                                         new_document_ids.append(str(temp_doc.id))
-                                        logger.info(f"Файл {uploaded_file.name} успешно проиндексирован (ID: {temp_doc.id})")
+                                        logger.info(f"Файл {name} успешно проиндексирован (ID: {temp_doc.id})")
                                     else:
-                                        logger.warning(f"Не удалось проиндексировать файл {uploaded_file.name}: {indexing_result.get('error')}")
-                                        temp_doc.delete()  # Удаляем документ, если индексация не удалась
+                                        logger.warning(f"Не удалось проиндексировать файл {name}: {indexing_result.get('error')}")
+                                        temp_doc.delete()
                                         
                                 except Exception as e:
-                                    logger.error(f"Ошибка векторизации файла {uploaded_file.name}: {e}", exc_info=True)
+                                    logger.error(f"Ошибка векторизации файла {name}: {e}", exc_info=True)
                             
-                            # Сохраняем ID новых документов в metadata сессии
                             if new_document_ids:
                                 if not session.metadata:
                                     session.metadata = {}
@@ -189,27 +178,21 @@ class ChatStreamView(APIView):
                         except Exception as e:
                             logger.error(f"Ошибка при векторизации файлов: {e}", exc_info=True)
                     
-                    # Извлекаем текст из файлов для обычного контекста (если векторизация не включена)
                     if not enable_vectorization:
                         file_contexts = []
-                        for uploaded_file in uploaded_files:
+                        for info in upload_infos:
+                            name = info.get('name') or 'file'
                             try:
-                                from io import BytesIO
-                                file_obj = BytesIO(uploaded_file.read())
-                                extracted_content, detected_type = DocumentParserService.parse_document(
-                                    file_obj=file_obj,
-                                    filename=uploaded_file.name
-                                )
+                                extracted_content, _detected_type = extract_text_from_upload_info(info)
                                 if extracted_content:
-                                    # Ограничиваем размер контекста из файла
-                                    max_file_context_length = 2000  # Примерно 2000 символов
+                                    max_file_context_length = 2000
                                     if len(extracted_content) > max_file_context_length:
                                         extracted_content = extracted_content[:max_file_context_length] + "..."
-                                    file_contexts.append(f"[СОДЕРЖИМОЕ ФАЙЛА: {uploaded_file.name}]\n{extracted_content}\n[/СОДЕРЖИМОЕ ФАЙЛА]")
+                                    file_contexts.append(f"[СОДЕРЖИМОЕ ФАЙЛА: {name}]\n{extracted_content}\n[/СОДЕРЖИМОЕ ФАЙЛА]")
                             except DocumentParseError as e:
-                                logger.warning(f"Не удалось извлечь текст из файла {uploaded_file.name}: {e}")
+                                logger.warning(f"Не удалось извлечь текст из файла {name}: {e}")
                             except Exception as e:
-                                logger.error(f"Ошибка обработки файла {uploaded_file.name}: {e}", exc_info=True)
+                                logger.error(f"Ошибка обработки файла {name}: {e}", exc_info=True)
                         
                         if file_contexts:
                             uploaded_file_context = "\n\n".join(file_contexts) + "\n\nИспользуй информацию из загруженных файлов для ответа на вопрос пользователя."
@@ -245,7 +228,7 @@ class ChatStreamView(APIView):
                 
                 # Добавляем системный промпт с инструкциями по работе с файлами
                 system_prompt_parts = []
-                if uploaded_files:
+                if upload_infos:
                     if enable_vectorization:
                         system_prompt_parts.append(
                             "Пользователь загрузил файлы, которые были проиндексированы с помощью векторного поиска. "
