@@ -1,5 +1,6 @@
 <template>
   <ModalCenter
+    standalone
     modal-id="aiAssistantChatTypeSelector"
     :title="t('ai_assistant.newChat.title')"
     :visible="show"
