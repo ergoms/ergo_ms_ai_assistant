@@ -41,6 +41,9 @@ export default {
       routes: {
         hub: 'AI Hub',
       },
+      apps: {
+        ollamaChat: 'Ollama Chat',
+      },
       access: {
         title: 'Доступ к AI-ассистенту ограничен',
         message: 'У вас нет прав для просмотра AI-ассистента. Обратитесь к администратору.',
@@ -266,6 +269,9 @@ export default {
       routes: {
         hub: 'AI Hub',
       },
+      apps: {
+        ollamaChat: 'Ollama Chat',
+      },
       access: {
         title: 'Access to AI Assistant is restricted',
         message: 'You do not have permission to view the AI Assistant. Contact an administrator.',
@@ -490,6 +496,9 @@ export default {
       newDialogDraft: 'Nouveau dialogue…',
       routes: {
         hub: 'AI Hub',
+      },
+      apps: {
+        ollamaChat: 'Ollama Chat',
       },
       access: {
         title: "L'accès à l'assistant IA est restreint",

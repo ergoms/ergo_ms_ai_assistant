@@ -26,10 +26,19 @@ __all__ = [
 
 
 def _invoke(operation: str, **kwargs):
+    """Вызов операции ollama_framework: http-транспорт или ModuleBridge (local)."""
     if get_transport() == 'http':
         from modules.ollama_framework.api.transport.dispatcher import ollama_invoke
 
         return ollama_invoke(operation, transport='http', **kwargs)
+
+    from src.core.integrations import bridge
+
+    op_name = f'ollama_framework.{operation}'
+    if bridge.has(op_name):
+        return bridge.call(op_name, **kwargs)
+
+    # Запасной путь, если integrations ещё не загружены (тесты / lean schema).
     from modules.ollama_framework.api.transport.local import invoke_local
 
     return invoke_local(operation, **kwargs)
