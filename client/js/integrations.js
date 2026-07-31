@@ -5,3 +5,4 @@
  */
 
 import './appsMenu.js'
+import './floatingWidget.js'

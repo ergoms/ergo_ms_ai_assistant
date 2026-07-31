@@ -42,7 +42,11 @@ export default {
         hub: 'AI Hub',
       },
       apps: {
-        ollamaChat: 'Ollama Chat',
+        ollamaChat: 'AI ассистент',
+        openHub: 'Открыть AI Hub',
+        send: 'Отправить',
+        close: 'Закрыть чат',
+        dragHint: 'Перетащите за заголовок',
       },
       access: {
         title: 'Доступ к AI-ассистенту ограничен',
@@ -270,7 +274,11 @@ export default {
         hub: 'AI Hub',
       },
       apps: {
-        ollamaChat: 'Ollama Chat',
+        ollamaChat: 'AI Assistant',
+        openHub: 'Open AI Hub',
+        send: 'Send',
+        close: 'Close chat',
+        dragHint: 'Drag by the header',
       },
       access: {
         title: 'Access to AI Assistant is restricted',
@@ -498,7 +506,11 @@ export default {
         hub: 'AI Hub',
       },
       apps: {
-        ollamaChat: 'Ollama Chat',
+        ollamaChat: 'Assistant IA',
+        openHub: 'Ouvrir AI Hub',
+        send: 'Envoyer',
+        close: 'Fermer le chat',
+        dragHint: 'Faites glisser par l’en-tête',
       },
       access: {
         title: "L'accès à l'assistant IA est restreint",
