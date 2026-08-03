@@ -10,19 +10,11 @@
         />
 
         <div v-if="loading" class="typing-indicator">
-          <div class="message-connector">
-            <div class="connector-line"></div>
-            <div class="connector-node"></div>
-          </div>
-
           <div class="typing-avatar" :style="`--avatar-color: ${moduleConfig?.color || '#3ae8ff'}`">
             <div class="avatar-core">
-              <component :is="moduleConfig?.icon" :size="20" />
+              <component :is="moduleConfig?.icon" :size="18" />
             </div>
-            <div class="avatar-ring"></div>
-            <div class="avatar-pulse"></div>
           </div>
-
           <div class="typing-content">
             <div class="typing-text">{{ t('ai_assistant.generating') }}</div>
             <div class="typing-dots">
@@ -48,13 +40,6 @@
       </div>
 
       <div class="input-container">
-        <div class="input-decoration">
-          <div class="input-corner input-corner--tl"></div>
-          <div class="input-corner input-corner--tr"></div>
-          <div class="input-corner input-corner--bl"></div>
-          <div class="input-corner input-corner--br"></div>
-        </div>
-
         <input
           ref="fileInputRef"
           type="file"
@@ -71,6 +56,7 @@
           :style="{ '--btn-color': moduleConfig?.color }"
           :disabled="loading"
           :title="t('ai_assistant.uploadFile')"
+          :aria-label="t('ai_assistant.uploadFile')"
           @click="triggerFileInput"
         >
           <Upload :size="18" />
@@ -91,10 +77,11 @@
           class="send-btn"
           :style="{ '--btn-color': moduleConfig?.color }"
           :disabled="!inputModel.trim() || loading"
+          :aria-label="t('ai_assistant.apps.send')"
           @click="emit('send')"
         >
           <div class="send-btn__bg"></div>
-          <Send :size="20" />
+          <Send :size="18" />
         </button>
       </div>
 

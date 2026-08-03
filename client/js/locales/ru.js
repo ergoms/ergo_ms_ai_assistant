@@ -40,7 +40,7 @@ export default {
       },
       apps: {
         ollamaChat: 'AI ассистент',
-        openHub: 'Открыть AI Hub',
+        openHub: 'Открыть AI ассистент',
         send: 'Отправить',
         close: 'Закрыть чат',
         dragHint: 'Перетащите за заголовок',

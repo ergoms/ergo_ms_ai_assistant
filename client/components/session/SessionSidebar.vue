@@ -137,14 +137,14 @@ function formatSessionTime(timestamp) {
 
 <style lang="scss" scoped>
 .session-sidebar {
-  width: 280px;
-  flex-shrink: 0;
+  width: 100%;
+  flex: 1 1 auto;
   display: flex;
   flex-direction: column;
   min-height: 0;
-  border-right: 1px solid var(--ui-border);
-  padding: 1rem;
-  background: var(--ui-surface);
+  border-right: none;
+  padding: 0;
+  background: transparent;
 
   &__toolbar {
     flex-shrink: 0;

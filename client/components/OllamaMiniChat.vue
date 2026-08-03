@@ -22,7 +22,7 @@
         ref="inputRef"
         v-model="chatInput"
         class="ollama-mini-chat__input"
-        rows="2"
+        rows="1"
         :placeholder="moduleConfig?.settings?.placeholder"
         :disabled="loading"
         @keydown.enter.exact.prevent="sendMessage"
@@ -170,10 +170,71 @@ onMounted(() => {
   background: var(--ai-bg-primary, var(--color-background));
   color: var(--ai-text-primary, var(--color-primary-text));
 
+  // Компактный режим: без neural-connector и с ровной сеткой отступов
   &--compact {
     :deep(.neural-message) {
-      padding-inline: 0.5rem;
-      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: flex-start;
+      gap: 0.625rem;
+      padding: 0.5rem 0;
+      margin: 0;
+
+      &:hover {
+        background: transparent;
+      }
+    }
+
+    :deep(.message-connector) {
+      display: none;
+    }
+
+    :deep(.message-avatar) {
+      width: 32px;
+      height: 32px;
+      margin-top: 0.125rem;
+    }
+
+    :deep(.avatar-core) {
+      inset: 2px;
+      border-radius: 8px;
+    }
+
+    :deep(.avatar-ring) {
+      border-radius: 10px;
+      border-width: 1.5px;
+    }
+
+    :deep(.message-body) {
+      flex: 1 1 auto;
+      min-width: 0;
+      max-width: none;
+      padding: 0.625rem 0.75rem;
+      border-radius: 10px;
+
+      &::before,
+      &::after {
+        display: none;
+      }
+    }
+
+    :deep(.message-header) {
+      gap: 0.375rem;
+      margin-bottom: 0.375rem;
+      flex-wrap: wrap;
+    }
+
+    :deep(.message-author) {
+      font-size: 0.8125rem;
+      letter-spacing: 0;
+    }
+
+    :deep(.message-time) {
+      font-size: 0.75rem;
+    }
+
+    :deep(.message-content) {
+      font-size: 0.875rem;
+      line-height: 1.45;
     }
   }
 }
@@ -182,10 +243,11 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.5rem 1rem;
+  padding: 0.5rem 0.875rem;
   border-bottom: 1px solid var(--ai-border, var(--color-border));
   font-size: 0.8125rem;
   color: var(--ai-text-secondary, var(--color-secondary-text));
+  flex-shrink: 0;
 }
 
 .ollama-mini-chat__status-dot {
@@ -205,12 +267,15 @@ onMounted(() => {
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
-  padding: 0.75rem 0.5rem;
+  padding: 0.75rem 0.875rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
 .ollama-mini-chat__typing {
-  padding: 0.5rem 1rem;
-  font-size: 0.875rem;
+  padding: 0.25rem 0;
+  font-size: 0.8125rem;
   color: var(--ai-text-secondary, var(--color-secondary-text));
 }
 
@@ -218,21 +283,25 @@ onMounted(() => {
   display: flex;
   gap: 0.5rem;
   align-items: flex-end;
-  padding: 0.75rem 1rem;
+  padding: 0.75rem 0.875rem;
   border-top: 1px solid var(--ai-border, var(--color-border));
   background: var(--ai-bg-secondary, var(--color-primary-background));
+  flex-shrink: 0;
 }
 
 .ollama-mini-chat__input {
   flex: 1 1 auto;
   min-width: 0;
+  min-height: 40px;
+  max-height: 96px;
   resize: none;
   border: 1px solid var(--ai-border, var(--color-border));
-  border-radius: 8px;
-  padding: 0.625rem 0.75rem;
+  border-radius: 10px;
+  padding: 0.5rem 0.75rem;
   background: var(--ai-bg-tertiary, var(--color-secondary-background));
   color: inherit;
   font: inherit;
+  font-size: 0.875rem;
   line-height: 1.4;
 
   &:focus {
@@ -252,7 +321,7 @@ onMounted(() => {
   width: 40px;
   height: 40px;
   border: none;
-  border-radius: 8px;
+  border-radius: 10px;
   background: var(--ai-accent, var(--color-accent));
   color: #050508;
   cursor: pointer;
@@ -262,6 +331,10 @@ onMounted(() => {
     opacity: 0.45;
     cursor: not-allowed;
   }
+
+  &:not(:disabled):hover {
+    filter: brightness(1.08);
+  }
 }
 
 .ollama-mini-chat__hub-link {
@@ -269,10 +342,12 @@ onMounted(() => {
   border-top: 1px solid var(--ai-border, var(--color-border));
   background: transparent;
   color: var(--ai-accent, var(--color-accent));
-  padding: 0.625rem 1rem;
+  padding: 0.625rem 0.875rem;
   font-size: 0.8125rem;
+  font-weight: 500;
   text-align: center;
   cursor: pointer;
+  flex-shrink: 0;
 
   &:hover {
     background: var(--ai-bg-elevated, var(--color-hover-background));

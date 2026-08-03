@@ -1,12 +1,14 @@
 // === COMING SOON ===
 .coming-soon {
-  flex: 1;
+  flex: 1 1 auto;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   padding: $spacing-2xl;
   text-align: center;
+  overflow: auto;
 }
 
 .coming-soon__visual {

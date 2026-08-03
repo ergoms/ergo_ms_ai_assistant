@@ -18,19 +18,18 @@
   }
 
   .input-area {
-    padding: $spacing-md;
+    padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  .messages-wrapper {
+    padding-inline: 1rem;
   }
 
   .module-banner {
-    padding: $spacing-md;
+    padding: 0.625rem 1rem;
   }
 
-  .banner-icon {
-    width: 44px;
-    height: 44px;
-  }
-
-  .banner-title {
-    font-size: $font-size-lg;
+  .banner-desc {
+    display: none;
   }
 }

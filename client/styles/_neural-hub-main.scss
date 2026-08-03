@@ -1,6 +1,8 @@
 // === MAIN AREA ===
 .neural-main {
-  flex: 1;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -9,7 +11,7 @@
 }
 
 .docs-module-wrapper {
-  flex: 1;
+  flex: 1 1 auto;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -22,11 +24,13 @@
 .module-banner {
   display: flex;
   align-items: center;
-  padding: $spacing-lg $spacing-xl;
+  gap: $spacing-md;
+  padding: 0.75rem 1.25rem;
   background: var(--bg-panel);
   border-bottom: 1px solid var(--border-subtle);
   position: relative;
   backdrop-filter: blur(20px);
+  flex-shrink: 0;
 }
 
 .banner-decoration {
@@ -46,26 +50,29 @@
 }
 
 .banner-icon {
-  width: 56px;
-  height: 56px;
+  width: 40px;
+  height: 40px;
   background: var(--banner-color, var(--accent));
-  border-radius: $radius-lg;
+  border-radius: $radius-md;
   display: flex;
   align-items: center;
   justify-content: center;
   color: white;
+  flex-shrink: 0;
 }
 
 .banner-title {
-  font-size: $font-size-xl;
+  font-size: $font-size-lg;
   font-weight: 700;
   margin: 0;
+  line-height: 1.25;
 }
 
 .banner-desc {
   font-size: $font-size-sm;
   color: var(--text-muted);
-  margin: 4px 0 0;
+  margin: 2px 0 0;
+  line-height: 1.3;
 }
 
 .banner-actions {

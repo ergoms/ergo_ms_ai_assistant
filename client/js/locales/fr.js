@@ -40,7 +40,7 @@ export default {
       },
       apps: {
         ollamaChat: 'Assistant IA',
-        openHub: 'Ouvrir AI Hub',
+        openHub: 'Ouvrir l’assistant IA',
         send: 'Envoyer',
         close: 'Fermer le chat',
         dragHint: 'Faites glisser par l’en-tête',

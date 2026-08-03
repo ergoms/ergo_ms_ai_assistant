@@ -1,6 +1,7 @@
 // === SIDEBAR ===
 .neural-sidebar {
   width: $sidebar-width;
+  flex-shrink: 0;
   background: var(--bg-panel);
   border-right: 1px solid var(--border-subtle);
   display: flex;
@@ -9,24 +10,22 @@
   z-index: 10;
   backdrop-filter: blur(20px);
   overflow: hidden;
+  min-height: 0;
 }
 
 .sidebar-brand {
   display: flex;
   align-items: center;
   gap: $spacing-md;
-  padding: $spacing-lg;
+  padding: 0.875rem 1rem;
   border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
 }
 
 .brand-icon {
-  width: 48px;
-  height: 48px;
-}
-
-.brand-icon {
-  width: 48px;
-  height: 48px;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
 }
 
 .brand-icon__core {
@@ -208,9 +207,9 @@
 }
 
 .sidebar-status {
-  padding: $spacing-md $spacing-lg;
-  border-top: 1px solid var(--border-subtle);
+  padding: 0.625rem 1rem;
   border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
 }
 
 .sidebar-actions {

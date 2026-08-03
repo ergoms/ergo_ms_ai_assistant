@@ -6,20 +6,11 @@
       { 'neural-message--streaming': message.streaming || message.isStreaming }
     ]"
   >
-    <!-- Connection line decoration -->
-    <div class="message-connector">
-      <div class="connector-line"></div>
-      <div class="connector-node"></div>
-    </div>
-
-    <!-- Avatar -->
     <div class="message-avatar" :style="avatarStyle">
       <div class="avatar-core">
-        <User v-if="message.type === 'user'" :size="20" />
-        <component v-else :is="moduleIcon" :size="20" />
+        <User v-if="message.type === 'user'" :size="18" />
+        <component v-else :is="moduleIcon" :size="18" />
       </div>
-      <div class="avatar-ring"></div>
-      <div v-if="message.streaming" class="avatar-pulse"></div>
     </div>
 
     <!-- Content -->

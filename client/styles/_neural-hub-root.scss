@@ -18,14 +18,31 @@
   --nc-text-secondary: var(--text-secondary);
   --nc-text-muted: var(--text-muted);
 
+  // Обычная страница в layout-content-shell (py-4): высота = viewport минус отступы оболочки
   display: flex;
-  height: 100vh;
+  width: 100%;
+  height: calc(100dvh - 3rem);
+  min-height: 28rem;
+  border-radius: 12px;
+  border: 1px solid var(--border-subtle);
   background: var(--bg-base);
   color: var(--text-primary);
   font-family: $font-family-base;
   font-weight: 400;
   position: relative;
   overflow: hidden;
+  box-sizing: border-box;
+
+  // SHELL_DESKTOP_MIN = 1200: ниже появляется mobile-header
+  @media (max-width: 1199px) {
+    height: calc(100dvh - var(--shell-mobile-header-offset, 56px) - 3rem);
+  }
+
+  @media (max-width: $breakpoint-sm) {
+    // у layout-content-shell на узком экране padding 1rem сверху/снизу
+    height: calc(100dvh - var(--shell-mobile-header-offset, 56px) - 2rem);
+    border-radius: 8px;
+  }
 
   &--light {
     --bg-base: #{$light-bg-primary};
