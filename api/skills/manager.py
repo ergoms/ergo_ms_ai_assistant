@@ -98,8 +98,8 @@ class SkillsManager:
         Автоматически обнаруживает и регистрирует навыки из модулей системы.
         
         Ищет навыки в:
-        - core/api/src/core/ai_assistant/skills/builtin/ - встроенные навыки (рекурсивно по подпапкам)
-        - modules/*/ai_assistant/skills/ - навыки модулей (TODO)
+        - modules/ai_assistant/api/skills/builtin/ — встроенные навыки (рекурсивно по подпапкам)
+        - modules/*/api/... навыки других модулей — не реализовано
         
         Навыки должны находиться в файлах с именем *_skill.py
         """

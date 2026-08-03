@@ -1,5 +1,8 @@
 """
 ModuleBridge — публичный API ai_assistant для других модулей.
+
+Операции ai_assistant.* предназначены для потребителей через bridge.call;
+внутри модуля предпочтительны прямые сервисы/views.
 """
 
 from __future__ import annotations

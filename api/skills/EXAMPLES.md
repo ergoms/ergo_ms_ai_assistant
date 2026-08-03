@@ -153,7 +153,7 @@ class APICallSkill(BaseSkill):
 
 ## Регистрация навыка
 
-Поместите файл навыка в `core/api/src/core/ai_assistant/skills/builtin/` - он будет автоматически обнаружен.
+Поместите файл навыка в `modules/ai_assistant/api/skills/builtin/` — он будет автоматически обнаружен.
 
 Или зарегистрируйте вручную:
 

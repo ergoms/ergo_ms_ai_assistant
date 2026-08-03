@@ -8,7 +8,9 @@ from ..permissions import CanViewAiAssistant
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from django.utils import timezone
 
-from ..ollama_gateway import create_llm_client
+from src.core.utils.mixins import SwaggerSafeMixin
+
+from ..ollama_gateway import chat as ollama_chat, resolved_model
 from ..models import ChatSession, ChatMessage
 from ..skills.integration import execute_skill_from_llm_response
 from ..file_uploads import (
@@ -28,7 +30,7 @@ from .helpers import _get_rag_context, _safe_json_dumps, _get_rag_services
 
 logger = logging.getLogger(__name__)
 
-class ChatView(APIView):
+class ChatView(SwaggerSafeMixin, APIView):
     """
     POST /api/ai_assistant/chat/
     Простой RAG чат для общих вопросов (без streaming)
@@ -47,6 +49,9 @@ class ChatView(APIView):
     parser_classes = [MultiPartParser, FormParser, JSONParser]
     
     def post(self, request):
+        if self.is_swagger_fake_view():
+            return Response({'success': True})
+
         message = request.data.get('message')
         ollama_config = request.data.get('ollama_config')  # Настройки Ollama из module-config
         session_id = request.data.get('session_id')
@@ -114,7 +119,7 @@ class ChatView(APIView):
             # Засекаем время начала запроса
             request_started_at = timezone.now()
 
-            runtime_config, client = create_llm_client(ollama_config)
+            model_name = resolved_model(ollama_config)
             temperature = (ollama_config or {}).get('temperature', 0)
             
             # Формируем массив сообщений для chat API с сохранением контекста
@@ -265,8 +270,9 @@ class ChatView(APIView):
             messages.append({"role": "user", "content": user_message})
             
             # Используем chat API для сохранения контекста
-            answer = client.chat(
+            answer = ollama_chat(
                 messages,
+                ollama_config=ollama_config,
                 temperature=temperature,
                 stream=False,
             ).strip()
@@ -296,7 +302,7 @@ class ChatView(APIView):
             
             # Формируем metadata с данными навыка
             message_metadata = {
-                'model': runtime_config.model,
+                'model': model_name,
                 'skill_name': skill_display_name,
                 'skill_call': skill_call,
             }

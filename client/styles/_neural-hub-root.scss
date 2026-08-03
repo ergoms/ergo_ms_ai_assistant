@@ -1,0 +1,45 @@
+﻿.neural-hub {
+  --bg-base: #{$dark-bg-primary};
+  --bg-panel: #{$dark-bg-secondary};
+  --bg-elevated: #{$dark-bg-elevated};
+  --bg-hover: #{$dark-bg-hover};
+  --border-subtle: #{$dark-border};
+  --border-accent: #{$dark-border-accent};
+  --text-primary: #{$dark-text-primary};
+  --text-secondary: #{$dark-text-secondary};
+  --text-muted: #{$dark-text-muted};
+  --text-placeholder: #{$dark-text-placeholder};
+  --accent: #{$neon-cyan};
+  --accent-glow: #{$neon-cyan-glow};
+  --nc-bg-base: var(--bg-base);
+  --nc-bg-elevated: var(--bg-elevated);
+  --nc-border: var(--border-subtle);
+  --nc-text-primary: var(--text-primary);
+  --nc-text-secondary: var(--text-secondary);
+  --nc-text-muted: var(--text-muted);
+
+  display: flex;
+  height: 100vh;
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-family: $font-family-base;
+  font-weight: 400;
+  position: relative;
+  overflow: hidden;
+
+  &--light {
+    --bg-base: #{$light-bg-primary};
+    --bg-panel: #{$light-bg-secondary};
+    --bg-elevated: #{$light-bg-elevated};
+    --bg-hover: #{$light-bg-hover};
+    --border-subtle: #{$light-border};
+    --border-accent: rgba(15, 118, 138, 0.3);
+    --text-primary: #{$light-text-primary};
+    --text-secondary: #{$light-text-secondary};
+    --text-muted: #{$light-text-muted};
+    --text-placeholder: #{$light-text-placeholder};
+    --accent: #0f768a;
+    --accent-glow: #0a5f6e;
+  }
+}
+

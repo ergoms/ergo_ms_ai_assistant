@@ -5,13 +5,7 @@
 Самый простой способ - использовать готовую команду:
 
 ```bash
-api test_skills
-```
-
-Или через утилиту ergoms:
-
-```bash
-ergoms test-skills
+ergoms api test_skills
 ```
 
 Эта команда автоматически проверит:
@@ -26,16 +20,14 @@ ergoms test-skills
 Запустите Django shell и выполните скрипт:
 
 ```bash
-api shell
+ergoms api shell
 ```
 
 Затем в shell:
 
 ```python
-exec(open('src/core/ai_assistant/skills/test_skills.py').read())
+exec(open('modules/ai_assistant/api/skills/test_skills.py', encoding='utf-8').read())
 ```
-
-**Важно:** Путь должен быть в кавычках!
 
 Или вручную:
 

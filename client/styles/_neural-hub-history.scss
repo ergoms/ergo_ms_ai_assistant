@@ -1,0 +1,225 @@
+// === CHAT HISTORY SIDEBAR ===
+.chat-history-sidebar {
+  width: 320px;
+  background: var(--bg-panel);
+  border-left: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  z-index: 10;
+  backdrop-filter: blur(20px);
+}
+
+.history-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: $spacing-lg;
+  border-bottom: 1px solid var(--border-subtle);
+
+  h3 {
+    font-family: $font-family-display;
+    font-size: $font-size-lg;
+    font-weight: 700;
+    margin: 0;
+    color: var(--text-primary);
+  }
+}
+
+.history-new-btn {
+  width: 32px;
+  height: 32px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: $radius-md;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all $transition-fast;
+
+  &:hover {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+    box-shadow: $glow-cyan;
+  }
+}
+
+.history-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: $spacing-sm;
+}
+
+// History items in sidebar
+.sidebar-history .history-item {
+  display: flex;
+  align-items: center;
+  gap: $spacing-xs;
+  width: 100%;
+  padding: $spacing-sm $spacing-md;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: $radius-md;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all $transition-fast;
+  text-align: left;
+  position: relative;
+
+  &:hover {
+    background: var(--bg-hover);
+    border-color: var(--border-subtle);
+
+    .history-item__delete {
+      opacity: 1;
+    }
+  }
+
+  &--active {
+    background: rgba(58, 232, 255, 0.08);
+    border-color: var(--accent);
+  }
+}
+
+// Legacy styles for right sidebar (if still used)
+.history-item {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  width: 100%;
+  padding: $spacing-md;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: $radius-lg;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all $transition-fast;
+  text-align: left;
+  margin-bottom: $spacing-xs;
+  position: relative;
+
+  &:hover {
+    background: var(--bg-hover);
+    border-color: var(--border-subtle);
+
+    .history-item__delete {
+      opacity: 1;
+    }
+  }
+
+  &--active {
+    background: rgba(58, 232, 255, 0.08);
+    border-color: var(--accent);
+  }
+}
+
+.history-item__content {
+  flex: 1;
+  min-width: 0;
+}
+
+.sidebar-history .history-item__title {
+  display: block;
+  font-size: $font-size-xs;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.history-item__title {
+  display: block;
+  font-size: $font-size-sm;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar-history .history-item__meta {
+  display: flex;
+  align-items: center;
+  gap: $spacing-xs;
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.history-item__meta {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  font-size: $font-size-xs;
+  color: var(--text-muted);
+}
+
+.history-item__time {
+  font-family: $font-family-mono;
+}
+
+.sidebar-history .history-item__delete {
+  opacity: 0;
+  padding: 2px;
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  border-radius: $radius-sm;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all $transition-fast;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+
+  &:hover {
+    background: $neon-red-light;
+    border-color: $neon-red;
+    color: $neon-red;
+  }
+}
+
+.history-item__delete {
+  opacity: 0;
+  padding: $spacing-xs;
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  border-radius: $radius-sm;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all $transition-fast;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover {
+    background: $neon-red-light;
+    border-color: $neon-red;
+    color: $neon-red;
+  }
+}
+
+.history-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: $spacing-2xl;
+  color: var(--text-muted);
+  text-align: center;
+
+  p {
+    margin-top: $spacing-md;
+    font-size: $font-size-sm;
+  }
+}
+
+.messages-area--with-history {
+  margin-right: 320px;
+}
+

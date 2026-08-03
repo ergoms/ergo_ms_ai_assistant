@@ -1,0 +1,97 @@
+// === COMING SOON ===
+.coming-soon {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: $spacing-2xl;
+  text-align: center;
+}
+
+.coming-soon__visual {
+  position: relative;
+  margin-bottom: $spacing-xl;
+}
+
+.coming-soon__icon {
+  width: 120px;
+  height: 120px;
+  background: var(--bg-elevated);
+  border-radius: $radius-2xl;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  z-index: 1;
+}
+
+.coming-soon__particles {
+  position: absolute;
+  inset: -20px;
+
+  .particle {
+    position: absolute;
+    width: 6px;
+    height: 6px;
+    background: var(--accent);
+    border-radius: 50%;
+    animation: particle-float 3s ease-in-out infinite;
+    
+    @for $i from 1 through 8 {
+      &:nth-child(#{$i}) {
+        top: random(100) * 1%;
+        left: random(100) * 1%;
+        animation-delay: $i * 0.2s;
+        animation-duration: 2s + random(20) * 0.1s;
+      }
+    }
+  }
+}
+
+@keyframes particle-float {
+  0%, 100% { 
+    transform: translateY(0) scale(1); 
+    opacity: 0.3;
+  }
+  50% { 
+    transform: translateY(-15px) scale(1.2); 
+    opacity: 1;
+  }
+}
+
+.coming-soon__title {
+  font-family: $font-family-display;
+  font-size: $font-size-2xl;
+  font-weight: 700;
+  letter-spacing: $letter-spacing-wider;
+  margin: 0 0 $spacing-sm;
+  color: var(--accent);
+}
+
+.coming-soon__text {
+  font-size: $font-size-base;
+  color: var(--text-muted);
+  margin: 0 0 $spacing-xl;
+}
+
+.coming-soon__features {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: $spacing-sm;
+  max-width: 500px;
+}
+
+.feature-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: $spacing-xs;
+  padding: $spacing-sm $spacing-md;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: $radius-full;
+  font-size: $font-size-sm;
+  color: var(--text-secondary);
+}
+

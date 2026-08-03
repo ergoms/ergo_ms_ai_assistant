@@ -1,0 +1,25 @@
+// === SCROLLBAR ===
+.messages-area::-webkit-scrollbar,
+.sidebar-modules::-webkit-scrollbar,
+.file-selector::-webkit-scrollbar {
+  width: 6px;
+}
+
+.messages-area::-webkit-scrollbar-track,
+.sidebar-modules::-webkit-scrollbar-track,
+.file-selector::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.messages-area::-webkit-scrollbar-thumb,
+.sidebar-modules::-webkit-scrollbar-thumb,
+.file-selector::-webkit-scrollbar-thumb {
+  background: var(--border-subtle);
+  border-radius: 3px;
+
+  &:hover {
+    background: var(--accent);
+  }
+}
+
+

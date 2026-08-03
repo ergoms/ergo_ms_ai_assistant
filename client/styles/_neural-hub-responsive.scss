@@ -1,0 +1,36 @@
+// === RESPONSIVE ===
+@media (max-width: $breakpoint-md) {
+  .neural-sidebar {
+    display: none;
+  }
+
+  .chat-history-sidebar {
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    z-index: 100;
+    box-shadow: -4px 0 20px rgba(0, 0, 0, 0.3);
+  }
+
+  .messages-area--with-history {
+    margin-right: 0;
+  }
+
+  .input-area {
+    padding: $spacing-md;
+  }
+
+  .module-banner {
+    padding: $spacing-md;
+  }
+
+  .banner-icon {
+    width: 44px;
+    height: 44px;
+  }
+
+  .banner-title {
+    font-size: $font-size-lg;
+  }
+}

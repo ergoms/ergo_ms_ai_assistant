@@ -1,5 +1,6 @@
 import { apiClient } from '@/js/api/manager'
 import { mediaApiClient } from '@/js/api/media-api-client'
+import { logError, logWarn } from '@/js/utils/logError.js'
 import { fetchOllamaStatus } from '../../js/ollamaStatusApi.js'
 import { tGlobal } from '@/i18n/index.js'
 

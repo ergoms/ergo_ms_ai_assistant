@@ -5,7 +5,7 @@
 export const endpoints = {
   chat: 'ai_assistant/chat/',
   chatStream: 'ai_assistant/chat/stream/',
-  ollamaStatus: 'ollama_framework/status/',
+  ollamaStatus: 'ai_assistant/ollama_status/',
   embeddingsStatus: 'ai_assistant/embeddings_status/',
   chatSessions: 'ai_assistant/chat_sessions/',
   chatSessionDetail: (id) => `ai_assistant/chat_sessions/${id}/`,

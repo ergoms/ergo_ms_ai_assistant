@@ -6,9 +6,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, List, Optional
 
-from modules.ollama_framework.api.client.base import LLMClientError
-
-from ..ollama_gateway import check_embeddings_health, embed_texts
+from ..ollama_gateway import LLMClientError, check_embeddings_health, embed_texts
 
 logger = logging.getLogger(__name__)
 

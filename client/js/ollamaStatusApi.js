@@ -2,8 +2,10 @@ import { apiClient } from '@/js/api/manager'
 import { logError } from '@/js/utils/logError.js'
 import { tGlobal } from '@/i18n/index.js'
 
-const OLLAMA_STATUS_ENDPOINT = 'ollama_framework/status/'
-const EMBEDDINGS_STATUS_ENDPOINT = 'ai_assistant/embeddings_status/'
+import { endpoints } from './endpoints.js'
+
+const OLLAMA_STATUS_ENDPOINT = endpoints.ollamaStatus
+const EMBEDDINGS_STATUS_ENDPOINT = endpoints.embeddingsStatus
 
 let cachedStatus = null
 let lastCheck = 0

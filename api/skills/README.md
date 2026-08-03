@@ -13,7 +13,7 @@ User Query → LLM (с описанием навыков) → Парсинг в�
 ### Структура папок
 
 ```
-core/api/src/core/ai_assistant/skills/
+modules/ai_assistant/api/skills/
 ├── __init__.py              # Экспорт основных классов
 ├── base.py                  # Базовый класс BaseSkill
 ├── manager.py               # Менеджер навыков (SkillsManager)

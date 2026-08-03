@@ -168,6 +168,7 @@
 import { ref, nextTick, watch, computed, onMounted } from 'vue'
 import { Send, FileText, ExternalLink, Upload, X } from 'lucide-vue-next'
 import { useAppI18n } from '@/i18n/useAppI18n.js'
+import { logError } from '@/js/utils/logError.js'
 import AssistantMessage from '../base/AssistantMessage.vue'
 import AssistantTyping from '../base/AssistantTyping.vue'
 import DocumentSelector from './DocumentSelector.vue'

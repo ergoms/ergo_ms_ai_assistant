@@ -7,7 +7,7 @@
 1. В `modules/index.js` зарегистрированы конфиги подмодулей (`chat`, `docs`, `code`)
 2. `AIAssistantHub.vue` переключает UI по `activeModule`
 3. API-клиенты — `rag/js/rag-client.js` (чат/сессии) и `docs/js/docs-client.js` (документы)
-4. Статус Ollama — через `ollama_framework/status/` (см. `js/ollamaStatusApi.js`)
+4. Статус Ollama — через `ai_assistant/ollama_status/` (см. `js/ollamaStatusApi.js`)
 
 ## Каталог
 

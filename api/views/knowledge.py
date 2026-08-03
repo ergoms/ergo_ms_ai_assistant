@@ -460,7 +460,7 @@ class KnowledgeDocumentViewSet(MediaApiFileMixin, ViewSet, SwaggerSafeMixin):
             }, status=status.HTTP_404_NOT_FOUND)
 
 
-class GeneratedDocumentDownloadView(APIView):
+class GeneratedDocumentDownloadView(SwaggerSafeMixin, APIView):
     """
     GET /api/ai_assistant/documents/download/<path:file_path>
     Редирект на подписанный URL сгенерированного документа в media_api.
@@ -484,6 +484,9 @@ class GeneratedDocumentDownloadView(APIView):
     def get(self, request, file_path):
         from urllib.parse import unquote
 
+        if self.is_swagger_fake_view():
+            return Response({'success': True})
+
         decoded_path = unquote(file_path).replace('\\', '/')
         try:
             storage_path = validate_media_path(decoded_path, 'file')
@@ -493,7 +496,8 @@ class GeneratedDocumentDownloadView(APIView):
                 'error': 'Неверный путь к файлу'
             }, status=status.HTTP_400_BAD_REQUEST)
 
-        if not self._user_owns_storage_path(request.user, storage_path):
+        user = self.get_safe_user()
+        if user is None or not self._user_owns_storage_path(user, storage_path):
             return Response({
                 'success': False,
                 'error': 'Нет доступа к файлу'

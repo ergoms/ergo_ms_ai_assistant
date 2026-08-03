@@ -11,7 +11,7 @@ from django.core.management.base import BaseCommand
 from modules.ai_assistant.api.skills import get_skills_manager
 from modules.ai_assistant.api.skills.integration import build_skills_prompt, execute_skill_from_llm_response, parse_skill_call_from_response
 
-logger = logging.getLogger('core.ai_assistant.commands')
+logger = logging.getLogger('modules.ai_assistant.commands')
 
 
 class Command(BaseCommand):

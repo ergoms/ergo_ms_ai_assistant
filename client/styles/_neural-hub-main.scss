@@ -1,0 +1,100 @@
+// === MAIN AREA ===
+.neural-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+  z-index: 1;
+}
+
+.docs-module-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+  min-height: 0;
+  background: transparent;
+  z-index: 1;
+}
+
+.module-banner {
+  display: flex;
+  align-items: center;
+  padding: $spacing-lg $spacing-xl;
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border-subtle);
+  position: relative;
+  backdrop-filter: blur(20px);
+}
+
+.banner-decoration {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--banner-color, var(--accent));
+}
+
+.banner-content {
+  display: flex;
+  align-items: center;
+  gap: $spacing-md;
+  flex: 1;
+}
+
+.banner-icon {
+  width: 56px;
+  height: 56px;
+  background: var(--banner-color, var(--accent));
+  border-radius: $radius-lg;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+}
+
+.banner-title {
+  font-size: $font-size-xl;
+  font-weight: 700;
+  margin: 0;
+}
+
+.banner-desc {
+  font-size: $font-size-sm;
+  color: var(--text-muted);
+  margin: 4px 0 0;
+}
+
+.banner-actions {
+  display: flex;
+  gap: $spacing-sm;
+}
+
+.action-btn {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  padding: $spacing-sm $spacing-md;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: $radius-md;
+  color: var(--text-secondary);
+  font-size: $font-size-sm;
+  cursor: pointer;
+  transition: all $transition-fast;
+
+  &:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  &--danger:hover {
+    background: $neon-red-light;
+    border-color: $neon-red;
+    color: $neon-red;
+  }
+}
+

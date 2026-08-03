@@ -1,0 +1,50 @@
+---
+description: ai_assistant — RAG, chat, skills; LLM только через ModuleBridge ollama_framework
+globs:
+  - "modules/ai_assistant/**"
+alwaysApply: false
+---
+
+# AI Assistant
+
+Модуль хаба AI: чат, документы/RAG, skills. Runtime LLM — модуль `ollama_framework`.
+
+## Обязательно
+
+- Вызовы Ollama — [`api/ollama_gateway.py`](../../api/ollama_gateway.py) → `bridge.call('ollama_framework.*')` (или HTTP REST самого `ollama_framework` при `OLLAMA_FRAMEWORK_TRANSPORT=http`)
+- Статус для клиента — `GET /api/ai_assistant/ollama_status/` (proxy), не `ollama_framework/status/`
+- Права — `CanViewAiAssistant` / `permission_catalog`
+- Файлы — media_api + signed URL
+- Клиентские ошибки — `import { logError } from '@/js/utils/logError.js'`
+- Тема — `theme-defaults.js` + `useModuleThemeMode('ai_assistant')`
+
+## Запрещено
+
+```python
+# BAD — прямой импорт провайдера
+from modules.ollama_framework.api.client.factory import create_client
+```
+
+```python
+# GOOD
+from src.core.integrations import bridge
+
+bridge.call('ollama_framework.chat', messages=messages, config=cfg)
+# или обёртки из api/ollama_gateway.py
+```
+
+```js
+// BAD
+apiClient.get('ollama_framework/status/')
+
+// GOOD
+apiClient.get('ai_assistant/ollama_status/')
+```
+
+## Связанные правила
+
+| Тема | Файл |
+|------|------|
+| Модули, мост | корневой `modules.mdc` |
+| Ollama-провайдер | `modules/ollama_framework/.cursor/rules/ollama-framework.mdc` |
+| logError | корневой `log-error.mdc` |
