@@ -1,41 +1,41 @@
 // AI Hub — SCSS helpers. Настраиваемые цвета — через theme-defaults / --ai-*.
 // Hex ниже — fallback для Sass rgba() и compile-time mixins (CSS var в rgba() нельзя).
 
-// === Core Dark Theme - Deep Space ===
-$dark-bg-primary: var(--ai-bg-primary, #050508);
-$dark-bg-secondary: var(--ai-bg-secondary, #0a0c12);
-$dark-bg-tertiary: var(--ai-bg-tertiary, #0e1118);
-$dark-bg-elevated: var(--ai-bg-elevated, #13161f);
-$dark-bg-hover: var(--ai-bg-elevated, #191d28);
-$dark-bg-panel: linear-gradient(145deg, rgba(15, 18, 28, 0.95), rgba(8, 10, 16, 0.98));
-$dark-border: var(--ai-border, rgba(58, 232, 255, 0.12));
-$dark-border-accent: rgba(58, 232, 255, 0.25);
-$dark-text-primary: var(--ai-text-primary, #e8ecf4);
-$dark-text-secondary: var(--ai-text-secondary, #a0aec0);
-$dark-text-muted: #5a6882;
-$dark-text-placeholder: #3d4a5c;
+// === Dark Theme — как ядро ===
+$dark-bg-primary: var(--ai-bg-primary, #111112);
+$dark-bg-secondary: var(--ai-bg-secondary, #18181a);
+$dark-bg-tertiary: var(--ai-bg-tertiary, #2a2a2c);
+$dark-bg-elevated: var(--ai-bg-elevated, #2a2a2c);
+$dark-bg-hover: var(--ai-bg-elevated, #3d3d3f);
+$dark-bg-panel: linear-gradient(145deg, rgba(24, 24, 26, 0.96), rgba(17, 17, 18, 0.98));
+$dark-border: var(--ai-border, #555555);
+$dark-border-accent: rgba(241, 67, 54, 0.28);
+$dark-text-primary: var(--ai-text-primary, #c9cccf);
+$dark-text-secondary: var(--ai-text-secondary, #6e6e6e);
+$dark-text-muted: #6e6e6e;
+$dark-text-placeholder: #555555;
 
-// === Light Theme - Clean Frost ===
-$light-bg-primary: #f8fafc;
-$light-bg-secondary: #f1f5f9;
-$light-bg-tertiary: #e2e8f0;
-$light-bg-elevated: #cbd5e1;
-$light-bg-hover: #94a3b8;
-$light-border: rgba(15, 118, 138, 0.15);
-$light-text-primary: #0f172a;
-$light-text-secondary: #334155;
-$light-text-muted: #64748b;
-$light-text-placeholder: #94a3b8;
+// === Light Theme — как ядро ===
+$light-bg-primary: #f2f2f2;
+$light-bg-secondary: #ffffff;
+$light-bg-tertiary: #f1f1f1;
+$light-bg-elevated: #f1f1f1;
+$light-bg-hover: #e1e1e1;
+$light-border: #e0e0e0;
+$light-text-primary: #101223;
+$light-text-secondary: #6e6e6e;
+$light-text-muted: #6e6e6e;
+$light-text-placeholder: #9a9a9a;
 
-// === Neon Accent Colors — runtime через --ai-neon-*; hex для Sass rgba() ===
-$_neon-cyan-hex: #3ae8ff;
+// === Accent Colors — runtime через --ai-neon-*; hex для Sass rgba() (как accent ядра) ===
+$_neon-cyan-hex: #f14336;
 $_neon-purple-hex: #a855f7;
 $_neon-green-hex: #22ff8d;
 $_neon-pink-hex: #ff6eb4;
-$_neon-blue-hex: #4f8fff;
+$_neon-blue-hex: #d0322d;
 
-$neon-cyan: var(--ai-neon-cyan, #{$_neon-cyan-hex});
-$neon-cyan-glow: #00d4ff;
+$neon-cyan: var(--ai-accent, var(--ai-neon-cyan, #{$_neon-cyan-hex}));
+$neon-cyan-glow: #d0322d;
 $neon-cyan-light: rgba($_neon-cyan-hex, 0.12);
 $neon-cyan-medium: rgba($_neon-cyan-hex, 0.25);
 
@@ -138,16 +138,16 @@ $shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
 $shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.6);
 
 // Glow effects
-$glow-cyan: 0 0 20px rgba(58, 232, 255, 0.4), 0 0 40px rgba(58, 232, 255, 0.2);
-$glow-cyan-strong: 0 0 30px rgba(58, 232, 255, 0.6), 0 0 60px rgba(58, 232, 255, 0.3);
+$glow-cyan: 0 0 20px rgba(241, 67, 54, 0.4), 0 0 40px rgba(241, 67, 54, 0.2);
+$glow-cyan-strong: 0 0 30px rgba(241, 67, 54, 0.55), 0 0 60px rgba(241, 67, 54, 0.25);
 $glow-purple: 0 0 20px rgba(168, 85, 247, 0.4), 0 0 40px rgba(168, 85, 247, 0.2);
 $glow-green: 0 0 20px rgba(34, 255, 141, 0.4), 0 0 40px rgba(34, 255, 141, 0.2);
 $glow-pink: 0 0 20px rgba(255, 110, 180, 0.4), 0 0 40px rgba(255, 110, 180, 0.2);
-$glow-blue: 0 0 20px rgba(79, 143, 255, 0.4), 0 0 40px rgba(79, 143, 255, 0.2);
+$glow-blue: 0 0 20px rgba(208, 50, 45, 0.4), 0 0 40px rgba(208, 50, 45, 0.2);
 $glow-red: 0 0 20px rgba(255, 51, 102, 0.4), 0 0 40px rgba(255, 51, 102, 0.2);
 
 // Inner glow
-$inner-glow-cyan: inset 0 0 20px rgba(58, 232, 255, 0.1);
+$inner-glow-cyan: inset 0 0 20px rgba(241, 67, 54, 0.1);
 $inner-glow-purple: inset 0 0 20px rgba(168, 85, 247, 0.1);
 
 // === Gradients ===

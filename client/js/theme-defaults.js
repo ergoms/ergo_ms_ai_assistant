@@ -1,5 +1,6 @@
 /**
- * Дефолты модульной темы AI-ассистента (синхронизировать с theme_seed.py на сервере).
+ * Дефолты модульной темы AI-ассистента.
+ * Accent совпадает с ядром (bootstrap-variables / _theme.scss).
  * Пара light+dark: modulePair связывает варианты; активный вариант — по глобальному режиму сайта.
  */
 export default {
@@ -8,25 +9,25 @@ export default {
   modulePair: 'default',
   baseTheme: 'dark',
   colors: {
-    headerBackground: 'rgba(10, 12, 18, 0.92)',
-    authBackground: 'rgba(5, 5, 8, 0.95)',
-    background: '#050508',
-    border: 'rgba(58, 232, 255, 0.12)',
-    primaryText: '#e8ecf4',
-    secondaryText: '#a0aec0',
-    primaryBackground: '#0e1118',
-    secondaryBackground: '#13161f',
-    hoverBackground: '#191d28',
-    accent: '#3ae8ff',
+    headerBackground: 'rgba(17, 17, 18, 0.92)',
+    authBackground: 'rgba(17, 17, 18, 0.95)',
+    background: '#111112',
+    border: '#555555',
+    primaryText: '#c9cccf',
+    secondaryText: '#6e6e6e',
+    primaryBackground: '#18181a',
+    secondaryBackground: '#2a2a2c',
+    hoverBackground: '#3d3d3f',
+    accent: '#f14336',
   },
   bootstrap_colors: {},
   moduleTokens: {
-    neonCyan: '#3ae8ff',
+    neonCyan: '#f14336',
     neonPurple: '#a855f7',
     neonGreen: '#22ff8d',
     neonPink: '#ff6eb4',
-    neonBlue: '#4f8fff',
-    glowCyan: '0 0 20px rgba(58, 232, 255, 0.4), 0 0 40px rgba(58, 232, 255, 0.2)',
+    neonBlue: '#d0322d',
+    glowCyan: '0 0 20px rgba(241, 67, 54, 0.4), 0 0 40px rgba(241, 67, 54, 0.2)',
   },
   systemThemes: [
     {
@@ -43,16 +44,16 @@ export default {
       module_pair: 'default',
       is_default: true,
       colors: {
-        headerBackground: 'rgba(248, 250, 252, 0.92)',
-        authBackground: 'rgba(248, 250, 252, 0.95)',
-        background: '#f8fafc',
-        border: 'rgba(15, 118, 138, 0.15)',
-        primaryText: '#0f172a',
-        secondaryText: '#334155',
-        primaryBackground: '#f1f5f9',
-        secondaryBackground: '#e2e8f0',
-        hoverBackground: '#cbd5e1',
-        accent: '#0e7490',
+        headerBackground: 'rgba(255, 255, 255, 0.92)',
+        authBackground: 'rgba(255, 255, 255, 0.95)',
+        background: '#f2f2f2',
+        border: '#e0e0e0',
+        primaryText: '#101223',
+        secondaryText: '#6e6e6e',
+        primaryBackground: '#ffffff',
+        secondaryBackground: '#f1f1f1',
+        hoverBackground: '#e1e1e1',
+        accent: '#d0322d',
       },
     },
   ],

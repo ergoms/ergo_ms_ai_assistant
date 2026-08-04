@@ -1,86 +1,24 @@
 <template>
   <HubShell
     :module-config="currentModuleConfig"
-    :active-module="activeModule"
-    :ollama-online="ollamaOnline"
-    :current-model="currentModel"
+    active-module="chat"
     :accelerated="isAIGenerating"
   >
     <template #sidebar>
       <SessionSidebar
         :loading="sessionsLoading"
         :search-query="searchQuery"
-        :filter-module="filterModule"
-        :sessions-by-module="sessionsByModule"
+        :sessions="chatSessions"
         :active-session-id="activeSessionId"
         :draft-session="draftSession"
         @update:search-query="setSearchQuery"
-        @update:filter-module="setFilterModule"
-        @new-chat="showChatTypeSelector = true"
+        @new-chat="handleNewChat"
         @select-session="onSelectSession"
         @delete-session="onDeleteSession"
       />
     </template>
 
-    <template #banner-actions>
-      <button
-        v-if="activeModule === 'docs'"
-        type="button"
-        class="action-btn action-btn--primary"
-        :title="t('ai_assistant.upload')"
-        @click="showDocsUploader = !showDocsUploader"
-      >
-        <Upload :size="18" />
-        <span>{{ t('ai_assistant.upload') }}</span>
-      </button>
-    </template>
-
-    <ChatTypeSelector
-      :show="showChatTypeSelector"
-      @close="showChatTypeSelector = false"
-      @select="handleChatTypeSelect"
-    />
-
-    <template v-if="activeModule === 'docs' && !currentModuleConfig?.comingSoon">
-      <div class="docs-module-wrapper">
-        <DocsAssistantChat
-          ref="docsAssistantChatRef"
-          :key="`docs-chat-${docsChatKey}`"
-          :is-visible="true"
-          :hide-header="true"
-          :force-show-uploader="showDocsUploader"
-          @session-updated="loadSessions"
-        />
-      </div>
-    </template>
-
-    <div v-else-if="currentModuleConfig?.comingSoon" class="coming-soon">
-      <div class="coming-soon__visual">
-        <div class="coming-soon__icon" :style="{ color: currentModuleConfig?.color }">
-          <component :is="currentModuleConfig?.icon" :size="64" />
-        </div>
-        <div class="coming-soon__particles">
-          <span v-for="i in 8" :key="i" class="particle"></span>
-        </div>
-      </div>
-      <h2 class="coming-soon__title">{{ t('ai_assistant.comingSoon') }}</h2>
-      <p class="coming-soon__text">
-        {{ t('ai_assistant.comingSoonText', { name: currentModuleConfig?.name }) }}
-      </p>
-      <div class="coming-soon__features">
-        <span
-          v-for="s in currentModuleConfig?.suggestions"
-          :key="s"
-          class="feature-chip"
-        >
-          <Zap :size="12" />
-          {{ s }}
-        </span>
-      </div>
-    </div>
-
     <HubChatPanel
-      v-else-if="activeModule === 'chat' || activeModule === 'code'"
       ref="chatPanelRef"
       v-model:input="chatInput"
       v-model:enable-vectorization="enableVectorization"
@@ -96,8 +34,7 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onMounted, ref } from 'vue'
-import { Upload, Zap } from 'lucide-vue-next'
+import { computed, onMounted, ref } from 'vue'
 import { useAppI18n } from '@/i18n/useAppI18n.js'
 import { useToast } from '@/js/utils/toast.js'
 import { logError } from '@/js/utils/logError.js'
@@ -114,8 +51,8 @@ import { useOllamaStatus } from '../js/composables/useOllamaStatus.js'
 import HubShell from '../components/HubShell.vue'
 import HubChatPanel from '../components/HubChatPanel.vue'
 import SessionSidebar from '../components/session/SessionSidebar.vue'
-import ChatTypeSelector from '../components/ChatTypeSelector.vue'
-import DocsAssistantChat from '../docs/DocsAssistantChat.vue'
+
+const CHAT_MODULE = 'chat'
 
 const { t } = useAppI18n()
 const toast = useToast()
@@ -124,10 +61,8 @@ const {
   loading: sessionsLoading,
   draftSession,
   activeSessionId,
-  activeModule,
   searchQuery,
-  filterModule,
-  sessionsByModule,
+  filteredSessions,
   loadSessions,
   loadSession,
   createSession,
@@ -136,7 +71,6 @@ const {
   clearSession,
   attachSession,
   setSearchQuery,
-  setFilterModule,
   watchState,
 } = useAssistantSessions()
 
@@ -149,11 +83,12 @@ const {
   setAssistantError,
 } = useMessageHistory()
 
-const { status: ollamaStatus, statusLabel } = useOllamaStatus({ autoPoll: true })
-const ollamaOnline = computed(() => !!ollamaStatus.value.available)
-const currentModel = computed(() => statusLabel.value || t('ai_assistant.modelLoading'))
+const { status: ollamaStatus } = useOllamaStatus({ autoPoll: true })
 
-const currentModuleConfig = computed(() => getModuleById(activeModule.value))
+const currentModuleConfig = computed(() => getModuleById(CHAT_MODULE))
+const chatSessions = computed(() =>
+  filteredSessions.value.filter((s) => (s.module || CHAT_MODULE) === CHAT_MODULE),
+)
 const isAIGenerating = computed(
   () => chatLoading.value || messages.value.some((msg) => msg.streaming),
 )
@@ -165,14 +100,9 @@ const chatSelectedFiles = ref([])
 const enableVectorization = ref(false)
 const currentChatSession = ref(null)
 
-const showDocsUploader = ref(false)
-const docsAssistantChatRef = ref(null)
-const docsChatKey = ref(0)
-const showChatTypeSelector = ref(false)
-
 function initWelcomeChat() {
   resetLocalMessageIds(1)
-  const config = getModuleById(activeModule.value) || getModuleById('chat')
+  const config = getModuleById(CHAT_MODULE)
   setMessages([{
     id: 1,
     type: 'assistant',
@@ -182,25 +112,19 @@ function initWelcomeChat() {
   resetLocalMessageIds(2)
 }
 
-async function onSelectSession(sessionId, moduleId) {
-  selectSession(sessionId, moduleId)
-  await loadChatSession(sessionId, moduleId)
+async function onSelectSession(sessionId) {
+  selectSession(sessionId, CHAT_MODULE)
+  await loadChatSession(sessionId)
 }
 
-async function loadChatSession(sessionId, moduleId = null) {
+async function loadChatSession(sessionId) {
   const result = await loadSession(sessionId)
   if (!result.success) {
     toast.error(result.error || t('ai_assistant.chatLoadFail'))
     return
   }
 
-  currentChatSession.value = { id: sessionId, ...result.session }
-  const sessionModule = moduleId || result.session.module || 'chat'
-
-  if (sessionModule === 'docs') {
-    docsChatKey.value++
-    return
-  }
+  currentChatSession.value = { id: sessionId, module: CHAT_MODULE, ...result.session }
 
   resetLocalMessageIds(1)
   const mapped = mapApiMessages(result.messages)
@@ -231,11 +155,7 @@ async function onDeleteSession(sessionId) {
     if (currentChatSession.value?.id === sessionId || activeSessionId.value === sessionId) {
       currentChatSession.value = null
       clearSession()
-      if (activeModule.value === 'chat' || activeModule.value === 'code') {
-        initWelcomeChat()
-      } else if (activeModule.value === 'docs') {
-        docsChatKey.value++
-      }
+      initWelcomeChat()
     }
 
     await loadSessions()
@@ -246,15 +166,9 @@ async function onDeleteSession(sessionId) {
   }
 }
 
-async function handleChatTypeSelect(moduleId) {
+async function handleNewChat() {
   try {
-    const module = getModuleById(moduleId)
-    if (!module) {
-      toast.error(t('ai_assistant.moduleNotFound'))
-      return
-    }
-
-    const result = await createSession(moduleId)
+    const result = await createSession(CHAT_MODULE)
     if (!result.success) {
       toast.error(result.error || t('ai_assistant.chatCreateFail'))
       return
@@ -262,24 +176,19 @@ async function handleChatTypeSelect(moduleId) {
 
     currentChatSession.value = {
       id: result.session.id,
-      module: moduleId,
+      module: CHAT_MODULE,
     }
-    attachSession(result.session.id, moduleId)
-
-    if (moduleId === 'chat' || moduleId === 'code') {
-      initWelcomeChat()
-    } else if (moduleId === 'docs') {
-      docsChatKey.value++
-      nextTick(() => {
-        docsAssistantChatRef.value?.resetChat?.()
-      })
-    }
-
+    attachSession(result.session.id, CHAT_MODULE)
+    initWelcomeChat()
     await loadSessions()
   } catch (error) {
     logError('Ошибка создания чата', error)
     toast.error(t('ai_assistant.chatCreateError'))
   }
+}
+
+function resolveChatSessionId() {
+  return currentChatSession.value?.id || activeSessionId.value || null
 }
 
 async function sendChatMessage(text) {
@@ -295,6 +204,7 @@ async function sendChatMessage(text) {
     const ollamaConfig = ollamaStatus.value.model
       ? { model: ollamaStatus.value.model }
       : null
+    const sessionId = resolveChatSessionId()
 
     await ragClient.sendMessageStream(
       messageText,
@@ -305,9 +215,14 @@ async function sendChatMessage(text) {
       },
       (fullResponse, metadata) => {
         finishAssistantStream(fullResponse, metadata || {})
-        if (metadata?.session_id) {
-          currentChatSession.value = { id: metadata.session_id }
-          attachSession(metadata.session_id, activeModule.value)
+        const nextSessionId = metadata?.session_id || sessionId
+        if (nextSessionId) {
+          currentChatSession.value = {
+            ...(currentChatSession.value || {}),
+            id: nextSessionId,
+            module: CHAT_MODULE,
+          }
+          attachSession(nextSessionId, CHAT_MODULE)
           loadSessions()
         }
         chatLoading.value = false
@@ -321,8 +236,8 @@ async function sendChatMessage(text) {
         chatPanelRef.value?.scrollToBottom()
       },
       ollamaConfig,
-      currentChatSession.value?.id,
-      activeModule.value,
+      sessionId,
+      CHAT_MODULE,
       chatSelectedFiles.value.length > 0 ? chatSelectedFiles.value : null,
       enableVectorization.value,
     )
@@ -387,23 +302,20 @@ function removeChatFile(index) {
 
 watchState(async (state, prev) => {
   if (state.session && state.session !== prev?.session) {
-    await loadChatSession(state.session, state.module)
+    await loadChatSession(state.session)
     return
   }
-  if (state.module !== prev?.module) {
+  if (!state.session && state.session !== prev?.session) {
     currentChatSession.value = null
-    showDocsUploader.value = false
-    if ((state.module === 'chat' || state.module === 'code') && !state.session) {
-      initWelcomeChat()
-    }
+    initWelcomeChat()
   }
 })
 
 onMounted(async () => {
   await loadSessions()
   if (activeSessionId.value) {
-    await loadChatSession(activeSessionId.value, activeModule.value)
-  } else if (activeModule.value === 'chat' || activeModule.value === 'code') {
+    await loadChatSession(activeSessionId.value)
+  } else {
     initWelcomeChat()
   }
 })

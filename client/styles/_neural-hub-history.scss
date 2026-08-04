@@ -79,7 +79,7 @@
   }
 
   &--active {
-    background: rgba(58, 232, 255, 0.08);
+    background: color-mix(in srgb, var(--accent, #f14336) 8%, transparent);
     border-color: var(--accent);
   }
 }
@@ -111,7 +111,7 @@
   }
 
   &--active {
-    background: rgba(58, 232, 255, 0.08);
+    background: color-mix(in srgb, var(--accent, #f14336) 8%, transparent);
     border-color: var(--accent);
   }
 }

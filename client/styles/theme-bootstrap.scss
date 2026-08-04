@@ -2,12 +2,16 @@
 // Подключать один раз в routes.js модуля.
 
 [data-ergo-module-theme='ai_assistant'] {
-  --ai-neon-cyan: var(--ai-assistant-neon-cyan, #3ae8ff);
+  --ai-neon-cyan: var(--ai-assistant-neon-cyan, #f14336);
   --ai-neon-purple: var(--ai-assistant-neon-purple, #a855f7);
   --ai-neon-green: var(--ai-assistant-neon-green, #22ff8d);
   --ai-neon-pink: var(--ai-assistant-neon-pink, #ff6eb4);
-  --ai-neon-blue: var(--ai-assistant-neon-blue, #4f8fff);
-  --ai-glow-cyan: var(--ai-assistant-glow-cyan, 0 0 20px rgba(58, 232, 255, 0.4), 0 0 40px rgba(58, 232, 255, 0.2));
+  --ai-neon-blue: var(--ai-assistant-neon-blue, #d0322d);
+  --ai-glow-cyan: var(
+    --ai-assistant-glow-cyan,
+    0 0 20px rgba(241, 67, 54, 0.4),
+    0 0 40px rgba(241, 67, 54, 0.2)
+  );
 
   --ai-bg-primary: var(--color-background);
   --ai-bg-secondary: var(--color-primary-background);

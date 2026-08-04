@@ -206,7 +206,7 @@ onBeforeUnmount(() => {
   border: 1px solid var(--ai-border, var(--color-border));
   box-shadow:
     0 12px 40px rgba(0, 0, 0, 0.35),
-    0 0 0 1px rgba(58, 232, 255, 0.08);
+    0 0 0 1px color-mix(in srgb, var(--ai-accent, #f14336) 8%, transparent);
   transition: left 0.25s ease, top 0.25s ease;
 
   &--dragging {
@@ -229,8 +229,8 @@ onBeforeUnmount(() => {
   padding: 0.75rem 0.875rem;
   background: linear-gradient(
     135deg,
-    color-mix(in srgb, var(--ai-accent, #3ae8ff) 18%, var(--ai-bg-secondary, #0e1118)),
-    var(--ai-bg-secondary, #0e1118)
+    color-mix(in srgb, var(--ai-accent, #f14336) 18%, var(--ai-bg-secondary, #18181a)),
+    var(--ai-bg-secondary, #18181a)
   );
   border-bottom: 1px solid var(--ai-border, var(--color-border));
   flex-shrink: 0;
@@ -257,7 +257,7 @@ onBeforeUnmount(() => {
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: var(--ai-accent, #3ae8ff);
+  background: var(--ai-accent, #f14336);
   color: #050508;
   flex-shrink: 0;
 }

@@ -85,14 +85,14 @@ export default {
       },
       modules: {
         chat: {
-          name: 'Chat général',
-          description: 'Posez des questions sur le système',
+          name: '',
+          description: '',
           welcome: 'Bonjour ! Je suis l\'assistant IA d\'ERGO MS. Comment puis-je vous aider ?',
           placeholder: 'Écrivez un message...',
-          s1: 'Comment fonctionne le système ?',
-          s2: 'Parle-moi des fonctionnalités',
-          s3: 'Aide-moi à naviguer',
-          s4: 'Explique le fonctionnement',
+          s1: 'Quels modules sont installés et à quoi servent-ils ?',
+          s2: 'Comment configurer les rôles et les droits d\'accès ?',
+          s3: 'Où trouver les paramètres du profil et du thème ?',
+          s4: 'Comment créer un utilisateur et lui attribuer un rôle ?',
         },
         docs: {
           name: 'Documents',

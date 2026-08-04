@@ -1,8 +1,4 @@
 // === MESSAGES ===
-// Единая колонка контента: сообщения и ввод делят одну ширину/отступы
-$hub-content-max: 48rem;
-$hub-content-pad: 1.25rem;
-
 .messages-area {
   flex: 1 1 auto;
   min-height: 0;
@@ -12,9 +8,9 @@ $hub-content-pad: 1.25rem;
 
 .messages-wrapper {
   width: 100%;
-  max-width: $hub-content-max;
-  margin: 0 auto;
-  padding: 1rem $hub-content-pad;
+  max-width: none;
+  margin: 0;
+  padding: 0.75rem var(--hub-content-pad, 1rem) 1rem;
   box-sizing: border-box;
 }
 

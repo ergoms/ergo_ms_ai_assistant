@@ -82,14 +82,15 @@ function extractFencedCodeBlocks(text) {
     const id = `code-block-${index++}`
     const langClass = lang ? ` language-${escapeHtml(lang)}` : ''
     const langAttr = lang ? ` data-lang="${escapeHtml(lang)}"` : ''
+    const codeBody = String(code || '').replace(/^\n+/, '').replace(/\n+$/, '')
     blocks.push({
       id,
       html:
         `<pre class="markdown-code-block"${langAttr}>` +
-        `<code class="markdown-code${langClass}">${escapeHtml(code.replace(/\n$/, ''))}</code>` +
+        `<code class="markdown-code${langClass}">${escapeHtml(codeBody)}</code>` +
         `</pre>`,
     })
-    return `\n\n__CODE_PLACEHOLDER_${id}__\n\n`
+    return `\n__CODE_PLACEHOLDER_${id}__\n`
   })
   return { text: replaced, blocks }
 }
@@ -108,7 +109,7 @@ function extractThinkBlocks(text, thinkingLabel) {
         `<div class="think-block__content">${escapeHtml(String(thinkContent || '').trim())}</div>` +
         `</div>`,
     })
-    return `\n__THINK_PLACEHOLDER_${id}__\n`
+    return `__THINK_PLACEHOLDER_${id}__`
   })
   return { text: replaced, blocks }
 }
@@ -165,12 +166,24 @@ export function formatMessageContent(content, options = {}) {
     text = text.replace(`__TABLE_PLACEHOLDER_${table.id}__`, table.html)
   })
 
-  // Не ломаем переносы внутри <pre>
-  text = text.replace(/(<pre[\s\S]*?<\/pre>)|([^<]+)|(<[^>]+>)/g, (match, pre, plain, tag) => {
-    if (pre) return pre
-    if (tag) return tag
-    return plain.replace(/\n/g, '<br>')
-  })
+  // Убираем лишние пустые строки — иначе вокруг кода появляются «дыры»
+  text = text.replace(/\n{3,}/g, '\n\n')
+
+  // Не ломаем переносы внутри block-элементов
+  text = text.replace(
+    /(<(?:pre|div|table)[\s\S]*?<\/(?:pre|div|table)>)|([^<]+)|(<[^>]+>)/g,
+    (match, block, plain, tag) => {
+      if (block) return block
+      if (tag) return tag
+      return plain.replace(/\n/g, '<br>')
+    },
+  )
+
+  // Схлопываем br вокруг блоков и серии br
+  text = text
+    .replace(/(?:<br>\s*)+(<(?:pre|div|table)\b)/gi, '$1')
+    .replace(/(<\/(?:pre|div|table)>)(?:\s*<br>)+/gi, '$1')
+    .replace(/(?:<br>\s*){3,}/g, '<br><br>')
 
   return sanitizeHtml(text)
 }

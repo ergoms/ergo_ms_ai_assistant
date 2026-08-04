@@ -3,9 +3,15 @@
 .neural-message {
   display: flex;
   align-items: flex-start;
-  gap: 0.75rem;
-  padding: 0.625rem 0;
+  gap: 0.625rem;
+  padding: 0.35rem 0;
   position: relative;
+  width: 100%;
+  box-sizing: border-box;
+
+  & + & {
+    margin-top: 0.5rem;
+  }
 
   &--user {
     .message-body {
@@ -16,7 +22,7 @@
 
   &--assistant {
     .message-body {
-      background: color-mix(in srgb, var(--bg-elevated) 88%, transparent);
+      background: var(--bg-panel, var(--bg-elevated));
       border-color: var(--border-subtle);
     }
   }
@@ -27,7 +33,7 @@
         content: '';
         display: inline-block;
         width: 2px;
-        height: 1.2em;
+        height: 1.1em;
         background: var(--accent, #{$neon-cyan});
         margin-left: 4px;
         animation: cursor-blink 1s step-end infinite;
@@ -38,11 +44,11 @@
 }
 
 .message-avatar {
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   position: relative;
   flex-shrink: 0;
-  margin-top: 0.125rem;
+  margin-top: 0.15rem;
 }
 
 .avatar-core {
@@ -60,61 +66,64 @@
   flex: 1 1 auto;
   min-width: 0;
   max-width: none;
-  background: color-mix(in srgb, var(--bg-elevated) 88%, transparent);
+  background: var(--bg-panel, var(--bg-elevated));
   border: 1px solid var(--border-subtle);
   border-radius: 10px;
-  padding: 0.625rem 0.875rem;
+  padding: 0.5rem 0.75rem 0.625rem;
   position: relative;
 }
 
 .message-header {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.375rem;
   flex-wrap: wrap;
-}
-
-.message-author {
-  font-size: $font-size-sm;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.message-time-info {
-  display: flex;
-  align-items: center;
-  gap: $spacing-xs;
+  gap: 0.35rem;
+  margin-bottom: 0.25rem;
+  line-height: 1.2;
 }
 
 .message-time {
-  font-family: $font-family-mono;
-  font-size: $font-size-xs;
+  display: inline-flex;
+  align-items: center;
+  font-family: $font-family-base;
+  font-size: 0.75rem;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
   color: var(--text-muted);
+  line-height: 1.2;
 }
 
 .message-processing-time {
-  font-family: $font-family-mono;
-  font-size: $font-size-xs;
+  display: inline-flex;
+  align-items: center;
+  font-family: $font-family-base;
+  font-size: 0.75rem;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
   color: var(--accent);
-  padding: 2px 6px;
-  background: rgba(58, 232, 255, 0.1);
+  padding: 0.1rem 0.4rem;
+  line-height: 1.2;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
   border-radius: $radius-sm;
-  border: 1px solid rgba(58, 232, 255, 0.2);
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent);
+  box-sizing: border-box;
 }
 
 .message-skill-badge {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-family: $font-family-mono;
-  font-size: $font-size-xs;
-  font-weight: 600;
+  font-family: $font-family-base;
+  font-size: 0.75rem;
+  font-weight: 500;
   color: #a855f7;
-  padding: 2px 8px;
+  padding: 0 0.4rem;
+  min-height: 1.25rem;
+  line-height: 1.25;
   background: rgba(168, 85, 247, 0.15);
   border-radius: $radius-sm;
   border: 1px solid rgba(168, 85, 247, 0.3);
+  box-sizing: border-box;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   cursor: help;
@@ -133,12 +142,42 @@
 }
 
 .message-content {
-  font-size: $font-size-sm;
+  font-size: 0.9375rem;
   font-weight: 400;
-  line-height: 1.5;
+  line-height: 1.45;
   color: var(--text-primary);
   word-wrap: break-word;
   overflow-wrap: break-word;
+
+  :deep(p) {
+    margin: 0 0 0.5rem;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+
+  :deep(br) {
+    content: '';
+  }
+
+  // Двойной br ≈ абзац, без «лесенки» пустых строк
+  :deep(br + br) {
+    display: block;
+    margin-top: 0.35rem;
+    content: '';
+  }
+
+  :deep(ol),
+  :deep(ul) {
+    margin: 0.35rem 0 0.5rem;
+    padding-left: 1.35rem;
+  }
+
+  :deep(li) {
+    margin: 0.15rem 0;
+    line-height: 1.45;
+  }
 
   :deep(strong) {
     font-weight: 600;
@@ -147,37 +186,51 @@
 
   :deep(em) {
     font-style: italic;
-    color: var(--accent);
+    color: var(--text-secondary, var(--accent));
   }
 
   :deep(code) {
     font-family: $font-family-mono;
-    font-size: 0.9em;
-    background: rgba(58, 232, 255, 0.1);
-    padding: 2px 8px;
-    border-radius: $radius-sm;
-    color: $neon-cyan;
-    border: 1px solid rgba(58, 232, 255, 0.2);
+    font-size: 0.875em;
+    background: color-mix(in srgb, var(--text-primary) 6%, transparent);
+    padding: 0.1em 0.35em;
+    border-radius: 4px;
+    color: var(--text-primary);
+    border: 1px solid color-mix(in srgb, var(--text-primary) 10%, transparent);
   }
 
   :deep(pre.markdown-code-block) {
-    margin: $spacing-sm 0;
-    padding: $spacing-sm $spacing-md;
-    overflow-x: auto;
-    border-radius: $radius-md;
-    background: color-mix(in srgb, var(--text-primary, #111) 6%, var(--bg-base, #fff));
-    border: 1px solid color-mix(in srgb, var(--text-primary, #111) 12%, transparent);
+    display: block;
+    width: 100%;
     max-width: 100%;
+    min-height: 0;
+    margin: 0.5rem 0;
+    padding: 0.55rem 0.75rem;
+    overflow-x: auto;
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--text-primary, #111) 5%, var(--bg-base, #fff));
+    border: 1px solid color-mix(in srgb, var(--text-primary, #111) 12%, transparent);
+    box-sizing: border-box;
+    line-height: 1.4;
+
+    // Сброс глобальных стилей pre/code (Bootstrap и т.п.)
+    font-size: 0.8125rem;
+    font-family: $font-family-mono;
 
     code {
       display: block;
-      padding: 0;
-      background: transparent;
-      border: none;
+      width: fit-content;
+      min-width: 100%;
+      margin: 0;
+      padding: 0 !important;
+      background: transparent !important;
+      border: none !important;
       color: var(--text-primary);
       white-space: pre;
-      line-height: 1.45;
-      font-size: 0.85em;
+      line-height: 1.4;
+      font-size: inherit;
+      font-family: inherit;
+      box-shadow: none;
     }
   }
 
@@ -226,19 +279,19 @@
     font-family: Arial, sans-serif;
     font-size: $font-size-sm;
     background: var(--bg-base);
-    border: 1px solid rgba(58, 232, 255, 0.2);
+    border: 1px solid color-mix(in srgb, var(--accent, #f14336) 20%, transparent);
     
     th, td {
       padding: $spacing-sm $spacing-md;
       text-align: left;
-      border-bottom: 1px solid rgba(58, 232, 255, 0.1);
+      border-bottom: 1px solid color-mix(in srgb, var(--accent, #f14336) 10%, transparent);
       word-wrap: break-word;
       white-space: normal;
       font-family: Arial, sans-serif;
     }
     
     th {
-      background: rgba(58, 232, 255, 0.1);
+      background: color-mix(in srgb, var(--accent, #f14336) 10%, transparent);
       font-weight: 600;
       color: var(--text-primary);
       font-family: Arial, sans-serif;
@@ -259,7 +312,7 @@
       transition: background $transition-fast;
       
       &:hover {
-        background: rgba(58, 232, 255, 0.05);
+        background: color-mix(in srgb, var(--accent, #f14336) 5%, transparent);
       }
       
       &:last-child td {
@@ -272,7 +325,7 @@
   .message-chart {
     margin-top: $spacing-md;
     background: rgba(0, 0, 0, 0.3);
-    border: 1px solid rgba(58, 232, 255, 0.2);
+    border: 1px solid color-mix(in srgb, var(--accent, #f14336) 20%, transparent);
     border-radius: $radius-md;
     overflow: hidden;
 
@@ -281,8 +334,8 @@
       align-items: center;
       justify-content: space-between;
       padding: $spacing-sm $spacing-md;
-      background: rgba(58, 232, 255, 0.05);
-      border-bottom: 1px solid rgba(58, 232, 255, 0.1);
+      background: color-mix(in srgb, var(--accent, #f14336) 5%, transparent);
+      border-bottom: 1px solid color-mix(in srgb, var(--accent, #f14336) 10%, transparent);
 
       &__left {
         display: flex;
@@ -337,8 +390,8 @@
   gap: $spacing-sm;
   margin-top: $spacing-md;
   padding: $spacing-sm $spacing-md;
-  background: rgba(58, 232, 255, 0.1);
-  border: 1px solid rgba(58, 232, 255, 0.2);
+  background: color-mix(in srgb, var(--accent, #f14336) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent, #f14336) 20%, transparent);
   border-radius: $radius-full;
   font-family: $font-family-mono;
   font-size: $font-size-sm;
@@ -370,7 +423,7 @@
   border-radius: $radius-lg;
   overflow: hidden;
   background: var(--bg-base);
-  border: 1px solid rgba(58, 232, 255, 0.2);
+  border: 1px solid color-mix(in srgb, var(--accent, #f14336) 20%, transparent);
 }
 
 .code-header {
@@ -378,8 +431,8 @@
   align-items: center;
   justify-content: space-between;
   padding: $spacing-sm $spacing-md;
-  background: rgba(58, 232, 255, 0.05);
-  border-bottom: 1px solid rgba(58, 232, 255, 0.1);
+  background: color-mix(in srgb, var(--accent, #f14336) 5%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--accent, #f14336) 10%, transparent);
 }
 
 .code-header__left {
@@ -396,7 +449,7 @@
 .code-copy {
   padding: $spacing-xs;
   background: transparent;
-  border: 1px solid rgba(58, 232, 255, 0.3);
+  border: 1px solid color-mix(in srgb, var(--accent, #f14336) 30%, transparent);
   border-radius: $radius-sm;
   color: $neon-cyan;
   cursor: pointer;

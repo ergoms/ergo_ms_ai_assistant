@@ -32,11 +32,11 @@ const props = defineProps({
   },
   nodeColor: {
     type: String,
-    default: '#3ae8ff'
+    default: '#f14336'
   },
   lineColor: {
     type: String,
-    default: '#3ae8ff'
+    default: '#f14336'
   },
   accelerated: {
     type: Boolean,

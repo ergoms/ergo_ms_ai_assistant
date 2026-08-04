@@ -15,23 +15,20 @@
 
     <!-- Content -->
     <div class="message-body">
-      <!-- Header -->
-      <div class="message-header">
-        <span class="message-author">{{ authorName }}</span>
-        <div class="message-time-info">
-          <span class="message-time">{{ formattedTime }}</span>
-          <span v-if="message.processing_time_ms" class="message-processing-time">
-            {{ formatProcessingTime(message.processing_time_ms) }}
-          </span>
-          <span 
-            v-if="message.skill_name" 
-            class="message-skill-badge"
-            :title="skillCallTooltip"
-          >
-            <Sparkles :size="12" />
-            {{ message.skill_name }}
-          </span>
-        </div>
+      <!-- Header: только время и метки, без названия модуля -->
+      <div v-if="formattedTime || message.processing_time_ms || message.skill_name" class="message-header">
+        <span v-if="formattedTime" class="message-time">{{ formattedTime }}</span>
+        <span v-if="message.processing_time_ms" class="message-processing-time">
+          {{ formatProcessingTime(message.processing_time_ms) }}
+        </span>
+        <span
+          v-if="message.skill_name"
+          class="message-skill-badge"
+          :title="skillCallTooltip"
+        >
+          <Sparkles :size="12" />
+          {{ message.skill_name }}
+        </span>
       </div>
 
       <!-- Text Content -->
@@ -282,25 +279,25 @@ const moduleIcon = computed(() => {
 })
 
 const moduleColor = computed(() => {
-  return props.moduleConfig?.color || '#3ae8ff'
+  return props.moduleConfig?.color || 'var(--ai-accent, #d0322d)'
 })
 
 const avatarStyle = computed(() => {
   if (props.message.type === 'user') {
-    return { '--avatar-color': '#4f8fff' }
+    return { '--avatar-color': 'var(--ai-accent, #d0322d)' }
   }
   return { '--avatar-color': moduleColor.value }
-})
-
-const authorName = computed(() => {
-  if (props.message.type === 'user') return t('ai_assistant.you')
-  return props.moduleConfig?.name || 'Neural'
 })
 
 const formattedTime = computed(() => {
   if (!props.message.timestamp) return ''
   const date = new Date(props.message.timestamp)
-  return date.toLocaleTimeString(getCurrentBcp47(), { hour: '2-digit', minute: '2-digit' })
+  if (Number.isNaN(date.getTime())) return ''
+  return date.toLocaleTimeString(getCurrentBcp47(), {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  })
 })
 
 const formatProcessingTime = (ms) => {

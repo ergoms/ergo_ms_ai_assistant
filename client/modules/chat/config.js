@@ -1,6 +1,5 @@
 /**
- * Модуль: Общий чат
- * AI ассистент для общих вопросов о системе
+ * Единственный режим чата AI-хаба (без вариаций типов).
  */
 import { MessageSquare } from 'lucide-vue-next'
 import { markRaw } from 'vue'
@@ -8,15 +7,12 @@ import { tGlobal } from '@/i18n/index.js'
 
 export default {
   id: 'chat',
-  get name() {
-    return tGlobal('ai_assistant.modules.chat.name')
-  },
-  get description() {
-    return tGlobal('ai_assistant.modules.chat.description')
-  },
+  // Пусто: в UI не показываем название/описание типа чата
+  name: '',
+  description: '',
   icon: markRaw(MessageSquare),
-  color: '#3b82f6', // Blue
-  colorLight: 'rgba(59, 130, 246, 0.15)',
+  color: '#d0322d',
+  colorLight: 'rgba(208, 50, 45, 0.12)',
   enabled: true,
 
   // Настройки модуля

@@ -8,15 +8,6 @@
         :show-icon="true"
         @update:model-value="$emit('update:searchQuery', $event)"
       />
-      <SelectBox
-        :model-value="filterModule"
-        :options="moduleFilterOptions"
-        value-key="id"
-        label-key="name"
-        include-all-option
-        :all-label="t('ai_assistant.sidebar.allModules')"
-        @update:model-value="$emit('update:filterModule', $event)"
-      />
       <button type="button" class="btn btn-primary btn-sm w-100" @click="$emit('new-chat')">
         <Plus :size="16" class="me-1" />
         {{ t('ai_assistant.sidebar.newChat') }}
@@ -25,11 +16,8 @@
 
     <LoadingContentArea :loading="loading" min-height="12rem" class="session-sidebar__list">
       <div v-if="draftSession" class="session-item session-item--draft">
-        <div
-          class="session-item__icon"
-          :style="{ color: getModuleColor(draftSession.module) }"
-        >
-          <component :is="getModuleIcon(draftSession.module)" :size="16" />
+        <div class="session-item__icon">
+          <MessageSquare :size="16" />
         </div>
         <div class="session-item__content">
           <span class="session-item__title">{{ draftSession.title }}</span>
@@ -37,48 +25,32 @@
         </div>
       </div>
 
-      <template v-for="module in enabledModules" :key="module.id">
-        <div v-if="sessionsByModule[module.id]?.length" class="session-group">
-          <div class="session-group__header">
-            <component :is="module.icon" :size="14" :style="{ color: module.color }" />
-            <span>{{ module.name }}</span>
-            <span class="session-group__count">({{ sessionsByModule[module.id].length }})</span>
-          </div>
-          <div
-            v-for="session in sessionsByModule[module.id]"
-            :key="session.id"
-            class="session-item"
-            :class="{ 'session-item--active': activeSessionId === session.id }"
-            @click="$emit('select-session', session.id, session.module)"
-          >
-            <div class="session-item__icon" :style="{ color: module.color }">
-              <component :is="module.icon" :size="16" />
-            </div>
-            <div class="session-item__content">
-              <span class="session-item__title">{{ session.title || t('ai_assistant.untitled') }}</span>
-              <span class="session-item__meta">{{ formatSessionTime(session.updated_at || session.created_at) }}</span>
-            </div>
-            <DropDown class="session-item__menu" @click.stop>
-              <template #main>
-                <MoreHorizontal :size="16" />
-              </template>
-              <template #list>
-                <li>
-                  <span
-                    class="dropdown-item text-danger"
-                    @click="$emit('delete-session', session.id)"
-                  >
-                    <Trash2 :size="14" />
-                    {{ t('ai_assistant.sidebar.delete') }}
-                  </span>
-                </li>
-              </template>
-            </DropDown>
-          </div>
+      <div
+        v-for="session in sessions"
+        :key="session.id"
+        class="session-item"
+        :class="{ 'session-item--active': activeSessionId === session.id }"
+        @click="$emit('select-session', session.id)"
+      >
+        <div class="session-item__icon">
+          <MessageSquare :size="16" />
         </div>
-      </template>
+        <div class="session-item__content">
+          <span class="session-item__title">{{ session.title || t('ai_assistant.untitled') }}</span>
+          <span class="session-item__meta">{{ formatSessionTime(session.updated_at || session.created_at) }}</span>
+        </div>
+        <button
+          type="button"
+          class="session-item__delete"
+          :title="t('ai_assistant.sidebar.delete')"
+          :aria-label="t('ai_assistant.sidebar.delete')"
+          @click.stop="$emit('delete-session', session.id)"
+        >
+          <Trash2 :size="14" />
+        </button>
+      </div>
 
-      <div v-if="!loading && !draftSession && totalCount === 0" class="session-empty">
+      <div v-if="!loading && !draftSession && sessions.length === 0" class="session-empty">
         <MessageSquare :size="32" class="session-empty__icon" />
         <p class="mb-1">{{ t('ai_assistant.noChats') }}</p>
         <p class="session-empty__hint mb-0">{{ t('ai_assistant.sidebar.emptyHint') }}</p>
@@ -88,46 +60,23 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
-import { Plus, Trash2, MoreHorizontal, MessageSquare } from 'lucide-vue-next'
+import { Plus, Trash2, MessageSquare } from 'lucide-vue-next'
 import SearchInput from '@/components/SearchInput.vue'
-import SelectBox from '@/components/SelectBox.vue'
-import DropDown from '@/components/DropDown.vue'
 import LoadingContentArea from '@/components/LoadingContentArea.vue'
 import { getRelativeTime } from '@/js/utils/timeUtils.js'
-import { modules, getModuleById } from '../../modules/index.js'
 import { useAppI18n } from '@/i18n/useAppI18n.js'
 
 const { t } = useAppI18n()
 
-const props = defineProps({
+defineProps({
   loading: { type: Boolean, default: false },
   searchQuery: { type: String, default: '' },
-  filterModule: { type: String, default: '' },
-  sessionsByModule: { type: Object, default: () => ({}) },
+  sessions: { type: Array, default: () => [] },
   activeSessionId: { type: String, default: null },
   draftSession: { type: Object, default: null },
 })
 
-defineEmits(['update:searchQuery', 'update:filterModule', 'new-chat', 'select-session', 'delete-session'])
-
-const enabledModules = computed(() => modules.filter((m) => !m.comingSoon))
-
-const moduleFilterOptions = computed(() =>
-  enabledModules.value.map((m) => ({ id: m.id, name: m.name })),
-)
-
-const totalCount = computed(() =>
-  enabledModules.value.reduce((sum, m) => sum + (props.sessionsByModule[m.id]?.length || 0), 0),
-)
-
-function getModuleIcon(moduleId) {
-  return getModuleById(moduleId)?.icon || MessageSquare
-}
-
-function getModuleColor(moduleId) {
-  return getModuleById(moduleId)?.color || 'var(--bs-primary)'
-}
+defineEmits(['update:searchQuery', 'new-chat', 'select-session', 'delete-session'])
 
 function formatSessionTime(timestamp) {
   if (!timestamp) return ''
@@ -152,6 +101,20 @@ function formatSessionTime(timestamp) {
     flex-direction: column;
     gap: 0.5rem;
     margin-bottom: 0.75rem;
+
+    :deep(.search-input) {
+      --search-input-height: 38px;
+      --search-input-font-size: 0.875rem;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 38px;
+      gap: 0.25rem;
+      line-height: 1.2;
+    }
   }
 
   &__list {
@@ -162,61 +125,51 @@ function formatSessionTime(timestamp) {
   }
 }
 
-.session-group {
-  margin-bottom: 0.75rem;
-
-  &__header {
-    display: flex;
-    align-items: center;
-    gap: 0.375rem;
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-    color: var(--ui-text-muted, var(--bs-secondary-color));
-    margin-bottom: 0.375rem;
-    padding: 0 0.25rem;
-  }
-
-  &__count {
-    font-weight: 400;
-  }
-}
-
 .session-item {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 0.625rem;
-  border-radius: 0.375rem;
+  gap: 0.625rem;
+  min-height: 2.75rem;
+  padding: 0.5rem 0.5rem 0.5rem 0.625rem;
+  border-radius: 0.5rem;
   cursor: pointer;
   border: 1px solid transparent;
+  box-sizing: border-box;
 
   &:hover {
-    background: color-mix(in srgb, var(--ui-text) 4%, transparent);
+    background: color-mix(in srgb, var(--text-primary, var(--ui-text)) 5%, transparent);
 
-    .session-item__menu {
+    .session-item__delete {
       opacity: 1;
     }
   }
 
   &--active {
-    background: color-mix(in srgb, var(--bs-primary) 10%, var(--ui-surface));
-    border-color: color-mix(in srgb, var(--bs-primary) 30%, transparent);
+    background: color-mix(in srgb, var(--accent, var(--bs-primary)) 10%, transparent);
+    border-color: color-mix(in srgb, var(--accent, var(--bs-primary)) 28%, transparent);
+
+    .session-item__delete {
+      opacity: 1;
+    }
   }
 
   &--draft {
     cursor: default;
     border-style: dashed;
-    border-color: var(--ui-border);
+    border-color: var(--border-subtle, var(--ui-border));
     opacity: 0.85;
   }
 
   &__icon {
     flex-shrink: 0;
-    display: flex;
+    width: 1.75rem;
+    height: 1.75rem;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
+    border-radius: 0.375rem;
+    color: var(--accent, var(--bs-primary));
+    background: color-mix(in srgb, var(--accent, var(--bs-primary)) 12%, transparent);
   }
 
   &__content {
@@ -224,12 +177,15 @@ function formatSessionTime(timestamp) {
     min-width: 0;
     display: flex;
     flex-direction: column;
+    justify-content: center;
     gap: 0.125rem;
   }
 
   &__title {
     font-size: 0.875rem;
     font-weight: 500;
+    line-height: 1.25;
+    color: var(--text-primary, var(--ui-text));
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -237,13 +193,30 @@ function formatSessionTime(timestamp) {
 
   &__meta {
     font-size: 0.75rem;
-    color: var(--ui-text-muted, var(--bs-secondary-color));
+    line-height: 1.2;
+    color: var(--text-muted, var(--ui-text-muted, var(--bs-secondary-color)));
   }
 
-  &__menu {
-    opacity: 0;
-    transition: opacity 0.15s;
+  &__delete {
     flex-shrink: 0;
+    width: 1.75rem;
+    height: 1.75rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: none;
+    border-radius: 0.375rem;
+    background: transparent;
+    color: var(--text-muted, var(--ui-text-muted));
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s, background 0.15s, color 0.15s;
+
+    &:hover {
+      background: color-mix(in srgb, var(--bs-danger, #dc3545) 12%, transparent);
+      color: var(--bs-danger, #dc3545);
+    }
   }
 }
 
@@ -251,10 +224,11 @@ function formatSessionTime(timestamp) {
   padding: 2rem 0.5rem;
   text-align: center;
   font-size: 0.875rem;
-  color: var(--ui-text-muted, var(--bs-secondary-color));
+  color: var(--text-muted, var(--ui-text-muted, var(--bs-secondary-color)));
 
   &__icon {
-    margin-bottom: 0.75rem;
+    display: block;
+    margin: 0 auto 0.75rem;
     opacity: 0.5;
   }
 

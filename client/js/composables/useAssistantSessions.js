@@ -50,14 +50,9 @@ export function useAssistantSessions() {
   async function loadSessions() {
     loading.value = true
     try {
-      const allSessions = []
-      for (const moduleConfig of modules.filter((m) => !m.comingSoon)) {
-        const result = await ragClient.getChatSessions(moduleConfig.id)
-        if (result.success && result.sessions) {
-          allSessions.push(...result.sessions)
-        }
-      }
-      sessions.value = allSessions.sort((a, b) => {
+      const result = await ragClient.getChatSessions('chat')
+      const list = result.success && result.sessions ? result.sessions : []
+      sessions.value = list.sort((a, b) => {
         const dateA = new Date(a.updated_at || a.created_at || 0)
         const dateB = new Date(b.updated_at || b.created_at || 0)
         return dateB.getTime() - dateA.getTime()
@@ -73,11 +68,9 @@ export function useAssistantSessions() {
     return ragClient.getChatSession(sessionId)
   }
 
-  async function createSession(moduleId, title) {
-    const moduleConfig = modules.find((m) => m.id === moduleId)
-    const sessionTitle =
-      title || tGlobal('ai_assistant.newChatWithModule', { name: moduleConfig?.name || moduleId })
-    return ragClient.createChatSession(sessionTitle, moduleId)
+  async function createSession(moduleId = 'chat', title) {
+    const sessionTitle = title || tGlobal('ai_assistant.sidebar.newChat')
+    return ragClient.createChatSession(sessionTitle, moduleId || 'chat')
   }
 
   async function deleteSession(sessionId) {

@@ -84,14 +84,14 @@ export default {
       },
       modules: {
         chat: {
-          name: 'General chat',
-          description: 'Ask questions about the system',
+          name: '',
+          description: '',
           welcome: 'Hi! I am the ERGO MS AI assistant. How can I help?',
           placeholder: 'Write a message...',
-          s1: 'How does the system work?',
-          s2: 'Tell me about the features',
-          s3: 'Help me navigate',
-          s4: 'Explain the functionality',
+          s1: 'Which modules are installed and what are they for?',
+          s2: 'How do I configure roles and permissions?',
+          s3: 'Where can I find profile and theme settings?',
+          s4: 'How do I create a user and assign a role?',
         },
         docs: {
           name: 'Documents',

@@ -8,6 +8,7 @@
   overflow: hidden;
   position: relative;
   z-index: 1;
+  background: var(--bg-base);
 }
 
 .docs-module-wrapper {
@@ -21,32 +22,12 @@
   z-index: 1;
 }
 
-.module-banner {
-  display: flex;
-  align-items: center;
-  gap: $spacing-md;
-  padding: 0.75rem 1.25rem;
-  background: var(--bg-panel);
-  border-bottom: 1px solid var(--border-subtle);
-  position: relative;
-  backdrop-filter: blur(20px);
-  flex-shrink: 0;
-}
-
-.banner-decoration {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: var(--banner-color, var(--accent));
-}
-
 .banner-content {
   display: flex;
   align-items: center;
-  gap: $spacing-md;
+  gap: 0.75rem;
   flex: 1;
+  min-width: 0;
 }
 
 .banner-icon {
@@ -54,24 +35,31 @@
   height: 40px;
   background: var(--banner-color, var(--accent));
   border-radius: $radius-md;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: white;
+  color: #fff;
   flex-shrink: 0;
+}
+
+.banner-info {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .banner-title {
   font-size: $font-size-lg;
   font-weight: 700;
   margin: 0;
-  line-height: 1.25;
+  line-height: 1.2;
 }
 
 .banner-desc {
   font-size: $font-size-sm;
   color: var(--text-muted);
-  margin: 2px 0 0;
+  margin: 0.125rem 0 0;
   line-height: 1.3;
 }
 
