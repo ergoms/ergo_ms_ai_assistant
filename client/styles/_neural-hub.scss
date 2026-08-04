@@ -1,12 +1,17 @@
 @import 'variables';
 
 @import 'neural-hub-root';
-@import 'neural-hub-sidebar';
-@import 'neural-hub-main';
-@import 'neural-hub-messages';
-@import 'neural-hub-input';
-@import 'neural-hub-files';
-@import 'neural-hub-coming-soon';
-@import 'neural-hub-scrollbar';
-@import 'neural-hub-history';
-@import 'neural-hub-responsive';
+
+// Остальные partials — только внутри .neural-hub, иначе классы вроде
+// .file-info / .file-name протекают на весь клиент (например impuls_analysis).
+.neural-hub {
+  @import 'neural-hub-sidebar';
+  @import 'neural-hub-main';
+  @import 'neural-hub-messages';
+  @import 'neural-hub-input';
+  @import 'neural-hub-files';
+  @import 'neural-hub-coming-soon';
+  @import 'neural-hub-scrollbar';
+  @import 'neural-hub-history';
+  @import 'neural-hub-responsive';
+}
