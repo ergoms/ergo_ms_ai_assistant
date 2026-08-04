@@ -282,6 +282,7 @@ class DocumentSkill(BaseSkill):
             
             document = KnowledgeDocument.objects.create(
                 user=user,
+                corpus=KnowledgeDocument.CORPUS_USER,
                 title=title,
                 content=f"Документ в формате {doc_format.upper()}",
                 file_type=doc_format,

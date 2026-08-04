@@ -86,12 +86,12 @@ export default {
         chat: {
           name: '',
           description: '',
-          welcome: 'Hi! I am the ERGO MS AI assistant. How can I help?',
+          welcome: 'Hi! I can help you find sections and features in ERGO MS. Ask where to click or how to do a task in the interface.',
           placeholder: 'Write a message...',
-          s1: 'Which modules are installed and what are they for?',
-          s2: 'How do I configure roles and permissions?',
-          s3: 'Where can I find profile and theme settings?',
-          s4: 'How do I create a user and assign a role?',
+          s1: 'Which sections are available on the site and what are they for?',
+          s2: 'Where do I change my profile, language, and theme?',
+          s3: 'How does an admin create a user and assign a role?',
+          s4: 'Why is a menu item missing, and who should I ask?',
         },
         docs: {
           name: 'Documents',

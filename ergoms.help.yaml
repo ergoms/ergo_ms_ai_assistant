@@ -1,0 +1,12 @@
+# Source of truth (ru). Translations: locales/<lang>/ergoms.help.yaml
+module: ai_assistant
+title: AI-ассистент
+summary: Чат и RAG-справка по функционалу сайта для пользователей
+commands:
+  sync-knowledge:
+    summary: Проиндексировать справку по разделам сайта (меню, UI, модули) в RAG
+notes:
+  - 'Вызов: ergoms ai_assistant:sync-knowledge'
+  - 'Нужны Ollama и модель embeddings (OLLAMA_EMBEDDINGS_MODEL)'
+  - 'Эквивалент: ergoms api sync_system_knowledge'
+  - 'Корпус для пользователей сайта, не документация разработчика'

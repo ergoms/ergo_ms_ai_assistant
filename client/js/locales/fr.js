@@ -87,12 +87,12 @@ export default {
         chat: {
           name: '',
           description: '',
-          welcome: 'Bonjour ! Je suis l\'assistant IA d\'ERGO MS. Comment puis-je vous aider ?',
+          welcome: 'Bonjour ! Je peux vous aider à trouver les sections et fonctions d\'ERGO MS. Demandez où cliquer ou comment faire une action dans l\'interface.',
           placeholder: 'Écrivez un message...',
-          s1: 'Quels modules sont installés et à quoi servent-ils ?',
-          s2: 'Comment configurer les rôles et les droits d\'accès ?',
-          s3: 'Où trouver les paramètres du profil et du thème ?',
-          s4: 'Comment créer un utilisateur et lui attribuer un rôle ?',
+          s1: 'Quelles sections sont disponibles sur le site et à quoi servent-elles ?',
+          s2: 'Où modifier le profil, la langue et le thème ?',
+          s3: 'Comment un administrateur crée un utilisateur et attribue un rôle ?',
+          s4: 'Pourquoi un élément de menu manque-t-il, et à qui m\'adresser ?',
         },
         docs: {
           name: 'Documents',

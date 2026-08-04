@@ -17,6 +17,8 @@ from ..settings import (
     RAG_SIMILARITY_THRESHOLD,
     RAG_MAX_CONTEXT_LENGTH,
     RAG_ENABLED,
+    RAG_INCLUDE_SYSTEM_IN_CHAT,
+    RAG_SYSTEM_CORPUS_ENABLED,
     AI_ASSISTANT_REQUEST_TIMEOUT,
 )
 
@@ -142,11 +144,23 @@ def _get_rag_services(ollama_config=None):
             top_k=RAG_TOP_K,
             similarity_threshold=RAG_SIMILARITY_THRESHOLD,
         )
+    else:
+        _rag_retrieval_service.embeddings_service = _rag_embeddings_service
+        _rag_retrieval_service.top_k = RAG_TOP_K
+        _rag_retrieval_service.similarity_threshold = RAG_SIMILARITY_THRESHOLD
     
     return _rag_embeddings_service, _rag_retrieval_service
 
 
-def _get_rag_context(query: str, user, ollama_config=None, enabled=None, document_ids=None):
+def _get_rag_context(
+    query: str,
+    user,
+    ollama_config=None,
+    enabled=None,
+    document_ids=None,
+    include_system=None,
+    system_only=False,
+):
     """
     Получает контекст из базы знаний RAG для запроса пользователя
     
@@ -156,6 +170,8 @@ def _get_rag_context(query: str, user, ollama_config=None, enabled=None, documen
         ollama_config: Настройки Ollama (опционально)
         enabled: Переопределить глобальную настройку RAG_ENABLED
         document_ids: Список ID документов для ограничения поиска (опционально)
+        include_system: включать системный корпус (по умолчанию из settings)
+        system_only: искать только в системном корпусе
         
     Returns:
         Кортеж (context, chunks_metadata):
@@ -168,6 +184,14 @@ def _get_rag_context(query: str, user, ollama_config=None, enabled=None, documen
     
     if not enabled:
         return "", []
+
+    if include_system is None:
+        include_system = (
+            RAG_SYSTEM_CORPUS_ENABLED
+            and RAG_INCLUDE_SYSTEM_IN_CHAT
+            and not document_ids
+            and not system_only
+        )
     
     try:
         embeddings_service, retrieval_service = _get_rag_services(ollama_config)
@@ -178,20 +202,16 @@ def _get_rag_context(query: str, user, ollama_config=None, enabled=None, documen
             user=user,
             max_context_length=RAG_MAX_CONTEXT_LENGTH,
             document_ids=document_ids,
+            include_system=include_system,
+            system_only=system_only,
         )
         
         return context, chunks
         
     except RAGRetrievalError as e:
-        # Логируем ошибку, но не прерываем работу чата
-        import logging
-        logger = logging.getLogger(__name__)
         logger.warning(f"Ошибка RAG retrieval: {e}")
         return "", []
     except Exception as e:
-        # Логируем неожиданные ошибки
-        import logging
-        logger = logging.getLogger(__name__)
         logger.error(f"Неожиданная ошибка RAG retrieval: {e}", exc_info=True)
         return "", []
 

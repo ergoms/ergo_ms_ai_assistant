@@ -83,9 +83,33 @@ class KnowledgeDocument(models.Model):
     
     Может хранить либо файл (Word, PDF и т.д.), либо текстовый контент.
     При наличии файла контент извлекается автоматически при индексации.
+
+    corpus=system — общий корпус документации ERGO MS (user=None).
+    corpus=user — документы пользователя.
     """
+    CORPUS_USER = 'user'
+    CORPUS_SYSTEM = 'system'
+    CORPUS_CHOICES = [
+        (CORPUS_USER, 'Пользовательский'),
+        (CORPUS_SYSTEM, 'Системный'),
+    ]
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='knowledge_documents')
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='knowledge_documents',
+        null=True,
+        blank=True,
+        help_text='Владелец документа; пусто для системного корпуса',
+    )
+    corpus = models.CharField(
+        max_length=20,
+        choices=CORPUS_CHOICES,
+        default=CORPUS_USER,
+        db_index=True,
+        help_text='Корпус: пользовательский или системный (документация ERGO MS)',
+    )
     title = models.CharField(max_length=500, help_text='Название документа')
     
     # Файл документа (Word, PDF и т.д.)
@@ -127,6 +151,14 @@ class KnowledgeDocument(models.Model):
         indexes = [
             models.Index(fields=['user', '-created_at']),
             models.Index(fields=['is_indexed']),
+            models.Index(
+                fields=['corpus', 'is_indexed'],
+                name='ai_assistan_corpus_7f2a1b_idx',
+            ),
+            models.Index(
+                fields=['corpus', 'source'],
+                name='ai_assistan_corpus_3c9e4d_idx',
+            ),
         ]
     
     def __str__(self):

@@ -17,6 +17,8 @@ alwaysApply: false
 - Файлы — media_api + signed URL
 - Клиентские ошибки — `import { logError } from '@/js/utils/logError.js'`
 - Тема — `theme-defaults.js` + `useModuleThemeMode('ai_assistant')`
+- Сборка prompt chat/stream — [`api/rag/chat_messages.py`](../../api/rag/chat_messages.py); ответы — с точки зрения пользователя сайта
+- Корпус RAG — меню / UI / guides (`ergoms ai_assistant:sync-knowledge`), не `.docs` и не `.cursor/rules`
 
 ## Запрещено
 

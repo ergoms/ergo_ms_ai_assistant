@@ -47,7 +47,10 @@ class KnowledgeDocumentViewSet(MediaApiFileMixin, ViewSet, SwaggerSafeMixin):
         Получить список документов пользователя
         """
         user = self.get_safe_user()
-        queryset = KnowledgeDocument.objects.filter(user=user)
+        queryset = KnowledgeDocument.objects.filter(
+            user=user,
+            corpus=KnowledgeDocument.CORPUS_USER,
+        )
         queryset = self.get_safe_queryset(queryset)
         
         documents = []
@@ -157,6 +160,7 @@ class KnowledgeDocumentViewSet(MediaApiFileMixin, ViewSet, SwaggerSafeMixin):
             
             document = KnowledgeDocument.objects.create(
                 user=user,
+                corpus=KnowledgeDocument.CORPUS_USER,
                 title=title,
                 content=final_content,
                 source=source or original_filename,
@@ -211,7 +215,10 @@ class KnowledgeDocumentViewSet(MediaApiFileMixin, ViewSet, SwaggerSafeMixin):
         Получить документ с chunks
         """
         user = self.get_safe_user()
-        queryset = KnowledgeDocument.objects.filter(user=user)
+        queryset = KnowledgeDocument.objects.filter(
+            user=user,
+            corpus=KnowledgeDocument.CORPUS_USER,
+        )
         queryset = self.get_safe_queryset(queryset)
         
         try:
@@ -273,7 +280,10 @@ class KnowledgeDocumentViewSet(MediaApiFileMixin, ViewSet, SwaggerSafeMixin):
         Обновить документ
         """
         user = self.get_safe_user()
-        queryset = KnowledgeDocument.objects.filter(user=user)
+        queryset = KnowledgeDocument.objects.filter(
+            user=user,
+            corpus=KnowledgeDocument.CORPUS_USER,
+        )
         queryset = self.get_safe_queryset(queryset)
         
         try:
@@ -317,7 +327,10 @@ class KnowledgeDocumentViewSet(MediaApiFileMixin, ViewSet, SwaggerSafeMixin):
         Удалить документ (вместе с chunks)
         """
         user = self.get_safe_user()
-        queryset = KnowledgeDocument.objects.filter(user=user)
+        queryset = KnowledgeDocument.objects.filter(
+            user=user,
+            corpus=KnowledgeDocument.CORPUS_USER,
+        )
         queryset = self.get_safe_queryset(queryset)
         
         try:
@@ -341,7 +354,10 @@ class KnowledgeDocumentViewSet(MediaApiFileMixin, ViewSet, SwaggerSafeMixin):
         Индексировать или переиндексировать документ
         """
         user = self.get_safe_user()
-        queryset = KnowledgeDocument.objects.filter(user=user)
+        queryset = KnowledgeDocument.objects.filter(
+            user=user,
+            corpus=KnowledgeDocument.CORPUS_USER,
+        )
         queryset = self.get_safe_queryset(queryset)
         
         force_reindex = request.data.get('force', False)
@@ -394,7 +410,10 @@ class KnowledgeDocumentViewSet(MediaApiFileMixin, ViewSet, SwaggerSafeMixin):
         Деиндексировать документ (удалить chunks)
         """
         user = self.get_safe_user()
-        queryset = KnowledgeDocument.objects.filter(user=user)
+        queryset = KnowledgeDocument.objects.filter(
+            user=user,
+            corpus=KnowledgeDocument.CORPUS_USER,
+        )
         queryset = self.get_safe_queryset(queryset)
         
         try:
@@ -433,7 +452,10 @@ class KnowledgeDocumentViewSet(MediaApiFileMixin, ViewSet, SwaggerSafeMixin):
         Редирект на подписанный URL media_api.
         """
         user = self.get_safe_user()
-        queryset = KnowledgeDocument.objects.filter(user=user)
+        queryset = KnowledgeDocument.objects.filter(
+            user=user,
+            corpus=KnowledgeDocument.CORPUS_USER,
+        )
         queryset = self.get_safe_queryset(queryset)
         
         try:
@@ -473,7 +495,10 @@ class GeneratedDocumentDownloadView(SwaggerSafeMixin, APIView):
         user_prefix = f'user_{user.pk}/'
         if user_prefix in norm:
             return True
-        for doc in KnowledgeDocument.objects.filter(user=user).only('file', 'metadata'):
+        for doc in KnowledgeDocument.objects.filter(
+            user=user,
+            corpus=KnowledgeDocument.CORPUS_USER,
+        ).only('file', 'metadata'):
             meta_path = (doc.metadata or {}).get('storage_path') or (doc.metadata or {}).get('file_path', '')
             if meta_path and meta_path.replace('\\', '/') == norm:
                 return True

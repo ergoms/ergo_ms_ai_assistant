@@ -12,6 +12,7 @@ from .embeddings import OllamaEmbeddingsService, EmbeddingsError
 from .parser import DocumentParserService, DocumentParseError
 from .indexing import RAGIndexingService, RAGIndexingError
 from .retrieval import RAGRetrievalService, RAGRetrievalError, cosine_similarity
+from .chat_messages import build_ollama_messages
 
 __all__ = [
     'OllamaEmbeddingsService',
@@ -23,5 +24,6 @@ __all__ = [
     'RAGRetrievalService',
     'RAGRetrievalError',
     'cosine_similarity',
+    'build_ollama_messages',
 ]
 

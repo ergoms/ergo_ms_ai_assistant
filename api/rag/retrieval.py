@@ -6,6 +6,8 @@ import logging
 import math
 from typing import List, Dict, Any, Optional, Tuple
 
+from django.db.models import Q
+
 from ..models import KnowledgeDocument, KnowledgeChunk
 from .embeddings import OllamaEmbeddingsService, EmbeddingsError
 
@@ -73,6 +75,8 @@ class RAGRetrievalService:
         user: Optional[Any] = None,
         document_ids: Optional[List[str]] = None,
         limit: Optional[int] = None,
+        include_system: bool = False,
+        system_only: bool = False,
     ) -> List[Dict[str, Any]]:
         """
         Находит наиболее релевантные chunks для запроса пользователя
@@ -82,6 +86,8 @@ class RAGRetrievalService:
             user: Пользователь (для фильтрации по владельцу документов). Если None, ищет по всем документам
             document_ids: Список ID документов для ограничения поиска. Если None, ищет по всем документам
             limit: Максимальное количество chunks для возврата (переопределяет top_k)
+            include_system: вместе с документами user включать corpus=system
+            system_only: искать только в системном корпусе
             
         Returns:
             Список словарей с информацией о найденных chunks:
@@ -112,13 +118,30 @@ class RAGRetrievalService:
                 embedding_model=self.embeddings_service._model,  # Только chunks с той же моделью embeddings
             )
             
-            # Фильтруем по пользователю, если указан
-            if user is not None:
-                chunks_query = chunks_query.filter(document__user=user)
-            
-            # Фильтруем по документам, если указаны
+            # Фильтруем по документам, если указаны (узкий поиск — без автодобавления system)
             if document_ids:
                 chunks_query = chunks_query.filter(document_id__in=document_ids)
+            elif system_only:
+                chunks_query = chunks_query.filter(
+                    document__corpus=KnowledgeDocument.CORPUS_SYSTEM,
+                )
+            elif include_system and user is not None:
+                chunks_query = chunks_query.filter(
+                    Q(document__corpus=KnowledgeDocument.CORPUS_SYSTEM)
+                    | Q(
+                        document__user=user,
+                        document__corpus=KnowledgeDocument.CORPUS_USER,
+                    )
+                )
+            elif include_system and user is None:
+                chunks_query = chunks_query.filter(
+                    document__corpus=KnowledgeDocument.CORPUS_SYSTEM,
+                )
+            elif user is not None:
+                chunks_query = chunks_query.filter(
+                    document__user=user,
+                    document__corpus=KnowledgeDocument.CORPUS_USER,
+                )
             
             # Вычисляем схожесть для каждого chunk
             results = []
@@ -131,6 +154,8 @@ class RAGRetrievalService:
                             "chunk_id": str(chunk.id),
                             "document_id": str(chunk.document.id),
                             "document_title": chunk.document.title,
+                            "document_source": chunk.document.source or '',
+                            "document_corpus": chunk.document.corpus,
                             "content": chunk.content,
                             "chunk_index": chunk.chunk_index,
                             "similarity": similarity,
@@ -183,7 +208,12 @@ class RAGRetrievalService:
         current_length = 0
         
         for i, chunk in enumerate(chunks, 1):
-            chunk_text = f"[Документ: {chunk['document_title']}]\n{chunk['content']}\n\n"
+            source = chunk.get('document_source') or ''
+            source_part = f" ({source})" if source else ''
+            chunk_text = (
+                f"[Документ: {chunk['document_title']}{source_part}]\n"
+                f"{chunk['content']}\n\n"
+            )
             chunk_length = len(chunk_text)
             
             # Проверяем ограничение по длине
@@ -206,6 +236,8 @@ class RAGRetrievalService:
         user: Optional[Any] = None,
         document_ids: Optional[List[str]] = None,
         max_context_length: Optional[int] = 4000,
+        include_system: bool = False,
+        system_only: bool = False,
     ) -> Tuple[str, List[Dict[str, Any]]]:
         """
         Комбинированный метод: находит релевантные chunks и формирует контекст
@@ -215,13 +247,21 @@ class RAGRetrievalService:
             user: Пользователь для фильтрации
             document_ids: Список ID документов для ограничения поиска
             max_context_length: Максимальная длина контекста в символах
+            include_system: включать системный корпус
+            system_only: только системный корпус
         
         Returns:
             Кортеж (context, chunks):
             - context: Отформатированный контекст для промпта
             - chunks: Список найденных chunks с метаданными
         """
-        chunks = self.retrieve_relevant_chunks(query, user=user, document_ids=document_ids)
+        chunks = self.retrieve_relevant_chunks(
+            query,
+            user=user,
+            document_ids=document_ids,
+            include_system=include_system,
+            system_only=system_only,
+        )
         context = self.build_context_from_chunks(chunks, max_context_length=max_context_length)
         return context, chunks
 

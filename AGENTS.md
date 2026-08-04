@@ -21,3 +21,5 @@
 - Статус Ollama для UI — `GET ai_assistant/ollama_status/`
 - Ошибки на клиенте — `logError` / `logWarn` с import из `@/js/utils/logError.js`
 - Тема — `theme-defaults.js` + `useModuleThemeMode('ai_assistant')`
+- Пользовательский корпус RAG — `ergoms ai_assistant:sync-knowledge` (меню, UI-строки, guides; не `.docs`/rules)
+- Chat messages — через `api/rag/chat_messages.py` (помощник пользователя сайта, не разработчика)

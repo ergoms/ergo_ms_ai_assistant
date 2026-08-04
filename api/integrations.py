@@ -104,6 +104,7 @@ def _knowledge_document_create(
 
     doc = KnowledgeDocument.objects.create(
         user=user,
+        corpus=KnowledgeDocument.CORPUS_USER,
         title=title,
         content=content,
         file_type=file_type,
@@ -120,7 +121,11 @@ def _knowledge_document_get(user, document_id) -> Optional[Dict[str, Any]]:
     doc_uuid = _parse_uuid(document_id)
     if doc_uuid is None or user is None:
         return None
-    doc = KnowledgeDocument.objects.filter(id=doc_uuid, user=user).first()
+    doc = KnowledgeDocument.objects.filter(
+        id=doc_uuid,
+        user=user,
+        corpus=KnowledgeDocument.CORPUS_USER,
+    ).first()
     if doc is None:
         return None
     return {'id': str(doc.id), 'title': doc.title, 'metadata': doc.metadata}
@@ -135,7 +140,11 @@ def _knowledge_index(document_id, user) -> Dict[str, Any]:
     if doc_uuid is None or user is None:
         return {'success': False, 'error': 'Документ не найден'}
 
-    doc = KnowledgeDocument.objects.filter(id=doc_uuid, user=user).first()
+    doc = KnowledgeDocument.objects.filter(
+        id=doc_uuid,
+        user=user,
+        corpus=KnowledgeDocument.CORPUS_USER,
+    ).first()
     if doc is None:
         return {'success': False, 'error': 'Документ не найден'}
 
@@ -177,6 +186,7 @@ def _knowledge_search(
             query=query,
             user=user,
             document_ids=document_ids,
+            include_system=True,
         )
         return {'success': True, 'chunks': chunks}
     except RAGRetrievalError as exc:

@@ -103,6 +103,7 @@ def create_temp_knowledge_document(*, user, session, info: dict[str, Any]):
     name = info.get('name') or 'file'
     doc = KnowledgeDocument.objects.create(
         user=user,
+        corpus=KnowledgeDocument.CORPUS_USER,
         title=f"Временный документ: {name}",
         source=f"chat_upload_{session.id}",
         metadata={
