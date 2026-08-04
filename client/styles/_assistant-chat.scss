@@ -139,6 +139,24 @@
       background: color-mix(in srgb, var(--ui-text) 8%, transparent);
       font-size: 0.8125rem;
     }
+    :deep(pre.markdown-code-block) {
+      margin: 0.5rem 0;
+      padding: 0.65rem 0.75rem;
+      overflow-x: auto;
+      border-radius: 0.5rem;
+      background: color-mix(in srgb, var(--ui-text) 6%, var(--ui-surface, #fff));
+      border: 1px solid color-mix(in srgb, var(--ui-text) 12%, transparent);
+      max-width: 100%;
+
+      code {
+        display: block;
+        padding: 0;
+        background: transparent;
+        white-space: pre;
+        line-height: 1.45;
+        font-size: 0.8125rem;
+      }
+    }
     :deep(a) { color: var(--bs-primary); }
     :deep(.markdown-table-wrapper) {
       overflow-x: auto;

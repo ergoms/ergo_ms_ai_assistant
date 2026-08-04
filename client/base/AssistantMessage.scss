@@ -94,6 +94,26 @@
     color: $neon-cyan;
   }
 
+  :deep(pre.markdown-code-block) {
+    margin: $spacing-sm 0;
+    padding: $spacing-sm $spacing-md;
+    overflow-x: auto;
+    border-radius: $radius-md;
+    background: rgba(15, 23, 42, 0.55);
+    border: 1px solid rgba(58, 232, 255, 0.2);
+    max-width: 100%;
+
+    code {
+      display: block;
+      padding: 0;
+      background: transparent;
+      color: var(--nc-text-primary, #{$dark-text-primary});
+      white-space: pre;
+      line-height: 1.45;
+      font-size: 0.85em;
+    }
+  }
+
   :deep(strong) {
     color: var(--nc-text-primary, white);
     font-weight: $font-weight-semibold;

@@ -71,10 +71,62 @@ export function parseMarkdownTable(markdownTable) {
   }
 }
 
-export function formatMessageContent(content) {
+/**
+ * Fenced code blocks ```lang\n...\n``` — до inline `code`, иначе остаются лишние backticks.
+ */
+function extractFencedCodeBlocks(text) {
+  const blocks = []
+  let index = 0
+  const replaced = text.replace(/```([^\n`]*)\n?([\s\S]*?)```/g, (_match, langRaw, code) => {
+    const lang = String(langRaw || '').trim()
+    const id = `code-block-${index++}`
+    const langClass = lang ? ` language-${escapeHtml(lang)}` : ''
+    const langAttr = lang ? ` data-lang="${escapeHtml(lang)}"` : ''
+    blocks.push({
+      id,
+      html:
+        `<pre class="markdown-code-block"${langAttr}>` +
+        `<code class="markdown-code${langClass}">${escapeHtml(code.replace(/\n$/, ''))}</code>` +
+        `</pre>`,
+    })
+    return `\n\n__CODE_PLACEHOLDER_${id}__\n\n`
+  })
+  return { text: replaced, blocks }
+}
+
+function extractThinkBlocks(text, thinkingLabel) {
+  const blocks = []
+  let index = 0
+  const thinkRegex = /<think>([\s\S]*?)<\/think>/gi
+  const replaced = text.replace(thinkRegex, (_match, thinkContent) => {
+    const id = `think-block-${index++}`
+    blocks.push({
+      id,
+      html:
+        `<div class="think-block">` +
+        `<div class="think-block__header">${escapeHtml(thinkingLabel)}</div>` +
+        `<div class="think-block__content">${escapeHtml(String(thinkContent || '').trim())}</div>` +
+        `</div>`,
+    })
+    return `\n__THINK_PLACEHOLDER_${id}__\n`
+  })
+  return { text: replaced, blocks }
+}
+
+export function formatMessageContent(content, options = {}) {
   if (!content) return ''
 
-  let text = content
+  const thinkingLabel =
+    options.thinkingLabel || tGlobal('ai_assistant.message.thinking')
+
+  let text = String(content)
+
+  const { text: afterCode, blocks: codeBlocks } = extractFencedCodeBlocks(text)
+  text = afterCode
+
+  const { text: afterThink, blocks: thinkBlocks } = extractThinkBlocks(text, thinkingLabel)
+  text = afterThink
+
   const tableRegex = /((?:\|[^\n]+\|\s*\n)+)/g
   const tables = []
   let tableIndex = 0
@@ -95,7 +147,7 @@ export function formatMessageContent(content) {
   text = text
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.*?)\*/g, '<em>$1</em>')
-    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/`([^`\n]+)`/g, '<code>$1</code>')
     .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (match, linkText, url) => {
       if (url.includes('/api/ai_assistant/documents/download/')) {
         return `<a href="#" class="download-link" data-download-url="${url}" data-filename="${linkText}">${linkText}</a>`
@@ -103,11 +155,23 @@ export function formatMessageContent(content) {
       return `<a href="${url}" target="_blank" rel="noopener noreferrer">${linkText}</a>`
     })
 
+  codeBlocks.forEach((block) => {
+    text = text.replace(`__CODE_PLACEHOLDER_${block.id}__`, block.html)
+  })
+  thinkBlocks.forEach((block) => {
+    text = text.replace(`__THINK_PLACEHOLDER_${block.id}__`, block.html)
+  })
   tables.forEach((table) => {
     text = text.replace(`__TABLE_PLACEHOLDER_${table.id}__`, table.html)
   })
 
-  text = text.replace(/\n/g, '<br>')
+  // Не ломаем переносы внутри <pre>
+  text = text.replace(/(<pre[\s\S]*?<\/pre>)|([^<]+)|(<[^>]+>)/g, (match, pre, plain, tag) => {
+    if (pre) return pre
+    if (tag) return tag
+    return plain.replace(/\n/g, '<br>')
+  })
+
   return sanitizeHtml(text)
 }
 

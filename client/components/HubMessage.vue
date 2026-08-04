@@ -190,13 +190,15 @@ import {
   User, Bot, Terminal, Copy, Check, 
   Grid3x3, AlertTriangle, Database, ChevronLeft, ChevronRight, Sparkles, Download
 } from 'lucide-vue-next'
-import { apiClient } from '@/js/api/manager'
-import { sanitizeHtml } from '@/js/utils/sanitize'
-import { logError, logWarn } from '@/js/utils/logError.js'
+import { logError } from '@/js/utils/logError.js'
 import { buildApexOptions } from '@/composables/useApexTheme.js'
 import { useAppI18n } from '@/i18n/useAppI18n.js'
 import { getCurrentBcp47 } from '@/i18n/index.js'
 import ApexCharts from 'vue3-apexcharts'
+import {
+  formatMessageContent,
+  handleDocumentDownloadClick,
+} from '../js/assistantMessageFormat.js'
 
 const { t } = useAppI18n()
 
@@ -308,154 +310,7 @@ const formatProcessingTime = (ms) => {
   return t('ai_assistant.message.durationSec', { sec: seconds })
 }
 
-const formattedContent = computed(() => {
-  if (!props.message.content) return ''
-  
-  let content = props.message.content
-  
-  // Обрабатываем markdown таблицы ПЕРЕД обработкой переносов строк
-  // Ищем паттерн: строки с |, включая разделитель с ---
-  // Более простой и надежный паттерн - ищем блоки с несколькими строками, начинающимися с |
-  const tableRegex = /((?:\|[^\n]+\|\s*\n)+)/g
-  const tables = []
-  let tableIndex = 0
-  
-  content = content.replace(tableRegex, (match) => {
-    // Проверяем, что это действительно таблица (есть разделитель с ---)
-    const hasSeparator = /\|[\s\-:]+\|/.test(match)
-    if (!hasSeparator) {
-      return match // Не таблица, возвращаем как есть
-    }
-    
-    // Проверяем, что есть минимум 2 строки (заголовок + разделитель)
-    const lines = match.split('\n').filter(l => l.trim().startsWith('|'))
-    if (lines.length < 2) {
-      return match // Не таблица
-    }
-    
-    const tableId = `markdown-table-${tableIndex++}`
-    const htmlTable = parseMarkdownTable(match)
-    if (htmlTable === match) {
-      return match // Парсинг не удался, возвращаем как есть
-    }
-    tables.push({ id: tableId, html: htmlTable })
-    return `\n\n__TABLE_PLACEHOLDER_${tableId}__\n\n`
-  })
-  
-  // Обрабатываем остальной markdown
-  content = content
-    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.*?)\*/g, '<em>$1</em>')
-    .replace(/`([^`]+)`/g, '<code>$1</code>')
-    // Markdown ссылки [text](url) -> кликабельные ссылки с data-атрибутом для скачивания
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (match, text, url) => {
-      // Проверяем, это ссылка на документ для скачивания?
-      if (url.includes('/api/ai_assistant/documents/download/')) {
-        return `<a href="#" class="download-link" data-download-url="${url}" data-filename="${text}">${text}</a>`
-      }
-      // Обычная ссылка
-      return `<a href="${url}" target="_blank">${text}</a>`
-    })
-  
-  // Заменяем плейсхолдеры таблиц на HTML ПЕРЕД заменой переносов строк
-  tables.forEach(table => {
-    const placeholder = `__TABLE_PLACEHOLDER_${table.id}__`
-    content = content.replace(placeholder, table.html)
-  })
-  
-  // Заменяем переносы строк на <br> в последнюю очередь
-  content = content.replace(/\n/g, '<br>')
-  
-  return sanitizeHtml(content)
-})
-
-const parseMarkdownTable = (markdownTable) => {
-  try {
-    const lines = markdownTable.trim().split('\n').map(line => line.trim()).filter(line => line)
-    
-    if (lines.length < 2) return markdownTable // Не таблица
-    
-    // Находим строку с разделителем
-    let separatorIndex = -1
-    for (let i = 0; i < lines.length; i++) {
-      if (lines[i].match(/^\|[\s\-:|]+\|$/)) {
-        separatorIndex = i
-        break
-      }
-    }
-    
-    if (separatorIndex === -1) return markdownTable // Нет разделителя
-    
-    // Первая строка до разделителя - заголовки
-    const headerLine = lines[0]
-    if (!headerLine.startsWith('|') || !headerLine.endsWith('|')) {
-      return markdownTable // Не таблица
-    }
-    
-    const headers = headerLine
-      .split('|')
-      .map(cell => cell.trim())
-      .filter((cell, index, arr) => {
-        // Убираем пустые ячейки по краям таблицы
-        return index > 0 && index < arr.length - 1
-      })
-    
-    if (headers.length === 0) return markdownTable // Нет заголовков
-    
-    // Строки после разделителя - данные
-    const dataLines = lines.slice(separatorIndex + 1)
-    const rows = dataLines
-      .filter(line => line.startsWith('|') && line.endsWith('|'))
-      .map(line => {
-        return line
-          .split('|')
-          .map(cell => cell.trim())
-          .filter((cell, index, arr) => {
-            // Убираем пустые ячейки по краям таблицы
-            return index > 0 && index < arr.length - 1
-          })
-      })
-      .filter(row => row.length > 0)
-    
-    // Формируем HTML таблицу
-    let html = '<div class="markdown-table-wrapper"><table class="markdown-table">'
-    
-    // Заголовки
-    html += '<thead><tr>'
-    headers.forEach(header => {
-      html += `<th>${escapeHtml(header)}</th>`
-    })
-    html += '</tr></thead>'
-    
-    // Данные
-    if (rows.length > 0) {
-      html += '<tbody>'
-      rows.forEach(row => {
-        html += '<tr>'
-        headers.forEach((_, index) => {
-          const cell = row[index] || ''
-          html += `<td>${escapeHtml(cell)}</td>`
-        })
-        html += '</tr>'
-      })
-      html += '</tbody>'
-    }
-    
-    html += '</table></div>'
-    
-    return html
-  } catch (error) {
-    logError('Ошибка парсинга таблицы:', error)
-    return markdownTable
-  }
-}
-
-const escapeHtml = (text) => {
-  if (!text) return ''
-  const div = document.createElement('div')
-  div.textContent = String(text)
-  return div.innerHTML
-}
+const formattedContent = computed(() => formatMessageContent(props.message.content))
 
 const skillCallTooltip = computed(() => {
   if (!props.message.skill_call) return ''
@@ -482,52 +337,7 @@ const copySql = async () => {
   }
 }
 
-const handleDownloadClick = async (event) => {
-  const link = event.target.closest('.download-link')
-  if (!link) return
-  
-  event.preventDefault()
-  event.stopPropagation()
-  
-  const downloadUrl = link.getAttribute('data-download-url')
-  const filename = link.getAttribute('data-filename') || 'document.docx'
-  
-  if (!downloadUrl) return
-  
-  try {
-    // Обрабатываем как абсолютный, так и относительный URL
-    let endpoint
-    if (downloadUrl.startsWith('http://') || downloadUrl.startsWith('https://')) {
-      // Абсолютный URL - извлекаем путь
-      const url = new URL(downloadUrl)
-      endpoint = url.pathname.replace('/api/', '')
-    } else {
-      // Относительный URL - убираем /api/ если есть
-      endpoint = downloadUrl.startsWith('/api/') 
-        ? downloadUrl.replace('/api/', '')
-        : downloadUrl
-    }
-    
-    // Скачиваем файл через apiClient с авторизацией
-    const response = await apiClient.downloadFile(endpoint, {}, 'GET', true)
-    
-    if (response.success && response.data instanceof Blob) {
-      // Создаём Blob URL и скачиваем файл
-      const blobUrl = URL.createObjectURL(response.data)
-      const a = document.createElement('a')
-      a.href = blobUrl
-      a.download = filename
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(blobUrl)
-    } else {
-      logError('Ошибка скачивания файла:', response.message)
-    }
-  } catch (error) {
-    logError('Ошибка при скачивании документа:', error)
-  }
-}
+const handleDownloadClick = handleDocumentDownloadClick
 
 // Chart configuration
 const chartConfig = computed(() => {

@@ -12,6 +12,9 @@ let lastCheck = 0
 const CHECK_INTERVAL_MS = 45000
 
 function pickDisplayModel(data) {
+  if (data?.model) {
+    return data.model
+  }
   const models = data?.models
   if (Array.isArray(models) && models.length > 0) {
     return models[0]

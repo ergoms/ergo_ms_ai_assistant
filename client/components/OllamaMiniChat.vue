@@ -116,6 +116,10 @@ async function sendMessage() {
   scrollToBottom()
 
   try {
+    const ollamaConfig = ollamaStatus.value.model
+      ? { model: ollamaStatus.value.model }
+      : null
+
     await ragClient.sendMessageStream(
       text,
       (chunk) => {
@@ -136,7 +140,7 @@ async function sendMessage() {
         chatLoading.value = false
         scrollToBottom()
       },
-      null,
+      ollamaConfig,
       sessionId.value,
       'chat',
       null,

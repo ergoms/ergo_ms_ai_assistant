@@ -160,6 +160,27 @@
     border: 1px solid rgba(58, 232, 255, 0.2);
   }
 
+  :deep(pre.markdown-code-block) {
+    margin: $spacing-sm 0;
+    padding: $spacing-sm $spacing-md;
+    overflow-x: auto;
+    border-radius: $radius-md;
+    background: color-mix(in srgb, var(--text-primary, #111) 6%, var(--bg-base, #fff));
+    border: 1px solid color-mix(in srgb, var(--text-primary, #111) 12%, transparent);
+    max-width: 100%;
+
+    code {
+      display: block;
+      padding: 0;
+      background: transparent;
+      border: none;
+      color: var(--text-primary);
+      white-space: pre;
+      line-height: 1.45;
+      font-size: 0.85em;
+    }
+  }
+
   :deep(.download-link) {
     display: inline-flex;
     align-items: center;
