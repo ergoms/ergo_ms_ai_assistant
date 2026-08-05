@@ -179,30 +179,89 @@ def _install_linux(root: Path) -> None:
         subprocess.run(['make', 'install'], cwd=str(src_dir), env=env, check=True)
 
 
-def _create_extension(root: Path) -> None:
-    defaults = load_db_defaults(root)
-    port = effective_portable_port(root)
-    host = defaults.get('host') or '127.0.0.1'
-    user = defaults['user']
-    dbname = defaults['name']
-    psql = postgres_bin(root, 'psql')
-    env = {
+def _psql_env(defaults: dict[str, str], *, host: str, port: int) -> dict[str, str]:
+    return {
         **os.environ,
-        'PGUSER': user,
+        'PGUSER': defaults['user'],
         'PGPASSWORD': defaults['password'],
         'PGHOST': host,
         'PGPORT': str(port),
     }
-    # Явные -h/-U: иначе на Windows psql может уйти не в portable-инстанс.
-    subprocess.run(
+
+
+def _psql_query(
+    root: Path,
+    defaults: dict[str, str],
+    *,
+    host: str,
+    port: int,
+    sql: str,
+) -> str:
+    psql = postgres_bin(root, 'psql')
+    result = subprocess.run(
         [
-            str(psql), '-v', 'ON_ERROR_STOP=1',
-            '-h', host, '-p', str(port), '-U', user, '-d', dbname,
-            '-c', 'CREATE EXTENSION IF NOT EXISTS vector;',
+            str(psql), '-v', 'ON_ERROR_STOP=1', '-t', '-A',
+            '-h', host, '-p', str(port), '-U', defaults['user'], '-d', defaults['name'],
+            '-c', sql,
         ],
-        env=env,
+        env=_psql_env(defaults, host=host, port=port),
+        capture_output=True,
+        text=True,
+        encoding='utf-8',
+        errors='replace',
         check=True,
     )
+    return (result.stdout or '').strip()
+
+
+def _create_extension(root: Path) -> None:
+    """CREATE EXTENSION в portable (127.0.0.1 + effective port), не в «localhost»."""
+    defaults = load_db_defaults(root)
+    port = effective_portable_port(root)
+    # Portable слушает 127.0.0.1; localhost на Windows часто резолвится в ::1 → системный PG.
+    host = '127.0.0.1'
+    portable_data = str(postgres_packages_dir(root) / 'data').replace('\\', '/').lower()
+    try:
+        data_dir = _psql_query(
+            root, defaults, host=host, port=port, sql='SHOW data_directory;',
+        ).replace('\\', '/').lower()
+    except subprocess.CalledProcessError as exc:
+        stderr = (exc.stderr or '').strip()
+        raise RuntimeError(
+            f'Не удалось подключиться к portable PostgreSQL на {host}:{port}. {stderr}'
+        ) from exc
+
+    if portable_data not in data_dir and data_dir not in portable_data:
+        raise RuntimeError(
+            f'На {host}:{port} работает не portable PostgreSQL '
+            f'(data_directory={data_dir!r}, ожидался каталог под {portable_data!r}). '
+            f'При ERGO_DB=portable_postgres в databases.yaml укажите host: 127.0.0.1 и '
+            f'port portable (обычно 5433), либо остановите системный Postgres на том же порту.'
+        )
+
+    subprocess.run(
+        [
+            str(postgres_bin(root, 'psql')), '-v', 'ON_ERROR_STOP=1',
+            '-h', host, '-p', str(port), '-U', defaults['user'], '-d', defaults['name'],
+            '-c', 'CREATE EXTENSION IF NOT EXISTS vector;',
+        ],
+        env=_psql_env(defaults, host=host, port=port),
+        check=True,
+    )
+
+    yaml_host = (defaults.get('host') or '').strip().lower()
+    yaml_port = str(defaults.get('port') or port)
+    if yaml_host in {'localhost', '::1'} or yaml_host != '127.0.0.1' or str(port) != yaml_port:
+        print(
+            _fc(
+                'warning',
+                'pgvector установлен в portable (127.0.0.1:{p}), а databases.yaml указывает '
+                'host={h!r} port={yp}. Django может подключиться к другому Postgres без vector. '
+                'Для portable задайте host: 127.0.0.1 и port: {p} (см. databases.yaml.example).'.format(
+                    p=port, h=defaults.get('host'), yp=yaml_port,
+                ),
+            )
+        )
 
 
 def install_pgvector(root: Path, *, force: bool = False) -> int:
