@@ -10,8 +10,6 @@ class AiAssistantConfig(AppConfig):
     name = 'modules.ai_assistant.api'
     label = 'ai_assistant'
     verbose_name = 'AI Assistant'
-    # LLM-транспорт только через ollama_framework.
-    module_requires = ('ollama_framework',)
 
     def ready(self):
         import modules.ai_assistant.api.models  # noqa

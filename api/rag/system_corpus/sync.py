@@ -51,6 +51,50 @@ def sync_system_corpus(
         }
 
     root = (root or project_root()).resolve()
+
+    # Fail-fast: не гонять весь корпус, если embeddings недоступны
+    try:
+        health = embeddings_service.check_health()
+        if not health.get('available'):
+            return {
+                'success': False,
+                'error': (
+                    'Ollama недоступен. Запустите: ergoms ollama_framework:start-ollama'
+                ),
+                'created': 0,
+                'updated': 0,
+                'skipped': 0,
+                'removed': 0,
+                'indexed': 0,
+                'errors': [],
+            }
+        if health.get('model_available') is False:
+            model = health.get('model') or 'embeddinggemma'
+            return {
+                'success': False,
+                'error': (
+                    f'Модель embeddings «{model}» не найдена. '
+                    f'Установите: ergoms ollama_framework:ollama --pull {model}'
+                ),
+                'created': 0,
+                'updated': 0,
+                'skipped': 0,
+                'removed': 0,
+                'indexed': 0,
+                'errors': [],
+            }
+    except Exception as exc:
+        return {
+            'success': False,
+            'error': f'Embeddings недоступны: {exc}',
+            'created': 0,
+            'updated': 0,
+            'skipped': 0,
+            'removed': 0,
+            'indexed': 0,
+            'errors': [],
+        }
+
     indexing_service = RAGIndexingService(
         embeddings_service=embeddings_service,
         chunk_size=RAG_CHUNK_SIZE,
