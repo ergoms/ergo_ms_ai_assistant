@@ -37,6 +37,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useAppI18n } from '@/i18n/useAppI18n.js'
 import { useToast } from '@/js/utils/toast.js'
+import { UPLOAD_FEATURE_LIMITS } from '@/js/mediaUploadLimits.js'
 import { logError } from '@/js/utils/logError.js'
 import { confirmDelete } from '@/js/utils/confirm.js'
 import { getModuleById } from '../modules/index.js'
@@ -259,7 +260,7 @@ function handleChatFileSelect(event) {
     'text/plain',
   ]
   const allowedExtensions = ['.pdf', '.doc', '.docx', '.txt']
-  const maxSize = 10 * 1024 * 1024
+  const maxSize = UPLOAD_FEATURE_LIMITS.aiAssistantChat
 
   const validFiles = []
   const errors = []

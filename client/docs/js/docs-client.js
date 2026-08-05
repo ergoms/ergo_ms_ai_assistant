@@ -1,5 +1,6 @@
 import { apiClient } from '@/js/api/manager'
 import { mediaApiClient } from '@/js/api/media-api-client'
+import { buildMediaUploadOptions } from '@/js/mediaUploadLimits.js'
 import { logError, logWarn } from '@/js/utils/logError.js'
 import { fetchOllamaStatus } from '../../js/ollamaStatusApi.js'
 import { tGlobal } from '@/i18n/index.js'
@@ -145,10 +146,13 @@ class DocsClient {
    */
   async uploadDocument(file, title, source = '', metadata = {}, indexImmediately = false) {
     try {
-      const media = await mediaApiClient.upload(file, {
-        targetDir: 'ai_assistant/rag_documents',
-        allowedTypes: ['pdf', 'docx', 'doc', 'txt', 'md'],
-      })
+      const media = await mediaApiClient.upload(
+        file,
+        buildMediaUploadOptions({
+          targetDir: 'ai_assistant/rag_documents',
+          allowedTypes: ['pdf', 'docx', 'doc', 'txt', 'md'],
+        }),
+      )
 
       const response = await apiClient.post(endpoints.documents, {
         title,

@@ -1,13 +1,15 @@
 import { apiClient } from '@/js/api/manager'
 import { mediaApiClient } from '@/js/api/media-api-client'
+import { buildMediaUploadOptions } from '@/js/mediaUploadLimits.js'
 import { logError, logWarn } from '@/js/utils/logError.js'
 import { fetchOllamaStatus } from '../../js/ollamaStatusApi.js'
 import { tGlobal } from '@/i18n/index.js'
 
-const CHAT_UPLOAD_OPTIONS = {
+const CHAT_UPLOAD_OPTIONS = buildMediaUploadOptions({
   targetDir: 'ai_assistant/chat_uploads',
   allowedTypes: ['pdf', 'docx', 'doc', 'txt', 'md'],
-}
+  feature: 'aiAssistantChat',
+})
 
 async function uploadChatFiles(filesArray) {
   const uploaded = await mediaApiClient.uploadMultiple(filesArray, CHAT_UPLOAD_OPTIONS)
