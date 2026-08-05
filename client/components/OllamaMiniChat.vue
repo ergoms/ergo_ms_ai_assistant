@@ -7,8 +7,20 @@
         :message="msg"
         :module-config="moduleConfig"
       />
-      <div v-if="loading" class="ollama-mini-chat__typing">
-        {{ t('ai_assistant.generating') }}
+      <div v-if="isThinking" class="ollama-mini-chat__typing" role="status" aria-live="polite">
+        <div
+          class="ollama-mini-chat__typing-avatar"
+          :style="{ '--typing-color': moduleConfig?.color || 'var(--ai-accent, #d0322d)' }"
+        >
+          <component :is="moduleConfig?.icon" :size="16" />
+          <span class="ollama-mini-chat__typing-pulse" aria-hidden="true" />
+        </div>
+        <div class="ollama-mini-chat__typing-body">
+          <span class="ollama-mini-chat__typing-label">{{ t('ai_assistant.generating') }}</span>
+          <div class="ollama-mini-chat__typing-dots" aria-hidden="true">
+            <span /><span /><span />
+          </div>
+        </div>
       </div>
     </div>
 
@@ -120,6 +132,13 @@ const chatInput = ref('')
 const chatLoading = ref(false)
 const sessionId = ref(null)
 const loading = computed(() => chatLoading.value)
+const isThinking = computed(() => {
+  if (chatLoading.value) {
+    return true
+  }
+  const last = messages.value.at(-1)
+  return Boolean(last?.type === 'assistant' && last?.streaming && !last?.content?.trim())
+})
 const canShowSuggestions = computed(() => messages.value.length <= 1)
 const suggestionsExpanded = ref(false)
 
@@ -314,9 +333,120 @@ onMounted(() => {
 }
 
 .ollama-mini-chat__typing {
-  padding: 0.25rem 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.35rem 0;
+}
+
+.ollama-mini-chat__typing-avatar {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  color: #fff;
+  background: linear-gradient(
+    135deg,
+    var(--typing-color, var(--ai-accent, #d0322d)),
+    color-mix(in srgb, var(--typing-color, var(--ai-accent, #d0322d)) 55%, #000)
+  );
+}
+
+.ollama-mini-chat__typing-pulse {
+  position: absolute;
+  inset: -4px;
+  border: 1px solid color-mix(in srgb, var(--typing-color, var(--ai-accent, #d0322d)) 55%, transparent);
+  border-radius: 10px;
+  animation: ollama-typing-pulse 1.8s ease-out infinite;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+    opacity: 0.35;
+  }
+}
+
+html[data-ergo-motion='reduce'] .ollama-mini-chat__typing-pulse {
+  animation: none;
+  opacity: 0.35;
+}
+
+.ollama-mini-chat__typing-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+  padding: 0.35rem 0;
+}
+
+.ollama-mini-chat__typing-label {
   font-size: 0.8125rem;
+  line-height: 1.2;
   color: var(--ai-text-secondary, var(--color-secondary-text));
+}
+
+.ollama-mini-chat__typing-dots {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 14px;
+
+  span {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--ai-accent, var(--color-accent));
+    animation: ollama-typing-bounce 1.2s ease-in-out infinite;
+
+    &:nth-child(2) {
+      animation-delay: 0.15s;
+    }
+
+    &:nth-child(3) {
+      animation-delay: 0.3s;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    span {
+      animation: none;
+      opacity: 0.55;
+    }
+  }
+}
+
+html[data-ergo-motion='reduce'] .ollama-mini-chat__typing-dots span {
+  animation: none;
+  opacity: 0.55;
+}
+
+@keyframes ollama-typing-pulse {
+  0% {
+    transform: scale(0.85);
+    opacity: 0.75;
+  }
+
+  100% {
+    transform: scale(1.25);
+    opacity: 0;
+  }
+}
+
+@keyframes ollama-typing-bounce {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.35;
+  }
+
+  30% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
 }
 
 .ollama-mini-chat__composer {
