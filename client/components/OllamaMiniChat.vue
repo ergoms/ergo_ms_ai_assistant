@@ -139,7 +139,7 @@ const isThinking = computed(() => {
   const last = messages.value.at(-1)
   return Boolean(last?.type === 'assistant' && last?.streaming && !last?.content?.trim())
 })
-const canShowSuggestions = computed(() => messages.value.length <= 1)
+const canShowSuggestions = computed(() => (moduleConfig.value?.suggestions?.length ?? 0) > 0)
 const suggestionsExpanded = ref(false)
 
 function initWelcome() {

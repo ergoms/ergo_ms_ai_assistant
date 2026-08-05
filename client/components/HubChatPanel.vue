@@ -27,17 +27,40 @@
 
     <div class="input-area">
       <div class="input-area__inner">
-        <div v-if="messages.length <= 1" class="suggestions">
+        <div v-if="hasSuggestions" class="suggestions-wrap">
           <button
-            v-for="s in moduleConfig?.suggestions"
-            :key="s"
             type="button"
-            class="suggestion-chip"
-            @click="emit('send', s)"
+            class="suggestions-toggle"
+            :aria-expanded="suggestionsExpanded"
+            @click="suggestionsExpanded = !suggestionsExpanded"
           >
-            <Zap :size="14" />
-            <span>{{ s }}</span>
+            <ChevronDown
+              :size="14"
+              class="suggestions-chevron"
+              :class="{ 'is-expanded': suggestionsExpanded }"
+            />
+            <span>
+              {{
+                suggestionsExpanded
+                  ? t('ai_assistant.apps.hideSuggestions')
+                  : t('ai_assistant.apps.showSuggestions')
+              }}
+            </span>
           </button>
+
+          <div v-show="suggestionsExpanded" class="suggestions">
+            <button
+              v-for="s in moduleConfig?.suggestions"
+              :key="s"
+              type="button"
+              class="suggestion-chip"
+              :disabled="loading"
+              @click="emit('send', s)"
+            >
+              <Zap :size="14" />
+              <span>{{ s }}</span>
+            </button>
+          </div>
         </div>
 
         <div class="composer">
@@ -123,7 +146,7 @@
 
 <script setup>
 import { computed, nextTick, ref, watch } from 'vue'
-import { Send, Upload, X, Zap } from 'lucide-vue-next'
+import { ChevronDown, Send, Upload, X, Zap } from 'lucide-vue-next'
 import { useAppI18n } from '@/i18n/useAppI18n.js'
 import HubMessage from './HubMessage.vue'
 
@@ -148,6 +171,9 @@ const { t } = useAppI18n()
 const messagesRef = ref(null)
 const inputRef = ref(null)
 const fileInputRef = ref(null)
+const suggestionsExpanded = ref(false)
+
+const hasSuggestions = computed(() => (props.moduleConfig?.suggestions?.length ?? 0) > 0)
 
 const inputModel = computed({
   get: () => props.input,
