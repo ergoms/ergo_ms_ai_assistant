@@ -82,6 +82,12 @@
   font-weight: 600;
   color: var(--text-muted);
   line-height: 1.15;
+
+  &.ai-model-caption {
+    font-family: $font-family-mono;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-secondary);
+  }
 }
 
 .sidebar-controls {

@@ -1,6 +1,7 @@
 import { apiClient } from '@/js/api/manager'
 import { logError } from '@/js/utils/logError.js'
 import { tGlobal } from '@/i18n/index.js'
+import { formatOllamaModelLabel } from './formatOllamaModelLabel.js'
 
 import { endpoints } from './endpoints.js'
 
@@ -24,7 +25,7 @@ function pickDisplayModel(data) {
 
 function normalizeOllamaResponse(data) {
   const available = Boolean(data?.available)
-  const model = pickDisplayModel(data)
+  const model = formatOllamaModelLabel(pickDisplayModel(data)) || null
 
   return {
     available,

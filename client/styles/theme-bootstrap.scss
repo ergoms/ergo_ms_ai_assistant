@@ -22,3 +22,13 @@
   --ai-text-secondary: var(--color-secondary-text);
   --ai-accent: var(--color-accent);
 }
+
+.ai-model-caption {
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.15;
+  font-family: var(--font-family-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  color: var(--ai-text-secondary, var(--color-secondary-text));
+}

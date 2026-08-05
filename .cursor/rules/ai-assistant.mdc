@@ -12,6 +12,7 @@ alwaysApply: false
 ## Обязательно
 
 - Вызовы Ollama — [`api/ollama_gateway.py`](../../api/ollama_gateway.py) → `bridge.call('ollama_framework.*')` (или HTTP REST самого `ollama_framework` при `OLLAMA_FRAMEWORK_TRANSPORT=http`)
+- Устройство inference — `AI_ASSISTANT_OLLAMA_COMPUTE_DEVICE=gpu|cpu` в `modules/ai_assistant/.env` (пусто — из `OLLAMA_COMPUTE_DEVICE` ollama_framework)
 - Статус для клиента — `GET /api/ai_assistant/ollama_status/` (proxy), не `ollama_framework/status/`
 - Права — `CanViewAiAssistant` / `permission_catalog`
 - Файлы — media_api + signed URL
@@ -19,6 +20,7 @@ alwaysApply: false
 - Тема — `theme-defaults.js` + `useModuleThemeMode('ai_assistant')`
 - Сборка prompt chat/stream — [`api/rag/chat_messages.py`](../../api/rag/chat_messages.py); ответы — с точки зрения пользователя сайта
 - Корпус RAG — меню / UI / guides (`ergoms ai_assistant:sync-knowledge`), не `.docs` и не `.cursor/rules`
+- Модели Ollama для setup-full — `ollama_models.yaml` (pull через `ergoms ollama_framework:pull-setup-models`), не свой `vscode.tasks.yaml`
 
 ## Запрещено
 

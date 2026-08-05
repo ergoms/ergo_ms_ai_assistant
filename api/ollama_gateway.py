@@ -76,6 +76,12 @@ def map_ollama_config(
 
     cfg['model'] = model
     cfg.setdefault('base_url', ai_settings.OLLAMA_BASE_URL)
+
+    if 'compute_device' not in cfg and 'num_gpu' not in cfg:
+        module_device = getattr(ai_settings, 'AI_ASSISTANT_OLLAMA_COMPUTE_DEVICE', '')
+        if module_device:
+            cfg['compute_device'] = module_device
+
     return cfg
 
 

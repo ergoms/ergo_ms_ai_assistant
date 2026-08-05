@@ -44,6 +44,8 @@ export default {
         send: 'Отправить',
         close: 'Закрыть чат',
         dragHint: 'Перетащите за заголовок',
+        showSuggestions: 'Показать подсказки',
+        hideSuggestions: 'Скрыть подсказки',
       },
       access: {
         title: 'Доступ к AI-ассистенту ограничен',

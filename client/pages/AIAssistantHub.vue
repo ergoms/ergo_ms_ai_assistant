@@ -3,6 +3,7 @@
     :module-config="currentModuleConfig"
     active-module="chat"
     :accelerated="isAIGenerating"
+    :model-subtitle="modelSubtitle"
   >
     <template #sidebar>
       <SessionSidebar
@@ -84,7 +85,7 @@ const {
   setAssistantError,
 } = useMessageHistory()
 
-const { status: ollamaStatus } = useOllamaStatus({ autoPoll: true })
+const { status: ollamaStatus, modelSubtitle } = useOllamaStatus({ autoPoll: true })
 
 const currentModuleConfig = computed(() => getModuleById(CHAT_MODULE))
 const chatSessions = computed(() =>

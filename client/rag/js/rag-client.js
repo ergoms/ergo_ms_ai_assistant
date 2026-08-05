@@ -3,6 +3,7 @@ import { mediaApiClient } from '@/js/api/media-api-client'
 import { buildMediaUploadOptions } from '@/js/mediaUploadLimits.js'
 import { logError, logWarn } from '@/js/utils/logError.js'
 import { fetchOllamaStatus } from '../../js/ollamaStatusApi.js'
+import { buildChatRequestHeaders, withUiLanguage } from '../../js/chatRequestContext.js'
 import { tGlobal } from '@/i18n/index.js'
 
 const CHAT_UPLOAD_OPTIONS = buildMediaUploadOptions({
@@ -72,9 +73,9 @@ class RAGClient {
       const config = ollamaConfig || this.ollamaConfig
       
       const filesArray = files ? (Array.isArray(files) ? files : [files]) : []
-      const requestBody = {
+      const requestBody = withUiLanguage({
         message: message,
-      }
+      })
 
       if (config) {
         requestBody.ollama_config = {
@@ -146,17 +147,14 @@ class RAGClient {
       // Получаем токен авторизации
       const token = apiClient.getAuthToken()
       
-      const headers = {
-        'Authorization': token ? `Bearer ${token}` : '',
-        'Content-Type': 'application/json',
-      }
+      const headers = buildChatRequestHeaders(token)
       
       const filesArray = files ? (Array.isArray(files) ? files : [files]) : []
-      const payload = {
+      const payload = withUiLanguage({
         message: message,
         module: module,
         enable_vectorization: enableVectorization,
-      }
+      })
 
       if (sessionId) {
         payload.session_id = sessionId

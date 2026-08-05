@@ -1,0 +1,13 @@
+# Модели для ai_assistant — pull только через ollama_framework (setup-full).
+# requires: ollama_framework в integrations.yaml обязателен.
+
+module: ai_assistant
+models:
+  - env: OLLAMA_EMBEDDINGS_MODEL
+    kind: embedding
+    default: embeddinggemma
+    required: true
+  - env: OLLAMA_DEFAULT_MODEL
+    kind: llm
+    default: mistral:latest
+    required: false

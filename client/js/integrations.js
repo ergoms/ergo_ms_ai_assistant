@@ -4,5 +4,6 @@
  * Загружается IntegrationsManager после инициализации moduleManager.
  */
 
+import '../styles/theme-bootstrap.scss'
 import './appsMenu.js'
 import './floatingWidget.js'

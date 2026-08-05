@@ -3,6 +3,7 @@ import { mediaApiClient } from '@/js/api/media-api-client'
 import { buildMediaUploadOptions } from '@/js/mediaUploadLimits.js'
 import { logError, logWarn } from '@/js/utils/logError.js'
 import { fetchOllamaStatus } from '../../js/ollamaStatusApi.js'
+import { buildChatRequestHeaders, withUiLanguage } from '../../js/chatRequestContext.js'
 import { tGlobal } from '@/i18n/index.js'
 
 /**
@@ -302,10 +303,10 @@ class DocsClient {
   async sendMessageStream(message, onChunk, onDone, onError, sessionId = null, documentId = null) {
     const config = this.ollamaConfig
     
-    const requestBody = {
+    const requestBody = withUiLanguage({
       message: message,
       module: 'docs',
-    }
+    })
     
     if (sessionId) {
       requestBody.session_id = sessionId
@@ -332,10 +333,7 @@ class DocsClient {
       
       const response = await fetch(url, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': token ? `Bearer ${token}` : '',
-        },
+        headers: buildChatRequestHeaders(token),
         body: JSON.stringify(requestBody),
       })
 

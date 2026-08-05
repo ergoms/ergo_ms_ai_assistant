@@ -7,6 +7,8 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, List, Optional, Tuple
 
+from django.conf import settings
+
 from ..file_uploads import (
     create_temp_knowledge_document,
     extract_text_from_upload_info,
@@ -23,6 +25,10 @@ from .parser import DocumentParseError
 
 logger = logging.getLogger(__name__)
 
+SUPPORTED_UI_LANGUAGES = frozenset(
+    getattr(settings, 'SUPPORTED_UI_LANGUAGES', None) or {'ru', 'en', 'fr'}
+)
+
 ERGO_SYSTEM_PROMPT = """Ты — помощник пользователя системы ERGO MS.
 
 Твоя задача — объяснять функционал интерфейса простым языком: где что найти, как выполнить типичное действие, какие разделы для чего нужны.
@@ -33,8 +39,90 @@ ERGO_SYSTEM_PROMPT = """Ты — помощник пользователя си�
 3. Не упоминай ergoms, manage.py, .env, Docker, миграции, API, исходный код, ModuleBridge и внутреннюю архитектуру — если пользователь сам об этом не спросил явно.
 4. Не выдумывай разделы, кнопки и права. Если в контексте нет ответа — скажи об этом и предложи уточнить вопрос или обратиться к администратору.
 5. Если раздела нет в меню у пользователя — объясни, что доступ зависит от роли, и посоветуй администратора.
-6. Отвечай кратко и по шагам, на языке пользователя.
+6. Отвечай кратко и по шагам, строго на языке интерфейса пользователя (см. блок [ЯЗЫК ОТВЕТА]).
 """
+
+
+def _normalize_ui_language(code: Optional[str]) -> Optional[str]:
+    if not code or not isinstance(code, str):
+        return None
+    normalized = code.strip().lower().split('-', 1)[0]
+    if normalized in SUPPORTED_UI_LANGUAGES:
+        return normalized
+    return None
+
+
+def resolve_ui_language(
+    *,
+    user=None,
+    request=None,
+    override: Optional[str] = None,
+) -> str:
+    """Язык UI: профиль пользователя → request.LANGUAGE_CODE → settings.LANGUAGE_CODE."""
+    from_override = _normalize_ui_language(override)
+    if from_override:
+        return from_override
+
+    if user is not None and getattr(user, 'is_authenticated', False):
+        profile = getattr(user, 'adp_profile', None)
+        if profile is None:
+            try:
+                from src.core.cms.adp.models import UserProfile
+
+                profile = UserProfile.objects.filter(user_id=user.pk).only('language').first()
+            except Exception:
+                profile = None
+        profile_lang = _normalize_ui_language(getattr(profile, 'language', None))
+        if profile_lang:
+            return profile_lang
+
+    if request is not None:
+        request_lang = _normalize_ui_language(getattr(request, 'LANGUAGE_CODE', None))
+        if request_lang:
+            return request_lang
+
+    default_lang = _normalize_ui_language(getattr(settings, 'LANGUAGE_CODE', 'ru'))
+    return default_lang or 'ru'
+
+
+def build_language_instruction(ui_language: str) -> str:
+    """Жёсткие правила языка ответа для LLM."""
+    if ui_language == 'ru':
+        return (
+            '[ЯЗЫК ОТВЕТА]\n'
+            'Язык интерфейса пользователя: русский (ru).\n'
+            'Отвечай только на русском языке.\n'
+            'Называй разделы и кнопки по-русски, как в интерфейсе ERGO MS: '
+            '«Настройки», «Профиль», «Система», «Темы», «Язык интерфейса», '
+            '«Тема оформления», «боковое меню», «меню пользователя в шапке».\n'
+            'Путь к настройкам: меню пользователя в шапке → «Настройки»; '
+            'профиль — вкладка «Профиль», язык — «Система», тема — «Темы» или «Тема оформления».\n'
+            'Не используй английские слова, англицизмы и английские подписи в скобках '
+            '(Settings, Profile, Edit, Theme, Interface Language, Dashboard и т.п.), '
+            'кроме непереводимого имени «ERGO MS».\n'
+            'Если в базе знаний или контексте встречаются английские названия — переводи их на русский в ответе.\n'
+            '[/ЯЗЫК ОТВЕТА]'
+        )
+    if ui_language == 'en':
+        return (
+            '[RESPONSE LANGUAGE]\n'
+            'User interface language: English (en).\n'
+            'Reply only in English.\n'
+            'Use English labels as shown in the ERGO MS UI (Settings, Profile, System, Themes).\n'
+            'Path: user menu in the header → Settings; Profile tab, language in System, theme in Themes.\n'
+            '[/RESPONSE LANGUAGE]'
+        )
+    if ui_language == 'fr':
+        return (
+            '[LANGUE DE RÉPONSE]\n'
+            "Langue de l'interface utilisateur : français (fr).\n"
+            'Réponds uniquement en français.\n'
+            "Utilise les libellés français de l'interface ERGO MS (Paramètres, Profil, Système, Thèmes).\n"
+            "Chemin : menu utilisateur dans l'en-tête → Paramètres ; profil — onglet Profil, "
+            "langue — Système, thème — Thèmes.\n"
+            '[/LANGUE DE RÉPONSE]'
+        )
+    return build_language_instruction('ru')
 
 
 def build_runtime_context() -> str:
@@ -72,8 +160,13 @@ def build_system_prompt(
     *,
     upload_infos: Optional[List[dict]] = None,
     enable_vectorization: bool = False,
+    ui_language: str = 'ru',
 ) -> str:
-    parts = [ERGO_SYSTEM_PROMPT.strip(), build_runtime_context()]
+    parts = [
+        ERGO_SYSTEM_PROMPT.strip(),
+        build_language_instruction(ui_language),
+        build_runtime_context(),
+    ]
     if upload_infos:
         if enable_vectorization:
             parts.append(
@@ -242,6 +335,7 @@ def build_ollama_messages(
     get_rag_services,
     get_rag_context,
     exclude_message_id=None,
+    ui_language: str = 'ru',
 ) -> Tuple[List[Dict[str, str]], List[Dict[str, Any]]]:
     """
     Собирает messages для ollama chat и метаданные RAG-chunks.
@@ -293,6 +387,7 @@ def build_ollama_messages(
             'content': build_system_prompt(
                 upload_infos=upload_infos,
                 enable_vectorization=enable_vectorization,
+                ui_language=ui_language,
             ),
         }
     ]

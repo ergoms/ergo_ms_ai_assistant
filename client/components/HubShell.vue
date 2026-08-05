@@ -17,7 +17,7 @@
         </div>
         <div class="brand-text">
           <span class="brand-title">{{ t('ai_assistant.brand') }}</span>
-          <span class="brand-subtitle">{{ t('ai_assistant.brandSubtitle') }}</span>
+          <span class="brand-subtitle" :class="{ 'ai-model-caption': modelSubtitle }">{{ brandSubtitleText }}</span>
         </div>
       </div>
 
@@ -39,14 +39,22 @@ import { useAppI18n } from '@/i18n/useAppI18n.js'
 import { useModuleThemeMode } from '@/composables/useModuleThemeMode.js'
 import NeuralBackground from './NeuralBackground.vue'
 
-defineProps({
+const props = defineProps({
   moduleConfig: { type: Object, default: null },
   activeModule: { type: String, default: 'chat' },
   accelerated: { type: Boolean, default: false },
+  modelSubtitle: { type: String, default: null },
 })
 
 const { t } = useAppI18n()
 const { isLight: isLightTheme } = useModuleThemeMode('ai_assistant')
+
+const brandSubtitleText = computed(() => {
+  if (props.modelSubtitle) {
+    return props.modelSubtitle
+  }
+  return t('ai_assistant.brandSubtitle')
+})
 
 const nodeColor = computed(() => {
   if (isLightTheme.value) return '#d0322d'

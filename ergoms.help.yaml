@@ -7,6 +7,6 @@ commands:
     summary: Проиндексировать справку по разделам сайта (меню, UI, модули) в RAG
 notes:
   - 'Вызов: ergoms ai_assistant:sync-knowledge'
-  - 'Нужны Ollama и модель embeddings (OLLAMA_EMBEDDINGS_MODEL)'
+  - 'Нужны Ollama и модель embeddings (OLLAMA_EMBEDDINGS_MODEL; setup-full: ollama_models.yaml → pull-setup-models)'
   - 'Эквивалент: ergoms api sync_system_knowledge'
   - 'Корпус для пользователей сайта, не документация разработчика'

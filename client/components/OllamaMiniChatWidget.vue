@@ -10,6 +10,7 @@ import {
   closeOllamaMiniChat,
   setMiniChatDragPosition,
 } from '../js/ollamaMiniChatStore.js'
+import { useOllamaStatus } from '../js/composables/useOllamaStatus.js'
 import OllamaMiniChat from './OllamaMiniChat.vue'
 
 const props = defineProps({
@@ -21,6 +22,13 @@ const props = defineProps({
 
 const { t } = useAppI18n()
 const { isShellDesktop } = useBreakpoint()
+const {
+  status: ollamaStatus,
+  modelSubtitle,
+} = useOllamaStatus({ autoPoll: true })
+
+const widgetSubtitle = computed(() => modelSubtitle.value || t('ai_assistant.brandSubtitle'))
+const showModelCaption = computed(() => Boolean(modelSubtitle.value))
 
 const isOpen = computed(() => isOllamaMiniChatOpen.value)
 
@@ -156,7 +164,10 @@ onBeforeUnmount(() => {
                 </span>
                 <div class="ollama-widget__titles">
                   <div class="ollama-widget__title">{{ t('ai_assistant.apps.ollamaChat') }}</div>
-                  <div class="ollama-widget__subtitle">{{ t('ai_assistant.brandSubtitle') }}</div>
+                  <div
+                    class="ollama-widget__subtitle"
+                    :class="{ 'ai-model-caption': showModelCaption }"
+                  >{{ widgetSubtitle }}</div>
                 </div>
               </div>
               <button
@@ -170,7 +181,11 @@ onBeforeUnmount(() => {
             </header>
 
             <div class="ollama-widget__body">
-              <OllamaMiniChat compact @close="closeOllamaMiniChat" />
+              <OllamaMiniChat
+                compact
+                :ollama-status="ollamaStatus"
+                @close="closeOllamaMiniChat"
+              />
             </div>
           </div>
         </Transition>
@@ -258,7 +273,7 @@ onBeforeUnmount(() => {
   height: 36px;
   border-radius: 50%;
   background: var(--ai-accent, #f14336);
-  color: #050508;
+  color: #fff;
   flex-shrink: 0;
 }
 
@@ -276,6 +291,12 @@ onBeforeUnmount(() => {
   font-size: 0.75rem;
   color: var(--ai-text-secondary, var(--color-secondary-text));
   line-height: 1.2;
+
+  &.ai-model-caption {
+    font-weight: 600;
+    font-family: var(--font-family-mono);
+    font-variant-numeric: tabular-nums;
+  }
 }
 
 .ollama-widget__close {

@@ -44,6 +44,8 @@ export default {
         send: 'Envoyer',
         close: 'Fermer le chat',
         dragHint: 'Faites glisser par l’en-tête',
+        showSuggestions: 'Afficher les suggestions',
+        hideSuggestions: 'Masquer les suggestions',
       },
       access: {
         title: "L'accès à l'assistant IA est restreint",

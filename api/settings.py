@@ -5,6 +5,14 @@
 """
 from src.config.env import env
 
+
+def _normalize_compute_device(value: str) -> str:
+    normalized = (value or '').strip().lower()
+    if normalized in ('gpu', 'cpu'):
+        return normalized
+    return ''
+
+
 # ============================================================================
 # Ollama
 # ============================================================================
@@ -16,6 +24,12 @@ OLLAMA_EMBEDDINGS_MODEL = env.str('OLLAMA_EMBEDDINGS_MODEL', default='embeddingg
 # Транспорт ollama_framework: local (ModuleBridge) или http (REST API)
 OLLAMA_FRAMEWORK_TRANSPORT = env.str('OLLAMA_FRAMEWORK_TRANSPORT', default='local')
 OLLAMA_FRAMEWORK_API_BASE = env.str('OLLAMA_FRAMEWORK_API_BASE', default='')
+
+# gpu / cpu — переопределяет OLLAMA_COMPUTE_DEVICE ollama_framework для этого модуля.
+# Пусто — наследовать глобальную настройку ollama_framework.
+AI_ASSISTANT_OLLAMA_COMPUTE_DEVICE = _normalize_compute_device(
+    env.str('AI_ASSISTANT_OLLAMA_COMPUTE_DEVICE', default=''),
+)
 
 # ============================================================================
 # LLM (AI Assistant)

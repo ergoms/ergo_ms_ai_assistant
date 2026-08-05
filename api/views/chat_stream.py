@@ -15,7 +15,7 @@ from ..ollama_gateway import chat as ollama_chat, resolved_model
 from ..models import ChatSession, ChatMessage
 from ..skills.integration import execute_skill_from_llm_response
 from ..file_uploads import collect_chat_upload_infos
-from ..rag import build_ollama_messages
+from ..rag import build_ollama_messages, resolve_ui_language
 from .helpers import _get_rag_context, _safe_json_dumps, _get_rag_services
 
 logger = logging.getLogger(__name__)
@@ -98,6 +98,12 @@ class ChatStreamView(SwaggerSafeMixin, APIView):
                 model_name = resolved_model(ollama_config)
                 temperature = (ollama_config or {}).get('temperature', 0)
 
+                ui_language = resolve_ui_language(
+                    user=request.user,
+                    request=request,
+                    override=request.data.get('ui_language'),
+                )
+
                 messages, _rag_chunks = build_ollama_messages(
                     message=message,
                     user=request.user,
@@ -110,6 +116,7 @@ class ChatStreamView(SwaggerSafeMixin, APIView):
                     get_rag_services=_get_rag_services,
                     get_rag_context=_get_rag_context,
                     exclude_message_id=user_message.id,
+                    ui_language=ui_language,
                 )
                 
                 from queue import Queue, Empty

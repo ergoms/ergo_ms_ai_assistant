@@ -44,6 +44,8 @@ export default {
         send: 'Send',
         close: 'Close chat',
         dragHint: 'Drag by the header',
+        showSuggestions: 'Show suggestions',
+        hideSuggestions: 'Hide suggestions',
       },
       access: {
         title: 'Access to AI Assistant is restricted',
