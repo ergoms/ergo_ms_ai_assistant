@@ -1,5 +1,5 @@
 """
-Синхронизация пользовательского корпуса функционала сайта в KnowledgeDocument + embeddings.
+Синхронизация пользовательского корпуса функционала системы в KnowledgeDocument + embeddings.
 """
 from __future__ import annotations
 

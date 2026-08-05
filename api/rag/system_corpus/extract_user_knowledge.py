@@ -1,5 +1,5 @@
 """
-Сбор пользовательских знаний о функционале сайта для RAG.
+Сбор пользовательских знаний о функционале системы для RAG.
 
 Источники: меню, каталог модулей/прав, подписи UI (i18n), локальные guides.
 Не индексирует .docs, .cursor/rules и developer README.
@@ -117,7 +117,7 @@ def build_locale_documents(root: Path | None = None) -> List[DocumentTuple]:
         lines = [
             f'# Подписи интерфейса: {rel}',
             '',
-            'Тексты экранов, кнопок и подсказок сайта (для ответов пользователю).',
+            'Тексты экранов, кнопок и подсказок системы (для ответов пользователю).',
             '',
         ]
         for value in values:
@@ -150,7 +150,7 @@ def build_menu_document() -> DocumentTuple | None:
         by_parent.setdefault(item.parent_id, []).append(item)
 
     lines = [
-        '# Разделы сайта (боковое меню)',
+        '# Разделы системы (боковое меню)',
         '',
         'Карта разделов, доступных пользователям в интерфейсе ERGO MS.',
         'Помоги найти, куда нажать, чтобы открыть нужную функцию.',
@@ -168,7 +168,7 @@ def build_menu_document() -> DocumentTuple | None:
     walk(None, 0)
     return (
         'user_ui/site_menu.md',
-        'Разделы сайта (меню)',
+        'Разделы системы (меню)',
         '\n'.join(lines),
     )
 
@@ -185,7 +185,7 @@ def build_modules_document() -> DocumentTuple | None:
         return None
 
     lines = [
-        '# Возможности и модули сайта',
+        '# Возможности и модули системы',
         '',
         'Установленные модули ERGO MS и связанные с ними действия (с точки зрения пользователя).',
         'Объясняй, что можно сделать в системе, без технических деталей разработки.',
@@ -209,7 +209,7 @@ def build_modules_document() -> DocumentTuple | None:
 
     return (
         'user_ui/installed_modules.md',
-        'Модули и возможности сайта',
+        'Модули и возможности системы',
         '\n'.join(lines),
     )
 

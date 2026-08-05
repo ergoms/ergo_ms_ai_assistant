@@ -87,9 +87,9 @@ export default {
         chat: {
           name: '',
           description: '',
-          welcome: 'Bonjour ! Je peux vous aider à trouver les sections et fonctions d\'ERGO MS. Demandez où cliquer ou comment faire une action dans l\'interface.',
+          welcome: 'Bonjour ! Je peux vous aider à trouver les sections et fonctions du système ERGO MS. Demandez où cliquer ou comment faire une action dans l\'interface.',
           placeholder: 'Écrivez un message...',
-          s1: 'Quelles sections sont disponibles sur le site et à quoi servent-elles ?',
+          s1: 'Quelles sections sont disponibles dans le système et à quoi servent-elles ?',
           s2: 'Où modifier le profil, la langue et le thème ?',
           s3: 'Comment un administrateur crée un utilisateur et attribue un rôle ?',
           s4: 'Pourquoi un élément de menu manque-t-il, et à qui m\'adresser ?',
