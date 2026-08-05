@@ -11,10 +11,10 @@ logger = logging.getLogger(__name__)
 
 @shared_task(name='modules.ai_assistant.api.tasks.index_knowledge_document')
 def index_knowledge_document(document_id: str, force: bool = False) -> dict:
-    from ..models import KnowledgeDocument
-    from ..rag import RAGIndexingError, RAGIndexingService
-    from ..settings import RAG_CHUNK_OVERLAP, RAG_CHUNK_SIZE
-    from ..views.helpers import _get_rag_services
+    from .models import KnowledgeDocument
+    from .rag import RAGIndexingError, RAGIndexingService
+    from .settings import RAG_CHUNK_OVERLAP, RAG_CHUNK_SIZE
+    from .views.helpers import _get_rag_services
 
     try:
         document = KnowledgeDocument.objects.get(id=document_id)

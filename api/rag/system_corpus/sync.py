@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 from ...models import KnowledgeDocument
-from ..settings import (
+from ...settings import (
     RAG_CHUNK_OVERLAP,
     RAG_CHUNK_SIZE,
     RAG_SYSTEM_CORPUS_ENABLED,

@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from ..models import KnowledgeDocument
+from .models import KnowledgeDocument
 
 if TYPE_CHECKING:
     from uuid import UUID
@@ -23,7 +23,7 @@ def enqueue_knowledge_document_index(
     force: bool = False,
 ) -> None:
     """Ставит документ в очередь фоновой индексации."""
-    from ..tasks import index_knowledge_document
+    from .tasks import index_knowledge_document
 
     document.indexing_status = KnowledgeDocument.INDEXING_STATUS_PENDING
     document.indexing_error = ''
