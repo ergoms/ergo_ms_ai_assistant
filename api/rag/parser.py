@@ -1,12 +1,17 @@
 """
-Сервис для парсинга документов различных форматов (Word, PDF, TXT)
+Сервис для парсинга документов различных форматов (Word, PDF, TXT, MD, CSV, Excel).
 """
 import logging
+import os
+import tempfile
 from pathlib import Path
 from typing import Optional, Tuple
 from io import BytesIO
 
 logger = logging.getLogger(__name__)
+
+TABULAR_TYPES = frozenset({'csv', 'xlsx', 'xls'})
+TEXT_LIKE_TYPES = frozenset({'txt', 'md', 'markdown'})
 
 
 class DocumentParseError(Exception):
@@ -21,7 +26,8 @@ class DocumentParserService:
     Поддерживаемые форматы:
     - .docx (Microsoft Word)
     - .pdf (PDF документы)
-    - .txt (Текстовые файлы)
+    - .txt / .md (текстовые файлы)
+    - .csv / .xlsx / .xls (таблицы через chonkie TableChef)
     """
     
     @staticmethod
@@ -67,15 +73,19 @@ class DocumentParserService:
             raise DocumentParseError(f"Не удалось определить тип файла: {filename or file_path}")
         
         try:
-            # Парсим в зависимости от типа
             if file_type == 'docx':
                 return DocumentParserService._parse_docx(file_path, file_obj), file_type
-            elif file_type == 'pdf':
+            if file_type == 'pdf':
                 return DocumentParserService._parse_pdf(file_path, file_obj), file_type
-            elif file_type == 'txt':
-                return DocumentParserService._parse_txt(file_path, file_obj), file_type
-            else:
-                raise DocumentParseError(f"Неподдерживаемый тип файла: {file_type}")
+            if file_type in TEXT_LIKE_TYPES:
+                # Нормализуем markdown → md
+                normalized = 'md' if file_type in ('md', 'markdown') else 'txt'
+                return DocumentParserService._parse_txt(file_path, file_obj), normalized
+            if file_type in TABULAR_TYPES:
+                return DocumentParserService._parse_tabular(
+                    file_path, file_obj, file_type,
+                ), file_type
+            raise DocumentParseError(f"Неподдерживаемый тип файла: {file_type}")
                 
         except DocumentParseError:
             raise
@@ -264,3 +274,86 @@ class DocumentParserService:
                 raise
             raise DocumentParseError(f"Ошибка чтения текстового файла: {str(e)}") from e
 
+    @staticmethod
+    def _parse_tabular(
+        file_path: Optional[str] = None,
+        file_obj: Optional[BytesIO] = None,
+        file_type: str = 'csv',
+    ) -> str:
+        """CSV/Excel → markdown через chonkie TableChef (локальный path)."""
+        try:
+            from chonkie import TableChef
+        except ImportError as exc:
+            raise DocumentParseError(
+                'Модуль chonkie не установлен. Выполните: ergoms python-install'
+            ) from exc
+
+        temp_path: Optional[str] = None
+        try:
+            if file_path:
+                path_for_chef = file_path
+            elif file_obj:
+                file_obj.seek(0)
+                suffix = f'.{file_type}' if file_type else '.csv'
+                fd, temp_path = tempfile.mkstemp(suffix=suffix)
+                try:
+                    with os.fdopen(fd, 'wb') as tmp:
+                        tmp.write(file_obj.read())
+                except Exception:
+                    os.close(fd)
+                    raise
+                path_for_chef = temp_path
+            else:
+                raise DocumentParseError('Не указан ни путь к файлу, ни файловый объект')
+
+            # Excel: добавляем имена листов для RAG (TableChef их не включает).
+            if file_type in ('xlsx', 'xls'):
+                return DocumentParserService._excel_to_markdown(path_for_chef)
+
+            chef = TableChef()
+            doc = chef.process(path_for_chef)
+            content = (getattr(doc, 'content', None) or '').strip()
+            if not content:
+                raise DocumentParseError('Табличный файл пуст или не удалось извлечь данные')
+            return content
+        except DocumentParseError:
+            raise
+        except Exception as exc:
+            raise DocumentParseError(f'Ошибка парсинга таблицы ({file_type}): {exc}') from exc
+        finally:
+            if temp_path and os.path.isfile(temp_path):
+                try:
+                    os.unlink(temp_path)
+                except OSError:
+                    pass
+
+    @staticmethod
+    def _excel_to_markdown(path: str) -> str:
+        """Все листы Excel → markdown с заголовками листов."""
+        try:
+            import pandas as pd
+        except ImportError as exc:
+            raise DocumentParseError(
+                'Pandas требуется для Excel. Выполните: ergoms python-install'
+            ) from exc
+
+        try:
+            sheets = pd.read_excel(path, sheet_name=None)
+        except Exception as exc:
+            raise DocumentParseError(f'Ошибка чтения Excel: {exc}') from exc
+
+        if not sheets:
+            raise DocumentParseError('Excel-файл не содержит листов')
+
+        parts = []
+        for sheet_name, frame in sheets.items():
+            try:
+                table_md = frame.to_markdown(index=False) or ''
+            except Exception:
+                table_md = frame.to_string(index=False)
+            parts.append(f'## {sheet_name}\n\n{table_md}'.strip())
+
+        result = '\n\n'.join(parts).strip()
+        if not result:
+            raise DocumentParseError('Excel документ пуст или не удалось извлечь данные')
+        return result

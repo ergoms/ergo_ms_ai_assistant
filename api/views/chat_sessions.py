@@ -65,8 +65,23 @@ class ChatSessionViewSet(ViewSet, SwaggerSafeMixin):
                 'error': 'Сессия не найдена'
             }, status=status.HTTP_404_NOT_FOUND)
         
+        from ..media_storage import signed_url
+
         messages = []
         for msg in session.messages.all():
+            metadata = dict(msg.metadata or {})
+            attachments = metadata.get('attachments')
+            if isinstance(attachments, list):
+                enriched = []
+                for item in attachments:
+                    if not isinstance(item, dict):
+                        continue
+                    row = dict(item)
+                    path = row.get('path') or ''
+                    if path and row.get('kind') == 'image':
+                        row['signed_url'] = signed_url(path)
+                    enriched.append(row)
+                metadata['attachments'] = enriched
             messages.append({
                 'id': str(msg.id),
                 'type': msg.message_type,
@@ -75,7 +90,7 @@ class ChatSessionViewSet(ViewSet, SwaggerSafeMixin):
                 'request_started_at': msg.request_started_at.isoformat() if msg.request_started_at else None,
                 'response_received_at': msg.response_received_at.isoformat() if msg.response_received_at else None,
                 'processing_time_ms': msg.processing_time_ms,
-                'metadata': msg.metadata,
+                'metadata': metadata,
             })
         
         return Response({

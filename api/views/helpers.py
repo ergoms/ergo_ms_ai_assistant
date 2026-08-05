@@ -9,6 +9,7 @@ from ..rag import (
     OllamaEmbeddingsService,
     RAGRetrievalService,
     RAGRetrievalError,
+    RetrievalScope,
 )
 from ..settings import (
     OLLAMA_BASE_URL,
@@ -160,30 +161,18 @@ def _get_rag_context(
     document_ids=None,
     include_system=None,
     system_only=False,
+    scopes=None,
 ):
     """
-    Получает контекст из базы знаний RAG для запроса пользователя
-    
-    Args:
-        query: Запрос пользователя
-        user: Пользователь (для фильтрации документов)
-        ollama_config: Настройки Ollama (опционально)
-        enabled: Переопределить глобальную настройку RAG_ENABLED
-        document_ids: Список ID документов для ограничения поиска (опционально)
-        include_system: включать системный корпус (по умолчанию из settings)
-        system_only: искать только в системном корпусе
-        
-    Returns:
-        Кортеж (context, chunks_metadata):
-        - context: Отформатированный контекст для промпта (пустая строка если RAG отключен или нет результатов)
-        - chunks_metadata: Список метаданных найденных chunks (пустой список если RAG отключен или нет результатов)
+    Получает контекст из базы знаний RAG для запроса пользователя.
+
+    scopes — список RetrievalScope для объединённого поиска (один embed).
     """
-    # Проверяем, включен ли RAG
     if enabled is None:
         enabled = RAG_ENABLED
-    
+
     if not enabled:
-        return "", []
+        return '', []
 
     if include_system is None:
         include_system = (
@@ -192,11 +181,18 @@ def _get_rag_context(
             and not document_ids
             and not system_only
         )
-    
+
     try:
         embeddings_service, retrieval_service = _get_rag_services(ollama_config)
-        
-        # Получаем релевантные chunks и формируем контекст
+
+        if scopes:
+            context, chunks = retrieval_service.retrieve_multi_scope_context(
+                query,
+                scopes,
+                max_context_length=RAG_MAX_CONTEXT_LENGTH,
+            )
+            return context, chunks
+
         context, chunks = retrieval_service.retrieve_and_build_context(
             query=query,
             user=user,
@@ -205,14 +201,14 @@ def _get_rag_context(
             include_system=include_system,
             system_only=system_only,
         )
-        
+
         return context, chunks
-        
+
     except RAGRetrievalError as e:
-        logger.warning(f"Ошибка RAG retrieval: {e}")
-        return "", []
+        logger.warning('Ошибка RAG retrieval: %s', e)
+        return '', []
     except Exception as e:
-        logger.error(f"Неожиданная ошибка RAG retrieval: {e}", exc_info=True)
-        return "", []
+        logger.error('Неожиданная ошибка RAG retrieval: %s', e, exc_info=True)
+        return '', []
 
 

@@ -8,20 +8,22 @@ import logging
 from typing import Any, Dict, List, Optional, Tuple
 
 from django.conf import settings
+from django.core.cache import cache
 
 from ..file_uploads import (
+    build_attachments_metadata,
     create_temp_knowledge_document,
     extract_text_from_upload_info,
+    load_images_base64_for_ollama,
+    partition_upload_infos,
 )
 from ..models import ChatMessage
 from ..settings import (
-    RAG_CHUNK_OVERLAP,
-    RAG_CHUNK_SIZE,
     RAG_INCLUDE_SYSTEM_IN_CHAT,
     RAG_SYSTEM_CORPUS_ENABLED,
 )
-from .indexing import RAGIndexingService
 from .parser import DocumentParseError
+from .retrieval import RetrievalScope
 
 logger = logging.getLogger(__name__)
 
@@ -125,8 +127,16 @@ def build_language_instruction(ui_language: str) -> str:
     return build_language_instruction('ru')
 
 
+RUNTIME_CONTEXT_CACHE_KEY = 'ai_assistant:runtime_context'
+RUNTIME_CONTEXT_CACHE_TTL = 300
+
+
 def build_runtime_context() -> str:
     """Краткий снимок возможностей системы для пользователя."""
+    cached = cache.get(RUNTIME_CONTEXT_CACHE_KEY)
+    if cached:
+        return cached
+
     module_lines: list[str] = []
     try:
         from src.core.cms.adp.services.permission_catalog import get_modules_catalog
@@ -147,13 +157,15 @@ def build_runtime_context() -> str:
             module_lines = []
 
     modules_line = ', '.join(module_lines) if module_lines else '(список недоступен)'
-    return (
+    context = (
         '[ВОЗМОЖНОСТИ СИСТЕМЫ]\n'
         f'Установленные разделы/модули: {modules_line}\n'
         'Навигация — через боковое меню и меню пользователя в шапке.\n'
         'Доступ к разделам зависит от роли пользователя.\n'
         '[/ВОЗМОЖНОСТИ СИСТЕМЫ]'
     )
+    cache.set(RUNTIME_CONTEXT_CACHE_KEY, context, RUNTIME_CONTEXT_CACHE_TTL)
+    return context
 
 
 def build_system_prompt(
@@ -161,6 +173,7 @@ def build_system_prompt(
     upload_infos: Optional[List[dict]] = None,
     enable_vectorization: bool = False,
     ui_language: str = 'ru',
+    has_images: bool = False,
 ) -> str:
     parts = [
         ERGO_SYSTEM_PROMPT.strip(),
@@ -177,7 +190,29 @@ def build_system_prompt(
             parts.append(
                 'Пользователь загрузил файлы. Используй их содержимое при ответе на вопросы.'
             )
+    if has_images:
+        parts.append(
+            'Пользователь приложил изображения к текущему сообщению. '
+            'Опиши и учитывай их содержимое при ответе (vision).'
+        )
     return '\n\n'.join(parts)
+
+
+def _history_user_content(msg: ChatMessage) -> str:
+    """Текст user-сообщения для истории; картинки — только текстовая пометка."""
+    content = msg.content or ''
+    attachments = (msg.metadata or {}).get('attachments') or []
+    image_names = [
+        item.get('name') or 'image'
+        for item in attachments
+        if isinstance(item, dict) and item.get('kind') == 'image'
+    ]
+    if not image_names:
+        return content
+    notes = '\n'.join(f'[изображение: {name}]' for name in image_names)
+    if content:
+        return f'{notes}\n{content}'
+    return notes
 
 
 def _vectorize_uploads(
@@ -188,14 +223,10 @@ def _vectorize_uploads(
     ollama_config,
     get_rag_services,
 ) -> List[str]:
+    from ..indexing_queue import enqueue_knowledge_document_index
+
     new_ids: List[str] = []
     try:
-        embeddings_service, _ = get_rag_services(ollama_config)
-        indexing_service = RAGIndexingService(
-            embeddings_service=embeddings_service,
-            chunk_size=RAG_CHUNK_SIZE,
-            chunk_overlap=RAG_CHUNK_OVERLAP,
-        )
         for info in upload_infos:
             name = info.get('name') or 'file'
             try:
@@ -204,19 +235,11 @@ def _vectorize_uploads(
                     session=session,
                     info=info,
                 )
-                indexing_result = indexing_service.index_document(temp_doc, force_reindex=True)
-                if indexing_result.get('success'):
-                    new_ids.append(str(temp_doc.id))
-                    logger.info('Файл %s проиндексирован (ID: %s)', name, temp_doc.id)
-                else:
-                    logger.warning(
-                        'Не удалось проиндексировать файл %s: %s',
-                        name,
-                        indexing_result.get('error'),
-                    )
-                    temp_doc.delete()
+                enqueue_knowledge_document_index(temp_doc, force=True)
+                new_ids.append(str(temp_doc.id))
+                logger.info('Файл %s поставлен в очередь индексации (ID: %s)', name, temp_doc.id)
             except Exception as exc:
-                logger.error('Ошибка векторизации файла %s: %s', name, exc, exc_info=True)
+                logger.error('Ошибка постановки файла %s в очередь индексации: %s', name, exc, exc_info=True)
     except Exception as exc:
         logger.error('Ошибка при векторизации файлов: %s', exc, exc_info=True)
     return new_ids
@@ -265,26 +288,21 @@ def resolve_rag_for_message(
 ) -> Tuple[str, List[Dict[str, Any]]]:
     """Выбирает стратегию RAG и возвращает (context, chunks)."""
     include_system_default = RAG_SYSTEM_CORPUS_ENABLED and RAG_INCLUDE_SYSTEM_IN_CHAT
+    scopes: List[RetrievalScope] = []
 
     if enable_vectorization and vectorized_document_ids:
-        upload_ctx, upload_chunks = get_rag_context(
-            query=message,
+        scopes.append(RetrievalScope(
+            document_ids=vectorized_document_ids,
+            user=user,
+        ))
+        if include_system_default:
+            scopes.append(RetrievalScope(system_only=True, user=user))
+        return get_rag_context(
+            message,
             user=user,
             ollama_config=ollama_config,
-            document_ids=vectorized_document_ids,
-            include_system=False,
+            scopes=scopes,
         )
-        system_ctx, system_chunks = ('', [])
-        if include_system_default:
-            system_ctx, system_chunks = get_rag_context(
-                query=message,
-                user=user,
-                ollama_config=ollama_config,
-                document_ids=None,
-                include_system=False,
-                system_only=True,
-            )
-        return _merge_contexts(upload_ctx, system_ctx), upload_chunks + system_chunks
 
     document_id = None
     if session.metadata and session.metadata.get('document_id'):
@@ -293,28 +311,18 @@ def resolve_rag_for_message(
         document_id = request_document_id
 
     if module == 'docs' and document_id:
-        doc_ctx, doc_chunks = get_rag_context(
-            query=message,
+        scopes.append(RetrievalScope(document_ids=[document_id], user=user))
+        if include_system_default:
+            scopes.append(RetrievalScope(system_only=True, user=user))
+        return get_rag_context(
+            message,
             user=user,
             ollama_config=ollama_config,
-            document_ids=[document_id],
-            include_system=False,
+            scopes=scopes,
         )
-        system_ctx, system_chunks = ('', [])
-        if include_system_default:
-            system_ctx, system_chunks = get_rag_context(
-                query=message,
-                user=user,
-                ollama_config=ollama_config,
-                document_ids=None,
-                include_system=False,
-                system_only=True,
-            )
-        return _merge_contexts(doc_ctx, system_ctx), doc_chunks + system_chunks
 
-    # Обычный chat / docs без document_id — system ∨ user KB
     return get_rag_context(
-        query=message,
+        message,
         user=user,
         ollama_config=ollama_config,
         document_ids=None,
@@ -336,25 +344,31 @@ def build_ollama_messages(
     get_rag_context,
     exclude_message_id=None,
     ui_language: str = 'ru',
-) -> Tuple[List[Dict[str, str]], List[Dict[str, Any]]]:
+) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]], List[Dict[str, Any]]]:
     """
-    Собирает messages для ollama chat и метаданные RAG-chunks.
+    Собирает messages для ollama chat, RAG-chunks и metadata вложений.
+
+    Картинки: media_api → base64 только для текущего user message (не в историю).
+    Документы: inline text или vectorize → RAG.
 
     Returns:
-        (messages, rag_chunks)
+        (messages, rag_chunks, attachments_metadata)
     """
     upload_infos = upload_infos or []
+    document_infos, image_infos = partition_upload_infos(upload_infos)
+    attachments_meta = build_attachments_metadata(document_infos, image_infos)
+
     vectorized_document_ids: List[str] = []
     if session.metadata and 'vectorized_documents' in session.metadata:
         vectorized_document_ids = list(session.metadata['vectorized_documents'])
 
     uploaded_file_context = ''
-    if upload_infos:
+    if document_infos:
         if enable_vectorization:
             new_ids = _vectorize_uploads(
                 user=user,
                 session=session,
-                upload_infos=upload_infos,
+                upload_infos=document_infos,
                 ollama_config=ollama_config,
                 get_rag_services=get_rag_services,
             )
@@ -367,7 +381,7 @@ def build_ollama_messages(
                 session.save(update_fields=['metadata'])
                 vectorized_document_ids.extend(new_ids)
         else:
-            uploaded_file_context = _extract_file_context(upload_infos)
+            uploaded_file_context = _extract_file_context(document_infos)
 
     rag_context, rag_chunks = resolve_rag_for_message(
         message=message,
@@ -381,13 +395,27 @@ def build_ollama_messages(
         get_rag_context=get_rag_context,
     )
 
-    messages: List[Dict[str, str]] = [
+    images_b64 = load_images_base64_for_ollama(image_infos) if image_infos else []
+    if images_b64:
+        model_name = ''
+        if isinstance(ollama_config, dict):
+            model_name = str(ollama_config.get('model') or '')
+        lowered = model_name.lower()
+        vision_hints = ('llava', 'vision', 'moondream', 'minicpm-v', 'qwen2-vl', 'qwen2.5-vl')
+        if model_name and not any(hint in lowered for hint in vision_hints):
+            logger.warning(
+                'К сообщению приложены изображения, модель %s может не поддерживать vision',
+                model_name,
+            )
+
+    messages: List[Dict[str, Any]] = [
         {
             'role': 'system',
             'content': build_system_prompt(
-                upload_infos=upload_infos,
+                upload_infos=document_infos,
                 enable_vectorization=enable_vectorization,
                 ui_language=ui_language,
+                has_images=bool(images_b64),
             ),
         }
     ]
@@ -399,7 +427,7 @@ def build_ollama_messages(
     recent.reverse()
     for msg in recent:
         if msg.message_type == ChatMessage.MESSAGE_TYPE_USER:
-            messages.append({'role': 'user', 'content': msg.content})
+            messages.append({'role': 'user', 'content': _history_user_content(msg)})
         elif msg.message_type == ChatMessage.MESSAGE_TYPE_ASSISTANT:
             messages.append({'role': 'assistant', 'content': msg.content})
 
@@ -413,6 +441,12 @@ def build_ollama_messages(
             'Если релевантного контекста нет — так и скажи, не выдумывай разделы и кнопки.'
         )
     user_parts.append(message)
-    messages.append({'role': 'user', 'content': '\n\n'.join(user_parts)})
+    user_message: Dict[str, Any] = {
+        'role': 'user',
+        'content': '\n\n'.join(user_parts),
+    }
+    if images_b64:
+        user_message['images'] = images_b64
+    messages.append(user_message)
 
-    return messages, rag_chunks
+    return messages, rag_chunks, attachments_meta

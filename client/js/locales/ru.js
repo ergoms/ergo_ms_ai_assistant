@@ -202,7 +202,7 @@ export default {
           fileLabel: 'Файл',
           dropzoneHint: 'Перетащите файл сюда или',
           chooseFile: 'выберите файл',
-          supportedFormats: 'Поддерживаемые форматы: PDF, DOCX, TXT',
+          supportedFormats: 'Поддерживаемые форматы: PDF, DOCX, TXT, MD, CSV, XLSX',
           indexImmediatelyFile: 'Индексировать сразу после загрузки',
           indexImmediatelyText: 'Индексировать сразу после создания',
           uploading: 'Загрузка...',

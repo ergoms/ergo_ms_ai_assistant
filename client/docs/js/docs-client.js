@@ -13,6 +13,7 @@ const endpoints = {
   documents: 'ai_assistant/knowledge_documents/',
   documentDetail: (id) => `ai_assistant/knowledge_documents/${id}/`,
   documentIndex: (id) => `ai_assistant/knowledge_documents/${id}/index/`,
+  documentIndexStatus: (id) => `ai_assistant/knowledge_documents/${id}/index_status/`,
   documentUnindex: (id) => `ai_assistant/knowledge_documents/${id}/unindex/`,
   embeddingsStatus: 'ai_assistant/embeddings_status/',
   chat: 'ai_assistant/chat/',
@@ -109,6 +110,21 @@ class DocsClient {
   }
 
   /**
+   * Дождаться индексации, если документ поставлен в очередь
+   */
+  async _resolveQueuedIndexing(document, indexImmediately) {
+    if (!indexImmediately || !document?.id) {
+      return document
+    }
+    const status = document.indexing_status
+    if (status !== 'pending' && status !== 'running') {
+      return document
+    }
+    const waitResult = await this.waitForIndexing(document.id)
+    return waitResult.success ? waitResult.document : document
+  }
+
+  /**
    * Создать документ из текста
    */
   async createDocumentFromText(title, content, source = '', metadata = {}, indexImmediately = false) {
@@ -122,9 +138,13 @@ class DocsClient {
       })
       
       if (response.success) {
+        const document = await this._resolveQueuedIndexing(
+          response.data.document,
+          indexImmediately,
+        )
         return {
           success: true,
-          document: response.data.document,
+          document,
           indexingResult: response.data.indexing_result,
         }
       }
@@ -151,7 +171,7 @@ class DocsClient {
         file,
         buildMediaUploadOptions({
           targetDir: 'ai_assistant/rag_documents',
-          allowedTypes: ['pdf', 'docx', 'doc', 'txt', 'md'],
+          allowedTypes: ['pdf', 'docx', 'doc', 'txt', 'md', 'csv', 'xlsx', 'xls'],
         }),
       )
 
@@ -165,9 +185,13 @@ class DocsClient {
       })
       
       if (response.success) {
+        const document = await this._resolveQueuedIndexing(
+          response.data.document,
+          indexImmediately,
+        )
         return {
           success: true,
-          document: response.data.document,
+          document,
           indexingResult: response.data.indexing_result,
         }
       }
@@ -240,19 +264,88 @@ class DocsClient {
   }
 
   /**
+   * Получить статус индексации документа
+   */
+  async getIndexStatus(documentId) {
+    try {
+      const response = await apiClient.get(endpoints.documentIndexStatus(documentId))
+      if (response.success) {
+        return {
+          success: true,
+          document: response.data.document,
+        }
+      }
+      return {
+        success: false,
+        error: response.data?.error || tGlobal('ai_assistant.docs.api.indexFailed'),
+      }
+    } catch (error) {
+      logError('Ошибка получения статуса индексации:', error)
+      return {
+        success: false,
+        error: error.response?.data?.error || error.message || tGlobal('ai_assistant.docs.api.indexFailed'),
+      }
+    }
+  }
+
+  /**
+   * Ожидать завершения индексации (poll index_status)
+   */
+  async waitForIndexing(documentId, { intervalMs = 1500, timeoutMs = 300000 } = {}) {
+    const started = Date.now()
+    while (Date.now() - started < timeoutMs) {
+      const statusResult = await this.getIndexStatus(documentId)
+      if (!statusResult.success) {
+        return statusResult
+      }
+      const doc = statusResult.document || {}
+      const status = doc.indexing_status
+      if (status === 'done') {
+        return { success: true, document: doc }
+      }
+      if (status === 'failed') {
+        return {
+          success: false,
+          error: doc.indexing_error || tGlobal('ai_assistant.docs.api.indexFailed'),
+          document: doc,
+        }
+      }
+      await new Promise((resolve) => setTimeout(resolve, intervalMs))
+    }
+    return {
+      success: false,
+      error: tGlobal('ai_assistant.docs.api.indexFailed'),
+    }
+  }
+
+  /**
    * Индексировать документ
    */
-  async indexDocument(documentId, force = false) {
+  async indexDocument(documentId, force = false, { wait = true } = {}) {
     try {
       const response = await apiClient.post(endpoints.documentIndex(documentId), {
         force,
       })
       
       if (response.success) {
+        const document = response.data.document
+        const queued = response.data.queued || document?.indexing_status === 'pending' || document?.indexing_status === 'running'
+        if (wait && queued) {
+          const waitResult = await this.waitForIndexing(documentId)
+          if (!waitResult.success) {
+            return waitResult
+          }
+          return {
+            success: true,
+            queued: true,
+            document: waitResult.document,
+          }
+        }
         return {
           success: true,
+          queued: Boolean(queued),
           result: response.data.result,
-          document: response.data.document,
+          document,
         }
       }
       
@@ -300,7 +393,7 @@ class DocsClient {
   /**
    * Отправить сообщение в чат с документами (streaming)
    */
-  async sendMessageStream(message, onChunk, onDone, onError, sessionId = null, documentId = null) {
+  async sendMessageStream(message, onChunk, onDone, onError, sessionId = null, documentId = null, onPreparing = null) {
     const config = this.ollamaConfig
     
     const requestBody = withUiLanguage({
@@ -366,7 +459,9 @@ class DocsClient {
             try {
               const event = JSON.parse(jsonStr)
               
-              if (event.type === 'chunk' && onChunk) {
+              if (event.type === 'preparing' && onPreparing) {
+                onPreparing()
+              } else if (event.type === 'chunk' && onChunk) {
                 accumulatedContent += event.text
                 onChunk(event.text)
               } else if (event.type === 'done') {

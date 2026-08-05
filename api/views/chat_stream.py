@@ -11,7 +11,7 @@ from django.utils import timezone
 
 from src.core.utils.mixins import SwaggerSafeMixin
 
-from ..ollama_gateway import chat as ollama_chat, resolved_model
+from ..ollama_gateway import chat_stream, resolved_model
 from ..models import ChatSession, ChatMessage
 from ..skills.integration import execute_skill_from_llm_response
 from ..file_uploads import collect_chat_upload_infos
@@ -82,17 +82,20 @@ class ChatStreamView(SwaggerSafeMixin, APIView):
                 session.metadata['document_id'] = document_id
                 session.save(update_fields=['metadata'])
         
+        user_meta: dict = {}
+        if ollama_config:
+            user_meta['ollama_config'] = ollama_config
         user_message = ChatMessage.objects.create(
             session=session,
             message_type=ChatMessage.MESSAGE_TYPE_USER,
             content=message,
-            metadata={'ollama_config': ollama_config} if ollama_config else {}
+            metadata=user_meta,
         )
         
         def event_stream():
-            import threading
-            
             try:
+                yield f"data: {_safe_json_dumps({'type': 'preparing'}, ensure_ascii=False)}\n\n"
+
                 request_started_at = timezone.now()
                 
                 model_name = resolved_model(ollama_config)
@@ -104,7 +107,7 @@ class ChatStreamView(SwaggerSafeMixin, APIView):
                     override=request.data.get('ui_language'),
                 )
 
-                messages, _rag_chunks = build_ollama_messages(
+                messages, _rag_chunks, attachments_meta = build_ollama_messages(
                     message=message,
                     user=request.user,
                     session=session,
@@ -118,51 +121,23 @@ class ChatStreamView(SwaggerSafeMixin, APIView):
                     exclude_message_id=user_message.id,
                     ui_language=ui_language,
                 )
-                
-                from queue import Queue, Empty
-                streaming_chunks_queue = Queue()
-                result_container = {}
-                exception_container = {}
-                
-                def stream_callback(text):
-                    streaming_chunks_queue.put(text)
-                
-                def run_chat():
-                    try:
-                        result = ollama_chat(
-                            messages,
-                            ollama_config=ollama_config,
-                            temperature=temperature,
-                            stream=True,
-                            stream_callback=stream_callback,
-                        )
-                        result_container['response'] = (
-                            result.strip() if isinstance(result, str) else str(result).strip()
-                        )
-                    except Exception as e:
-                        exception_container['error'] = e
-                    finally:
-                        streaming_chunks_queue.put(None)
-                
-                chat_thread = threading.Thread(target=run_chat)
-                chat_thread.start()
-                
-                while chat_thread.is_alive() or not streaming_chunks_queue.empty():
-                    try:
-                        chunk = streaming_chunks_queue.get(timeout=0.1)
-                        if chunk is None:
-                            break
-                        yield f"data: {_safe_json_dumps({'type': 'chunk', 'text': chunk}, ensure_ascii=False)}\n\n"
-                    except Empty:
-                        continue
-                
-                chat_thread.join(timeout=5.0)
-                
-                if 'error' in exception_container:
-                    raise exception_container['error']
-                
+                if attachments_meta:
+                    meta = dict(user_message.metadata or {})
+                    meta['attachments'] = attachments_meta
+                    user_message.metadata = meta
+                    user_message.save(update_fields=['metadata'])
+
+                chunk_parts: list[str] = []
+                for chunk in chat_stream(
+                    messages,
+                    ollama_config=ollama_config,
+                    temperature=temperature,
+                ):
+                    chunk_parts.append(chunk)
+                    yield f"data: {_safe_json_dumps({'type': 'chunk', 'text': chunk}, ensure_ascii=False)}\n\n"
+
                 response_received_at = timezone.now()
-                raw_response = result_container.get('response', '')
+                raw_response = ''.join(chunk_parts).strip()
                 
                 skill_result, cleaned_response, skill_display_name, skill_call = execute_skill_from_llm_response(
                     raw_response,

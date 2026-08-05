@@ -1,0 +1,14 @@
+# Portable pgvector для RAG ai_assistant → расширение в virtual_env/packages/postgres
+# Установка: ergoms package-install pgvector
+#            ergoms ai_assistant:install-pgvector
+
+module: ai_assistant
+packages:
+  pgvector:
+    kind: custom
+    dest: postgres
+    version: "0.8.6"
+    installer: deployment/install_pgvector.py
+    pass_root: true
+    marker_windows: PGVECTOR_INSTALLED
+    marker_linux: PGVECTOR_INSTALLED

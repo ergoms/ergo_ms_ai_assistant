@@ -1,7 +1,10 @@
 from django.conf import settings
 from django.db import models
 from django.contrib.auth import get_user_model
-from django.contrib.postgres.fields import ArrayField
+from pgvector.django import HnswIndex, VectorField
+
+from .settings import RAG_EMBEDDING_DIMENSIONS
+
 import uuid
 
 User = get_user_model()
@@ -145,6 +148,24 @@ class KnowledgeDocument(models.Model):
     # Статус индексации
     is_indexed = models.BooleanField(default=False, help_text='Индексирован ли документ (разбит на chunks с embeddings)')
     indexed_at = models.DateTimeField(null=True, blank=True, help_text='Время последней индексации')
+    INDEXING_STATUS_PENDING = 'pending'
+    INDEXING_STATUS_RUNNING = 'running'
+    INDEXING_STATUS_DONE = 'done'
+    INDEXING_STATUS_FAILED = 'failed'
+    INDEXING_STATUS_CHOICES = [
+        (INDEXING_STATUS_PENDING, 'Ожидает'),
+        (INDEXING_STATUS_RUNNING, 'Выполняется'),
+        (INDEXING_STATUS_DONE, 'Готово'),
+        (INDEXING_STATUS_FAILED, 'Ошибка'),
+    ]
+    indexing_status = models.CharField(
+        max_length=20,
+        choices=INDEXING_STATUS_CHOICES,
+        default=INDEXING_STATUS_PENDING,
+        db_index=True,
+        help_text='Статус фоновой индексации документа',
+    )
+    indexing_error = models.TextField(blank=True, default='', help_text='Текст ошибки последней индексации')
     
     class Meta:
         ordering = ['-created_at']
@@ -185,10 +206,9 @@ class KnowledgeChunk(models.Model):
     end_char = models.IntegerField(null=True, blank=True, help_text='Конечная позиция в исходном документе')
     
     # Векторное представление (embedding)
-    embedding = ArrayField(
-        models.FloatField(),
-        size=None,
-        help_text='Векторное представление текста (embedding) для поиска по схожести'
+    embedding = VectorField(
+        dimensions=RAG_EMBEDDING_DIMENSIONS,
+        help_text='Векторное представление текста (embedding) для поиска по схожести',
     )
     embedding_model = models.CharField(
         max_length=100,
@@ -206,6 +226,13 @@ class KnowledgeChunk(models.Model):
         indexes = [
             models.Index(fields=['document', 'chunk_index']),
             models.Index(fields=['embedding_model']),
+            HnswIndex(
+                name='ai_assistan_embed_hnsw_idx',
+                fields=['embedding'],
+                m=16,
+                ef_construction=64,
+                opclasses=['vector_cosine_ops'],
+            ),
         ]
         # Уникальность: один chunk_index на один документ
         unique_together = [['document', 'chunk_index']]

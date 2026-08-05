@@ -45,7 +45,7 @@
             ref="fileInput"
             type="file"
             class="d-none"
-            accept=".pdf,.docx,.txt"
+            accept=".pdf,.docx,.txt,.md,.csv,.xlsx,.xls"
             @change="handleFileSelect"
           />
           <div class="dropzone-content">

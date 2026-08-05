@@ -1,12 +1,16 @@
 """
-Сервис для поиска релевантных документов в RAG системе
-Использует векторный поиск по схожести embeddings
+Сервис для поиска релевантных документов в RAG системе.
+Использует pgvector (косинусное расстояние) в PostgreSQL.
 """
-import logging
-import math
-from typing import List, Dict, Any, Optional, Tuple
+from __future__ import annotations
 
-from django.db.models import Q
+import logging
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Sequence, Tuple
+
+from django.db.models import Q, QuerySet
+
+from pgvector.django import CosineDistance
 
 from ..models import KnowledgeDocument, KnowledgeChunk
 from .embeddings import OllamaEmbeddingsService, EmbeddingsError
@@ -19,56 +23,132 @@ class RAGRetrievalError(Exception):
     pass
 
 
-def cosine_similarity(vec1: List[float], vec2: List[float]) -> float:
-    """
-    Вычисляет косинусное сходство между двумя векторами
-    
-    Args:
-        vec1: Первый вектор
-        vec2: Второй вектор
-        
-    Returns:
-        Косинусное сходство (от -1 до 1, где 1 - максимальное сходство)
-    """
-    if len(vec1) != len(vec2):
-        raise ValueError(f"Векторы должны иметь одинаковую длину: {len(vec1)} != {len(vec2)}")
-    
-    dot_product = sum(a * b for a, b in zip(vec1, vec2))
-    magnitude1 = math.sqrt(sum(a * a for a in vec1))
-    magnitude2 = math.sqrt(sum(a * a for a in vec2))
-    
-    if magnitude1 == 0 or magnitude2 == 0:
-        return 0.0
-    
-    return dot_product / (magnitude1 * magnitude2)
+@dataclass(frozen=True)
+class RetrievalScope:
+    """Область поиска chunks."""
+
+    document_ids: Optional[List[str]] = None
+    include_system: bool = False
+    system_only: bool = False
+    user: Optional[Any] = None
+    limit: Optional[int] = None
 
 
 class RAGRetrievalService:
     """
-    Сервис для поиска релевантных chunks документов по запросу пользователя
-    
-    Использует векторный поиск: генерирует embedding для запроса и ищет
-    наиболее похожие chunks по косинусному сходству.
+    Сервис для поиска релевантных chunks документов по запросу пользователя.
     """
-    
+
     def __init__(
         self,
         embeddings_service: OllamaEmbeddingsService,
         top_k: int = 5,
         similarity_threshold: float = 0.0,
     ):
-        """
-        Инициализация сервиса retrieval
-        
-        Args:
-            embeddings_service: Сервис для генерации embeddings
-            top_k: Количество наиболее релевантных chunks для возврата
-            similarity_threshold: Минимальный порог схожести (0.0 - 1.0). Chunks с меньшей схожестью игнорируются
-        """
         self.embeddings_service = embeddings_service
         self.top_k = top_k
         self.similarity_threshold = similarity_threshold
-    
+
+    def _base_chunks_query(self) -> QuerySet:
+        return KnowledgeChunk.objects.select_related('document').filter(
+            document__is_indexed=True,
+            embedding_model=self.embeddings_service._model,
+        )
+
+    def _apply_scope_filters(
+        self,
+        chunks_query: QuerySet,
+        *,
+        user: Optional[Any] = None,
+        document_ids: Optional[List[str]] = None,
+        include_system: bool = False,
+        system_only: bool = False,
+    ) -> QuerySet:
+        if document_ids:
+            return chunks_query.filter(document_id__in=document_ids)
+        if system_only:
+            return chunks_query.filter(
+                document__corpus=KnowledgeDocument.CORPUS_SYSTEM,
+            )
+        if include_system and user is not None:
+            return chunks_query.filter(
+                Q(document__corpus=KnowledgeDocument.CORPUS_SYSTEM)
+                | Q(
+                    document__user=user,
+                    document__corpus=KnowledgeDocument.CORPUS_USER,
+                )
+            )
+        if include_system and user is None:
+            return chunks_query.filter(
+                document__corpus=KnowledgeDocument.CORPUS_SYSTEM,
+            )
+        if user is not None:
+            return chunks_query.filter(
+                document__user=user,
+                document__corpus=KnowledgeDocument.CORPUS_USER,
+            )
+        return chunks_query
+
+    def _rows_from_queryset(
+        self,
+        queryset: QuerySet,
+        *,
+        limit: int,
+    ) -> List[Dict[str, Any]]:
+        results: List[Dict[str, Any]] = []
+        for chunk in queryset[:limit]:
+            distance = getattr(chunk, 'distance', None)
+            similarity = 1.0 - float(distance) if distance is not None else 0.0
+            if similarity < self.similarity_threshold:
+                continue
+            results.append({
+                'chunk_id': str(chunk.id),
+                'document_id': str(chunk.document.id),
+                'document_title': chunk.document.title,
+                'document_source': chunk.document.source or '',
+                'document_corpus': chunk.document.corpus,
+                'content': chunk.content,
+                'chunk_index': chunk.chunk_index,
+                'similarity': similarity,
+                'metadata': chunk.metadata,
+                'document_metadata': chunk.document.metadata,
+            })
+        return results
+
+    def retrieve_with_embedding(
+        self,
+        query_embedding: List[float],
+        *,
+        user: Optional[Any] = None,
+        document_ids: Optional[List[str]] = None,
+        limit: Optional[int] = None,
+        include_system: bool = False,
+        system_only: bool = False,
+    ) -> List[Dict[str, Any]]:
+        if not query_embedding:
+            raise RAGRetrievalError('Embedding запроса не может быть пустым')
+
+        limit = limit or self.top_k
+        chunks_query = self._base_chunks_query()
+        chunks_query = self._apply_scope_filters(
+            chunks_query,
+            user=user,
+            document_ids=document_ids,
+            include_system=include_system,
+            system_only=system_only,
+        )
+        chunks_query = chunks_query.annotate(
+            distance=CosineDistance('embedding', query_embedding),
+        ).order_by('distance')
+
+        results = self._rows_from_queryset(chunks_query, limit=limit)
+        logger.info(
+            'Найдено %s релевантных chunks (pgvector, limit=%s)',
+            len(results),
+            limit,
+        )
+        return results
+
     def retrieve_relevant_chunks(
         self,
         query: str,
@@ -78,158 +158,97 @@ class RAGRetrievalService:
         include_system: bool = False,
         system_only: bool = False,
     ) -> List[Dict[str, Any]]:
+        if not query or not query.strip():
+            raise RAGRetrievalError('Запрос не может быть пустым')
+
+        try:
+            query_embedding = self.embeddings_service.generate_embedding(query.strip())
+        except EmbeddingsError as exc:
+            raise RAGRetrievalError(f'Ошибка генерации embedding для запроса: {exc}') from exc
+
+        return self.retrieve_with_embedding(
+            query_embedding,
+            user=user,
+            document_ids=document_ids,
+            limit=limit,
+            include_system=include_system,
+            system_only=system_only,
+        )
+
+    def retrieve_multi_scope(
+        self,
+        query: str,
+        scopes: Sequence[RetrievalScope],
+    ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
         """
-        Находит наиболее релевантные chunks для запроса пользователя
-        
-        Args:
-            query: Текст запроса пользователя
-            user: Пользователь (для фильтрации по владельцу документов). Если None, ищет по всем документам
-            document_ids: Список ID документов для ограничения поиска. Если None, ищет по всем документам
-            limit: Максимальное количество chunks для возврата (переопределяет top_k)
-            include_system: вместе с документами user включать corpus=system
-            system_only: искать только в системном корпусе
-            
-        Returns:
-            Список словарей с информацией о найденных chunks:
-            {
-                "chunk_id": str,
-                "document_id": str,
-                "document_title": str,
-                "content": str,
-                "chunk_index": int,
-                "similarity": float,
-                "metadata": dict,
-            }
-            Отсортированы по убыванию схожести
-            
-        Raises:
-            RAGRetrievalError: При ошибке поиска
+        Один embed на запрос, несколько областей поиска.
+        Возвращает (merged_context_chunks, all_chunks).
         """
         if not query or not query.strip():
-            raise RAGRetrievalError("Запрос не может быть пустым")
-        
+            raise RAGRetrievalError('Запрос не может быть пустым')
+        if not scopes:
+            return [], []
+
         try:
-            # Генерируем embedding для запроса
             query_embedding = self.embeddings_service.generate_embedding(query.strip())
-            
-            # Получаем все проиндексированные chunks
-            chunks_query = KnowledgeChunk.objects.select_related('document').filter(
-                document__is_indexed=True,
-                embedding_model=self.embeddings_service._model,  # Только chunks с той же моделью embeddings
+        except EmbeddingsError as exc:
+            raise RAGRetrievalError(f'Ошибка генерации embedding для запроса: {exc}') from exc
+
+        all_chunks: List[Dict[str, Any]] = []
+        seen_chunk_ids: set[str] = set()
+
+        for scope in scopes:
+            limit = scope.limit or self.top_k
+            scope_chunks = self.retrieve_with_embedding(
+                query_embedding,
+                user=scope.user,
+                document_ids=scope.document_ids,
+                limit=limit,
+                include_system=scope.include_system,
+                system_only=scope.system_only,
             )
-            
-            # Фильтруем по документам, если указаны (узкий поиск — без автодобавления system)
-            if document_ids:
-                chunks_query = chunks_query.filter(document_id__in=document_ids)
-            elif system_only:
-                chunks_query = chunks_query.filter(
-                    document__corpus=KnowledgeDocument.CORPUS_SYSTEM,
-                )
-            elif include_system and user is not None:
-                chunks_query = chunks_query.filter(
-                    Q(document__corpus=KnowledgeDocument.CORPUS_SYSTEM)
-                    | Q(
-                        document__user=user,
-                        document__corpus=KnowledgeDocument.CORPUS_USER,
-                    )
-                )
-            elif include_system and user is None:
-                chunks_query = chunks_query.filter(
-                    document__corpus=KnowledgeDocument.CORPUS_SYSTEM,
-                )
-            elif user is not None:
-                chunks_query = chunks_query.filter(
-                    document__user=user,
-                    document__corpus=KnowledgeDocument.CORPUS_USER,
-                )
-            
-            # Вычисляем схожесть для каждого chunk
-            results = []
-            for chunk in chunks_query:
-                try:
-                    similarity = cosine_similarity(query_embedding, chunk.embedding)
-                    
-                    if similarity >= self.similarity_threshold:
-                        results.append({
-                            "chunk_id": str(chunk.id),
-                            "document_id": str(chunk.document.id),
-                            "document_title": chunk.document.title,
-                            "document_source": chunk.document.source or '',
-                            "document_corpus": chunk.document.corpus,
-                            "content": chunk.content,
-                            "chunk_index": chunk.chunk_index,
-                            "similarity": similarity,
-                            "metadata": chunk.metadata,
-                            "document_metadata": chunk.document.metadata,
-                        })
-                except Exception as e:
-                    logger.warning(f"Ошибка при вычислении схожести для chunk {chunk.id}: {e}")
+            for chunk in scope_chunks:
+                chunk_id = chunk['chunk_id']
+                if chunk_id in seen_chunk_ids:
                     continue
-            
-            # Сортируем по убыванию схожести
-            results.sort(key=lambda x: x["similarity"], reverse=True)
-            
-            # Ограничиваем количество результатов
-            limit = limit or self.top_k
-            results = results[:limit]
-            
-            logger.info(
-                f"Найдено {len(results)} релевантных chunks для запроса "
-                f"'{query[:50]}...' (проверено {chunks_query.count()} chunks)"
-            )
-            
-            return results
-            
-        except EmbeddingsError as e:
-            raise RAGRetrievalError(f"Ошибка генерации embedding для запроса: {e}") from e
-        except Exception as e:
-            logger.error(f"Неожиданная ошибка при поиске релевантных chunks: {e}", exc_info=True)
-            raise RAGRetrievalError(f"Ошибка поиска: {e}") from e
-    
+                seen_chunk_ids.add(chunk_id)
+                all_chunks.append(chunk)
+
+        all_chunks.sort(key=lambda item: item['similarity'], reverse=True)
+        return all_chunks, all_chunks
+
     def build_context_from_chunks(
         self,
         chunks: List[Dict[str, Any]],
         max_context_length: Optional[int] = None,
     ) -> str:
-        """
-        Формирует контекст из найденных chunks для передачи в LLM
-        
-        Args:
-            chunks: Список найденных chunks (результат retrieve_relevant_chunks)
-            max_context_length: Максимальная длина контекста в символах. Если None, используется весь контекст
-            
-        Returns:
-            Отформатированный контекст для промпта
-        """
         if not chunks:
-            return ""
-        
+            return ''
+
         context_parts = []
         current_length = 0
-        
-        for i, chunk in enumerate(chunks, 1):
+
+        for chunk in chunks:
             source = chunk.get('document_source') or ''
-            source_part = f" ({source})" if source else ''
+            source_part = f' ({source})' if source else ''
             chunk_text = (
                 f"[Документ: {chunk['document_title']}{source_part}]\n"
                 f"{chunk['content']}\n\n"
             )
             chunk_length = len(chunk_text)
-            
-            # Проверяем ограничение по длине
+
             if max_context_length and (current_length + chunk_length) > max_context_length:
-                # Пытаемся обрезать последний chunk
                 remaining = max_context_length - current_length
-                if remaining > 100:  # Минимум 100 символов для chunk
-                    chunk_text = chunk_text[:remaining] + "...\n\n"
+                if remaining > 100:
+                    chunk_text = chunk_text[:remaining] + '...\n\n'
                     context_parts.append(chunk_text)
                 break
-            
+
             context_parts.append(chunk_text)
             current_length += chunk_length
-        
-        return "".join(context_parts).strip()
-    
+
+        return ''.join(context_parts).strip()
+
     def retrieve_and_build_context(
         self,
         query: str,
@@ -239,22 +258,6 @@ class RAGRetrievalService:
         include_system: bool = False,
         system_only: bool = False,
     ) -> Tuple[str, List[Dict[str, Any]]]:
-        """
-        Комбинированный метод: находит релевантные chunks и формирует контекст
-        
-        Args:
-            query: Текст запроса пользователя
-            user: Пользователь для фильтрации
-            document_ids: Список ID документов для ограничения поиска
-            max_context_length: Максимальная длина контекста в символах
-            include_system: включать системный корпус
-            system_only: только системный корпус
-        
-        Returns:
-            Кортеж (context, chunks):
-            - context: Отформатированный контекст для промпта
-            - chunks: Список найденных chunks с метаданными
-        """
         chunks = self.retrieve_relevant_chunks(
             query,
             user=user,
@@ -265,3 +268,13 @@ class RAGRetrievalService:
         context = self.build_context_from_chunks(chunks, max_context_length=max_context_length)
         return context, chunks
 
+    def retrieve_multi_scope_context(
+        self,
+        query: str,
+        scopes: Sequence[RetrievalScope],
+        *,
+        max_context_length: Optional[int] = 4000,
+    ) -> Tuple[str, List[Dict[str, Any]]]:
+        _, chunks = self.retrieve_multi_scope(query, scopes)
+        context = self.build_context_from_chunks(chunks, max_context_length=max_context_length)
+        return context, chunks

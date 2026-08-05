@@ -8,7 +8,10 @@ import { tGlobal } from '@/i18n/index.js'
 
 const CHAT_UPLOAD_OPTIONS = buildMediaUploadOptions({
   targetDir: 'ai_assistant/chat_uploads',
-  allowedTypes: ['pdf', 'docx', 'doc', 'txt', 'md'],
+  allowedTypes: [
+    'pdf', 'docx', 'doc', 'txt', 'md', 'csv', 'xlsx', 'xls',
+    'png', 'jpg', 'jpeg', 'webp', 'gif',
+  ],
   feature: 'aiAssistantChat',
 })
 
@@ -135,7 +138,7 @@ class RAGClient {
    * @param {boolean} enableVectorization - Включить векторизацию файлов для векторного поиска (опционально)
    * @returns {Promise<void>}
    */
-  async sendMessageStream(message, onChunk, onDone, onError, ollamaConfig = null, sessionId = null, module = 'chat', files = null, enableVectorization = false) {
+  async sendMessageStream(message, onChunk, onDone, onError, ollamaConfig = null, sessionId = null, module = 'chat', files = null, enableVectorization = false, onPreparing = null) {
     // Используем настройки из параметра или из сохраненного конфига
     const config = ollamaConfig || this.ollamaConfig
 
@@ -212,7 +215,9 @@ class RAGClient {
             try {
               const event = JSON.parse(jsonStr)
               
-              if (event.type === 'chunk' && onChunk) {
+              if (event.type === 'preparing' && onPreparing) {
+                onPreparing()
+              } else if (event.type === 'chunk' && onChunk) {
                 accumulatedContent += event.text
                 onChunk(event.text)
               } else if (event.type === 'done') {

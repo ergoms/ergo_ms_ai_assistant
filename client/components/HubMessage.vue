@@ -34,6 +34,23 @@
       <!-- Text Content -->
       <div class="message-content" v-html="formattedContent" @click="handleDownloadClick"></div>
 
+      <div v-if="imageAttachments.length" class="message-attachments">
+        <a
+          v-for="(item, idx) in imageAttachments"
+          :key="`${item.name || 'img'}-${idx}`"
+          class="message-attachment"
+          :href="attachmentHref(item)"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <ContentImage
+            :src="attachmentHref(item)"
+            :alt="item.name || t('ai_assistant.uploadFile')"
+          />
+          <span v-if="item.name" class="message-attachment__name">{{ item.name }}</span>
+        </a>
+      </div>
+
       <!-- Streaming Cursor -->
       <span v-if="message.streaming" class="streaming-cursor"></span>
 
@@ -191,6 +208,7 @@ import { logError } from '@/js/utils/logError.js'
 import { buildApexOptions } from '@/composables/useApexTheme.js'
 import { useAppI18n } from '@/i18n/useAppI18n.js'
 import { getCurrentBcp47 } from '@/i18n/index.js'
+import ContentImage from '@/components/ContentImage.vue'
 import ApexCharts from 'vue3-apexcharts'
 import {
   formatMessageContent,
@@ -308,6 +326,15 @@ const formatProcessingTime = (ms) => {
 }
 
 const formattedContent = computed(() => formatMessageContent(props.message.content))
+
+const imageAttachments = computed(() => {
+  const items = props.message.attachments || props.message.metadata?.attachments || []
+  return items.filter((item) => item && item.kind === 'image' && attachmentHref(item))
+})
+
+function attachmentHref(item) {
+  return item?.signed_url || item?.preview_url || ''
+}
 
 const skillCallTooltip = computed(() => {
   if (!props.message.skill_call) return ''

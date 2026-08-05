@@ -19,15 +19,43 @@ from ..rag import (
     RAGIndexingService,
     DocumentParserService,
     DocumentParseError,
-    RAGIndexingError,
 )
-from ..settings import (
-    RAG_CHUNK_SIZE,
-    RAG_CHUNK_OVERLAP,
-)
+from ..settings import RAG_CHUNK_OVERLAP, RAG_CHUNK_SIZE
+from ..indexing_queue import IndexingQueueError, enqueue_knowledge_document_index
 from .helpers import _get_rag_services
 
 logger = logging.getLogger(__name__)
+
+
+def _serialize_document_summary(doc: KnowledgeDocument) -> dict:
+    file_size = None
+    if doc.file:
+        try:
+            file_size = doc.file.size
+        except Exception:
+            pass
+    return {
+        'id': str(doc.id),
+        'title': doc.title,
+        'source': doc.source,
+        'has_file': bool(doc.file),
+        'file_type': doc.file_type,
+        'file_name': doc.file.name.split('/')[-1] if doc.file else None,
+        'file_size': file_size,
+        'content_preview': (
+            doc.content[:200] + '...'
+            if doc.content and len(doc.content) > 200
+            else doc.content
+        ) if doc.content else None,
+        'is_indexed': doc.is_indexed,
+        'chunks_count': doc.chunks_count,
+        'indexed_at': doc.indexed_at.isoformat() if doc.indexed_at else None,
+        'indexing_status': doc.indexing_status,
+        'indexing_error': doc.indexing_error or None,
+        'created_at': doc.created_at.isoformat(),
+        'updated_at': doc.updated_at.isoformat(),
+        'metadata': doc.metadata,
+    }
 
 class KnowledgeDocumentViewSet(MediaApiFileMixin, ViewSet, SwaggerSafeMixin):
     """
@@ -55,30 +83,7 @@ class KnowledgeDocumentViewSet(MediaApiFileMixin, ViewSet, SwaggerSafeMixin):
         
         documents = []
         for doc in queryset.order_by('-created_at'):
-            # Определяем размер файла
-            file_size = None
-            if doc.file:
-                try:
-                    file_size = doc.file.size
-                except Exception:
-                    pass
-            
-            documents.append({
-                'id': str(doc.id),
-                'title': doc.title,
-                'source': doc.source,
-                'has_file': bool(doc.file),
-                'file_type': doc.file_type,
-                'file_name': doc.file.name.split('/')[-1] if doc.file else None,
-                'file_size': file_size,
-                'content_preview': (doc.content[:200] + '...' if doc.content and len(doc.content) > 200 else doc.content) if doc.content else None,
-                'is_indexed': doc.is_indexed,
-                'chunks_count': doc.chunks_count,
-                'indexed_at': doc.indexed_at.isoformat() if doc.indexed_at else None,
-                'created_at': doc.created_at.isoformat(),
-                'updated_at': doc.updated_at.isoformat(),
-                'metadata': doc.metadata,
-            })
+            documents.append(_serialize_document_summary(doc))
         
         return Response({
             'success': True,
@@ -174,32 +179,23 @@ class KnowledgeDocumentViewSet(MediaApiFileMixin, ViewSet, SwaggerSafeMixin):
             indexing_result = None
             if index_immediately:
                 try:
-                    embeddings_service, _ = _get_rag_services()
-                    indexing_service = RAGIndexingService(
-                        embeddings_service=embeddings_service,
-                        chunk_size=RAG_CHUNK_SIZE,
-                        chunk_overlap=RAG_CHUNK_OVERLAP,
-                    )
-                    indexing_result = indexing_service.index_document(document)
+                    enqueue_knowledge_document_index(document, force=True)
                     document.refresh_from_db()
-                except Exception as e:
-                    logger.error(f"Ошибка индексации документа {document.id}: {e}", exc_info=True)
-            
+                    indexing_result = {
+                        'success': True,
+                        'queued': True,
+                        'indexing_status': document.indexing_status,
+                    }
+                except IndexingQueueError as exc:
+                    logger.error('Ошибка постановки индексации %s: %s', document.id, exc)
+                    indexing_result = {'success': False, 'error': str(exc)}
+                except Exception as exc:
+                    logger.error('Ошибка индексации документа %s: %s', document.id, exc, exc_info=True)
+                    indexing_result = {'success': False, 'error': str(exc)}
+
             return Response({
                 'success': True,
-                'document': {
-                    'id': str(document.id),
-                    'title': document.title,
-                    'source': document.source,
-                    'has_file': bool(document.file),
-                    'file_type': document.file_type,
-                    'file_name': document.file.name.split('/')[-1] if document.file else None,
-                    'is_indexed': document.is_indexed,
-                    'chunks_count': document.chunks_count,
-                    'indexed_at': document.indexed_at.isoformat() if document.indexed_at else None,
-                    'created_at': document.created_at.isoformat(),
-                    'metadata': document.metadata,
-                },
+                'document': _serialize_document_summary(document),
                 'indexing_result': indexing_result,
             }, status=status.HTTP_201_CREATED)
             
@@ -261,6 +257,8 @@ class KnowledgeDocumentViewSet(MediaApiFileMixin, ViewSet, SwaggerSafeMixin):
                     'is_indexed': document.is_indexed,
                     'chunks_count': document.chunks_count,
                     'indexed_at': document.indexed_at.isoformat() if document.indexed_at else None,
+                    'indexing_status': document.indexing_status,
+                    'indexing_error': document.indexing_error or None,
                     'created_at': document.created_at.isoformat(),
                     'updated_at': document.updated_at.isoformat(),
                     'metadata': document.metadata,
@@ -364,44 +362,56 @@ class KnowledgeDocumentViewSet(MediaApiFileMixin, ViewSet, SwaggerSafeMixin):
         
         try:
             document = queryset.get(id=pk)
-            
-            embeddings_service, _ = _get_rag_services()
-            indexing_service = RAGIndexingService(
-                embeddings_service=embeddings_service,
-                chunk_size=RAG_CHUNK_SIZE,
-                chunk_overlap=RAG_CHUNK_OVERLAP,
-            )
-            
-            if force_reindex:
-                result = indexing_service.reindex_document(document)
-            else:
-                result = indexing_service.index_document(document)
-            
-            # Обновляем объект документа из БД, чтобы получить актуальный chunks_count
+
+            try:
+                enqueue_knowledge_document_index(document, force=bool(force_reindex))
+            except IndexingQueueError as exc:
+                return Response({
+                    'success': False,
+                    'error': str(exc),
+                }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
             document.refresh_from_db()
-            
+
             return Response({
                 'success': True,
-                'result': result,
-                'document': {
-                    'id': str(document.id),
-                    'title': document.title,
-                    'is_indexed': document.is_indexed,
-                    'chunks_count': document.chunks_count,
-                    'indexed_at': document.indexed_at.isoformat() if document.indexed_at else None,
-                },
-            }, status=status.HTTP_200_OK)
+                'queued': True,
+                'indexing_status': document.indexing_status,
+                'document': _serialize_document_summary(document),
+            }, status=status.HTTP_202_ACCEPTED)
             
         except KnowledgeDocument.DoesNotExist:
             return Response({
                 'success': False,
                 'error': 'Документ не найден'
             }, status=status.HTTP_404_NOT_FOUND)
-        except RAGIndexingError as e:
+
+    @action(detail=True, methods=['get'], url_path='index_status')
+    def index_status(self, request, pk=None):
+        """GET /api/ai_assistant/knowledge_documents/{id}/index_status/"""
+        user = self.get_safe_user()
+        queryset = KnowledgeDocument.objects.filter(
+            user=user,
+            corpus=KnowledgeDocument.CORPUS_USER,
+        )
+        queryset = self.get_safe_queryset(queryset)
+
+        try:
+            document = queryset.get(id=pk)
+            return Response({
+                'success': True,
+                'document_id': str(document.id),
+                'is_indexed': document.is_indexed,
+                'chunks_count': document.chunks_count,
+                'indexing_status': document.indexing_status,
+                'indexing_error': document.indexing_error or None,
+                'indexed_at': document.indexed_at.isoformat() if document.indexed_at else None,
+            }, status=status.HTTP_200_OK)
+        except KnowledgeDocument.DoesNotExist:
             return Response({
                 'success': False,
-                'error': f'Ошибка индексации: {str(e)}'
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                'error': 'Документ не найден'
+            }, status=status.HTTP_404_NOT_FOUND)
     
     @action(detail=True, methods=['post'], url_path='unindex')
     def unindex(self, request, pk=None):
@@ -418,7 +428,7 @@ class KnowledgeDocumentViewSet(MediaApiFileMixin, ViewSet, SwaggerSafeMixin):
         
         try:
             document = queryset.get(id=pk)
-            
+
             embeddings_service, _ = _get_rag_services()
             indexing_service = RAGIndexingService(
                 embeddings_service=embeddings_service,
@@ -427,6 +437,9 @@ class KnowledgeDocumentViewSet(MediaApiFileMixin, ViewSet, SwaggerSafeMixin):
             )
             
             indexing_service.delete_document_index(document)
+            document.indexing_status = KnowledgeDocument.INDEXING_STATUS_PENDING
+            document.indexing_error = ''
+            document.save(update_fields=['indexing_status', 'indexing_error'])
             
             return Response({
                 'success': True,
@@ -436,6 +449,8 @@ class KnowledgeDocumentViewSet(MediaApiFileMixin, ViewSet, SwaggerSafeMixin):
                     'title': document.title,
                     'is_indexed': document.is_indexed,
                     'chunks_count': document.chunks_count,
+                    'indexing_status': document.indexing_status,
+                    'indexing_error': document.indexing_error,
                 },
             }, status=status.HTTP_200_OK)
             

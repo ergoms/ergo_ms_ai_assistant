@@ -22,6 +22,11 @@ class Command(BaseCommand):
             help='Переиндексировать все файлы, даже без изменения content_hash',
         )
         parser.add_argument(
+            '--sync',
+            action='store_true',
+            help='Индексировать синхронно в процессе команды (без Celery)',
+        )
+        parser.add_argument(
             '--dry-run',
             action='store_true',
             help='Только показать, что будет обновлено, без записи в БД',
@@ -48,6 +53,7 @@ class Command(BaseCommand):
             embeddings_service=embeddings_service,
             force=force,
             dry_run=dry_run,
+            use_celery=not options.get('sync', False),
         )
 
         self.stdout.write(
@@ -56,6 +62,7 @@ class Command(BaseCommand):
             f"обновлено: {result.get('updated', 0)}; "
             f"пропущено: {result.get('skipped', 0)}; "
             f"проиндексировано: {result.get('indexed', 0)}; "
+            f"в очереди: {result.get('queued', 0)}; "
             f"удалено устаревших: {result.get('removed', 0)}"
         )
 

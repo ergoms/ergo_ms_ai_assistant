@@ -202,7 +202,7 @@ export default {
           fileLabel: 'File',
           dropzoneHint: 'Drag a file here or',
           chooseFile: 'choose a file',
-          supportedFormats: 'Supported formats: PDF, DOCX, TXT',
+          supportedFormats: 'Supported formats: PDF, DOCX, TXT, MD, CSV, XLSX',
           indexImmediatelyFile: 'Index right after upload',
           indexImmediatelyText: 'Index right after creation',
           uploading: 'Uploading...',

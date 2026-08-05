@@ -68,7 +68,7 @@
             ref="fileInputRef"
             type="file"
             class="file-input-hidden"
-            accept=".pdf,.doc,.docx,.txt"
+            accept=".pdf,.doc,.docx,.txt,.md,.csv,.xlsx,.xls,.png,.jpg,.jpeg,.webp,.gif"
             multiple
             @change="onFileSelect"
           />
@@ -114,7 +114,14 @@
               v-for="(file, index) in selectedFiles"
               :key="`${file.name}-${index}`"
               class="file-info"
+              :class="{ 'file-info--image': isImageFile(file) }"
             >
+              <img
+                v-if="isImageFile(file)"
+                class="file-thumb"
+                :src="previewUrl(file)"
+                :alt="file.name"
+              />
               <span class="file-name">{{ file.name }}</span>
               <button
                 type="button"
@@ -207,6 +214,23 @@ function clearFileInput() {
   }
 }
 
+const IMAGE_EXT = /\.(png|jpe?g|webp|gif)$/i
+const previewCache = new WeakMap()
+
+function isImageFile(file) {
+  return Boolean(file?.type?.startsWith('image/') || IMAGE_EXT.test(file?.name || ''))
+}
+
+function previewUrl(file) {
+  if (!file || !isImageFile(file)) return ''
+  let url = previewCache.get(file)
+  if (!url) {
+    url = URL.createObjectURL(file)
+    previewCache.set(file, url)
+  }
+  return url
+}
+
 watch(
   () => [props.messages.length, props.loading, props.messages.at(-1)?.content],
   () => scrollToBottom(),
@@ -224,5 +248,17 @@ defineExpose({ scrollToBottom, clearFileInput, inputRef })
   min-height: 0;
   width: 100%;
   overflow: hidden;
+}
+
+.file-info--image {
+  align-items: center;
+}
+
+.file-thumb {
+  width: 36px;
+  height: 36px;
+  object-fit: cover;
+  border-radius: 4px;
+  flex-shrink: 0;
 }
 </style>

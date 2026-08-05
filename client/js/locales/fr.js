@@ -203,7 +203,7 @@ export default {
           fileLabel: 'Fichier',
           dropzoneHint: 'Glissez un fichier ici ou',
           chooseFile: 'choisissez un fichier',
-          supportedFormats: 'Formats pris en charge : PDF, DOCX, TXT',
+          supportedFormats: 'Formats pris en charge : PDF, DOCX, TXT, MD, CSV, XLSX',
           indexImmediatelyFile: 'Indexer immédiatement après le téléversement',
           indexImmediatelyText: 'Indexer immédiatement après la création',
           uploading: 'Téléversement...',

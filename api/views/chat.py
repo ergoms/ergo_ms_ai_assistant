@@ -82,11 +82,14 @@ class ChatView(SwaggerSafeMixin, APIView):
                     session.metadata['document_id'] = document_id
                     session.save(update_fields=['metadata'])
             
+            user_meta: dict = {}
+            if ollama_config:
+                user_meta['ollama_config'] = ollama_config
             user_message = ChatMessage.objects.create(
                 session=session,
                 message_type=ChatMessage.MESSAGE_TYPE_USER,
                 content=message,
-                metadata={'ollama_config': ollama_config} if ollama_config else {}
+                metadata=user_meta,
             )
             
             request_started_at = timezone.now()
@@ -100,7 +103,7 @@ class ChatView(SwaggerSafeMixin, APIView):
                 override=request.data.get('ui_language'),
             )
 
-            messages, _rag_chunks = build_ollama_messages(
+            messages, _rag_chunks, attachments_meta = build_ollama_messages(
                 message=message,
                 user=request.user,
                 session=session,
@@ -114,6 +117,11 @@ class ChatView(SwaggerSafeMixin, APIView):
                 exclude_message_id=user_message.id,
                 ui_language=ui_language,
             )
+            if attachments_meta:
+                meta = dict(user_message.metadata or {})
+                meta['attachments'] = attachments_meta
+                user_message.metadata = meta
+                user_message.save(update_fields=['metadata'])
             
             answer = ollama_chat(
                 messages,

@@ -9,12 +9,13 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 from ...models import KnowledgeDocument
-from ...settings import (
+from ..settings import (
     RAG_CHUNK_OVERLAP,
     RAG_CHUNK_SIZE,
     RAG_SYSTEM_CORPUS_ENABLED,
     RAG_SYSTEM_CORPUS_MAX_FILE_BYTES,
 )
+from ...indexing_queue import enqueue_knowledge_document_index
 from ..indexing import RAGIndexingError, RAGIndexingService
 from .sources import iter_system_corpus_documents, project_root
 
@@ -31,6 +32,7 @@ def sync_system_corpus(
     force: bool = False,
     dry_run: bool = False,
     root: Optional[Path] = None,
+    use_celery: bool = True,
 ) -> Dict[str, Any]:
     """
     Upsert документов корпуса (меню, модули, UI-строки, guides) и индексация.
@@ -108,6 +110,7 @@ def sync_system_corpus(
         'skipped': 0,
         'removed': 0,
         'indexed': 0,
+        'queued': 0,
         'errors': [],
         'files': 0,
     }
@@ -177,6 +180,11 @@ def sync_system_corpus(
                 stats['created'] += 1
 
             if dry_run:
+                continue
+
+            if use_celery:
+                enqueue_knowledge_document_index(document, force=True)
+                stats['queued'] += 1
                 continue
 
             result = indexing_service.index_document(document, force_reindex=True)

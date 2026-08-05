@@ -50,11 +50,17 @@ AI_ASSISTANT_KEEP_ALIVE = env.str('AI_ASSISTANT_KEEP_ALIVE', default='10m')
 # ============================================================================
 
 RAG_ENABLED = env.bool('RAG_ENABLED', default=True)
+# Размер chunk для chonkie RecursiveChunker/TableChunker (tokenizer='character').
 RAG_CHUNK_SIZE = env.int('RAG_CHUNK_SIZE', default=1000)
+# Overlap через OverlapRefinery (символы при tokenizer=character).
 RAG_CHUNK_OVERLAP = env.int('RAG_CHUNK_OVERLAP', default=200)
+# Лимиты vision-вложений в чате (байты исходного файла после localize).
+AI_ASSISTANT_MAX_CHAT_IMAGES = env.int('AI_ASSISTANT_MAX_CHAT_IMAGES', default=4)
+AI_ASSISTANT_MAX_IMAGE_BYTES = env.int('AI_ASSISTANT_MAX_IMAGE_BYTES', default=10 * 1024 * 1024)
 RAG_TOP_K = env.int('RAG_TOP_K', default=8)
 RAG_SIMILARITY_THRESHOLD = env.float('RAG_SIMILARITY_THRESHOLD', default=0.25)
 RAG_MAX_CONTEXT_LENGTH = env.int('RAG_MAX_CONTEXT_LENGTH', default=6000)
+RAG_EMBEDDING_DIMENSIONS = env.int('RAG_EMBEDDING_DIMENSIONS', default=768)
 
 # Системный корпус (.docs, rules) — индексация и подмешивание в chat
 RAG_SYSTEM_CORPUS_ENABLED = env.bool('RAG_SYSTEM_CORPUS_ENABLED', default=True)

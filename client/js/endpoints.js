@@ -12,6 +12,7 @@ export const endpoints = {
   knowledgeDocuments: 'ai_assistant/knowledge_documents/',
   knowledgeDocumentDetail: (id) => `ai_assistant/knowledge_documents/${id}/`,
   knowledgeDocumentIndex: (id) => `ai_assistant/knowledge_documents/${id}/index/`,
+  knowledgeDocumentIndexStatus: (id) => `ai_assistant/knowledge_documents/${id}/index_status/`,
   knowledgeDocumentUnindex: (id) => `ai_assistant/knowledge_documents/${id}/unindex/`,
   knowledgeDocumentDownload: (id) => `ai_assistant/knowledge_documents/${id}/download/`,
   generatedDocumentDownload: (filePath) => `ai_assistant/documents/download/${filePath}`,

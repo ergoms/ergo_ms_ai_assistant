@@ -197,7 +197,15 @@ async function sendChatMessage(text) {
   const messageText = (typeof text === 'string' ? text : chatInput.value).trim()
   if (!messageText || chatLoading.value) return
 
-  addUserMessage(messageText)
+  const pendingFiles = [...chatSelectedFiles.value]
+  const localAttachments = pendingFiles
+    .filter((file) => file.type?.startsWith('image/') || /\.(png|jpe?g|webp|gif)$/i.test(file.name))
+    .map((file) => ({
+      kind: 'image',
+      name: file.name,
+      preview_url: URL.createObjectURL(file),
+    }))
+  addUserMessage(messageText, { attachments: localAttachments })
   chatInput.value = ''
   chatLoading.value = true
   chatPanelRef.value?.scrollToBottom()
@@ -259,8 +267,19 @@ function handleChatFileSelect(event) {
     'application/msword',
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     'text/plain',
+    'text/markdown',
+    'text/csv',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'image/png',
+    'image/jpeg',
+    'image/webp',
+    'image/gif',
   ]
-  const allowedExtensions = ['.pdf', '.doc', '.docx', '.txt']
+  const allowedExtensions = [
+    '.pdf', '.doc', '.docx', '.txt', '.md', '.csv', '.xlsx', '.xls',
+    '.png', '.jpg', '.jpeg', '.webp', '.gif',
+  ]
   const maxSize = UPLOAD_FEATURE_LIMITS.aiAssistantChat
 
   const validFiles = []

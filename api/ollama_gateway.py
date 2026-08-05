@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, Iterator, List, Optional
 from urllib.parse import urlencode
 
 import httpx
@@ -25,6 +25,7 @@ __all__ = [
     'check_embeddings_health',
     'embed_texts',
     'chat',
+    'chat_stream',
     'get_transport',
     'map_ollama_config',
     'resolved_model',
@@ -40,6 +41,7 @@ _OPERATION_PATHS = {
     'list_models': 'models/',
     'generate': 'generate/',
     'chat': 'chat/',
+    'chat_stream': 'chat/stream/',
     'embed': 'embed/',
 }
 
@@ -236,7 +238,7 @@ def embed_texts(
 
 
 def chat(
-    messages: List[Dict[str, str]],
+    messages: List[Dict[str, Any]],
     *,
     ollama_config: Optional[Dict[str, Any]] = None,
     temperature: Optional[float] = None,
@@ -263,3 +265,39 @@ def chat(
     if isinstance(result, str):
         return result
     return result
+
+
+def chat_stream(
+    messages: List[Dict[str, Any]],
+    *,
+    ollama_config: Optional[Dict[str, Any]] = None,
+    temperature: Optional[float] = None,
+    num_predict: Optional[int] = None,
+    seed: Optional[int] = None,
+) -> Iterator[str]:
+    """Потоковый chat через ModuleBridge (без thread+Queue в SSE)."""
+    if get_transport() == 'http':
+        raise LLMClientError(
+            'Streaming через OLLAMA_FRAMEWORK_TRANSPORT=http не поддерживается. '
+            'Используйте transport=local (ModuleBridge).'
+        )
+    cfg = map_ollama_config(ollama_config, embeddings=False)
+    op_name = 'ollama_framework.chat_stream'
+    if not bridge.has(op_name):
+        raise LLMClientError(
+            f'Операция {op_name} недоступна. '
+            'Убедитесь, что модуль ollama_framework установлен и загружен.'
+        )
+    try:
+        stream = bridge.call(
+            op_name,
+            messages=messages,
+            config=cfg,
+            skip_env_injection=bool(ollama_config),
+            temperature=temperature,
+            num_predict=num_predict,
+            seed=seed,
+        )
+        yield from stream
+    except Exception as exc:
+        raise LLMClientError(str(exc)) from exc

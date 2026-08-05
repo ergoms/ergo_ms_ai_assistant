@@ -29,7 +29,7 @@ export default {
       return tGlobal('ai_assistant.modules.docs.placeholder')
     },
     maxTokens: 8192,
-    supportedFormats: ['pdf', 'docx', 'txt', 'md'],
+    supportedFormats: ['pdf', 'docx', 'txt', 'md', 'csv', 'xlsx', 'xls'],
   },
 
   // Подсказки для пользователя

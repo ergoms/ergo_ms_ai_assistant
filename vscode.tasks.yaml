@@ -1,0 +1,12 @@
+# Задачи VS Code / setup-full для ai_assistant
+# Discovery: module_tasks_loader → ModuleSetupTasksStep (до migrate)
+
+module: ai_assistant
+tasks:
+  - label: "AI Assistant: Install pgvector"
+    detail: "Установить расширение pgvector в portable PostgreSQL для векторного RAG"
+    command: "ergoms ai_assistant:install-pgvector"
+    hide: true
+    order: 0
+    include_in:
+      - setup-full

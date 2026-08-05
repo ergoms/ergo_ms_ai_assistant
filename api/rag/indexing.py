@@ -8,8 +8,9 @@ from django.utils import timezone
 from django.db import transaction
 
 from ..models import KnowledgeDocument, KnowledgeChunk
+from .chonkie_chunking import split_text_with_chonkie
 from .embeddings import OllamaEmbeddingsService, EmbeddingsError
-from .parser import DocumentParserService, DocumentParseError
+from .parser import DocumentParseError
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +25,7 @@ class RAGIndexingService:
     Сервис для индексации документов в векторную базу знаний
     
     Функционал:
-    - Разбиение документов на chunks (по размеру или по предложениям)
+    - Разбиение документов на chunks через chonkie
     - Генерация embeddings для каждого chunk
     - Сохранение в базу данных
     """
@@ -40,107 +41,29 @@ class RAGIndexingService:
         
         Args:
             embeddings_service: Сервис для генерации embeddings
-            chunk_size: Максимальный размер chunk в символах
-            chunk_overlap: Размер перекрытия между chunks в символах (для сохранения контекста)
+            chunk_size: Максимальный размер chunk (tokenizer character у chonkie)
+            chunk_overlap: Размер перекрытия между chunks (OverlapRefinery)
         """
         self.embeddings_service = embeddings_service
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
     
-    def _split_text_into_chunks(self, text: str) -> List[Dict[str, Any]]:
-        """
-        Разбивает текст на chunks
-        
-        Args:
-            text: Текст для разбиения
-            
-        Returns:
-            Список словарей с ключами: content, start_char, end_char
-        """
-        if not text or not text.strip():
-            return []
-        
-        chunks = []
-        text_length = len(text)
-        
-        # Минимальный размер chunk (чтобы не создавать слишком мелкие chunks)
-        min_chunk_size = max(50, self.chunk_size // 10)
-        
-        # Разбиваем текст на chunks с перекрытием
-        start = 0
-        chunk_index = 0
-        
-        while start < text_length:
-            # Базовый конец chunk (по максимальному размеру)
-            end = min(start + self.chunk_size, text_length)
-            
-            # Если не последний chunk и не конец текста, пытаемся разбить по границе предложения или слова
-            if end < text_length:
-                # Сначала ищем ближайшую границу предложения (ищем назад от конца chunk)
-                # Увеличиваем область поиска для лучшего разбиения
-                sentence_end = None
-                search_start = max(start, end - min(300, self.chunk_size // 2))
-                for i in range(end - 1, search_start - 1, -1):
-                    if text[i] in '.!?\n':
-                        sentence_end = i + 1
-                        break
-                
-                # Если нашли границу предложения в пределах разумного, используем её
-                # Уменьшаем минимальный порог для более агрессивного разбиения
-                if sentence_end and sentence_end > start + min_chunk_size:
-                    end = sentence_end
-                else:
-                    # Если не нашли границу предложения, ищем границу слова (пробел, перенос строки, табуляция)
-                    word_end = None
-                    search_start = max(start, end - min(150, self.chunk_size // 3))
-                    for i in range(end - 1, search_start - 1, -1):
-                        if text[i] in ' \n\t':
-                            word_end = i + 1
-                            break
-                    
-                    # Если нашли границу слова в пределах разумного, используем её
-                    if word_end and word_end > start + min_chunk_size:
-                        end = word_end
-                    # Если не нашли ни границу предложения, ни слова, оставляем end как есть
-                    # (это может произойти для очень длинных слов или строк без пробелов)
-            
-            chunk_content = text[start:end].strip()
-            if chunk_content:
-                chunks.append({
-                    "content": chunk_content,
-                    "start_char": start,
-                    "end_char": end,
-                    "chunk_index": chunk_index,
-                })
-            
-            # Переходим к следующему chunk с учетом overlap
-            # Вычисляем начальную позицию следующего chunk с учетом overlap
-            next_start = end - self.chunk_overlap
-            
-            # Убеждаемся, что мы продвигаемся вперед (хотя бы на минимальный шаг)
-            if next_start <= start:
-                # Если overlap слишком большой, просто идем вперед минимум на половину chunk_size
-                next_start = start + max(min_chunk_size, self.chunk_size - self.chunk_overlap)
-            
-            # Также ищем границу слова для начала следующего chunk (чтобы не начинать с середины слова)
-            if next_start < text_length and next_start > 0:
-                # Если мы не в начале текста и не на границе слова, ищем ближайшую границу слова вперед
-                if text[next_start] not in ' \n\t':
-                    # Ищем ближайший пробел или перенос строки вперед (увеличиваем область поиска)
-                    for i in range(next_start, min(text_length, next_start + 100)):
-                        if text[i] in ' \n\t':
-                            next_start = i + 1
-                            break
-            
-            start = next_start
-            chunk_index += 1
-            
-            # Защита от бесконечного цикла
-            if chunk_index > 10000:  # Увеличиваем лимит для больших документов
-                logger.warning(f"Превышен лимит chunks (10000), останавливаем разбиение. Текст: {text[:100]}...")
-                break
-        
-        return chunks
+    def _split_text_into_chunks(
+        self,
+        text: str,
+        *,
+        file_type: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        """Разбивает текст на chunks через chonkie."""
+        try:
+            return split_text_with_chonkie(
+                text,
+                chunk_size=self.chunk_size,
+                chunk_overlap=self.chunk_overlap,
+                file_type=file_type,
+            )
+        except Exception as exc:
+            raise RAGIndexingError(f'Ошибка разбиения на chunks: {exc}') from exc
     
     def index_document(
         self,
@@ -207,8 +130,11 @@ class RAGIndexingService:
                     "Убедитесь, что указан текст или загружен файл с текстом."
                 )
             
-            # Разбиваем текст на chunks
-            chunks_data = self._split_text_into_chunks(text_content)
+            # Разбиваем текст на chunks (chonkie)
+            chunks_data = self._split_text_into_chunks(
+                text_content,
+                file_type=document.file_type,
+            )
             
             if not chunks_data:
                 raise RAGIndexingError("Не удалось разбить документ на chunks (возможно, документ пуст)")

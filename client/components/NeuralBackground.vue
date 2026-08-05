@@ -5,10 +5,15 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { useUiModes } from '@/composables/useUiModes.js'
+import { useBreakpoint } from '@/composables/useBreakpoint.js'
 
 const containerRef = ref(null)
 const canvasRef = ref(null)
+
+const { reducedMotionActive } = useUiModes()
+const { isCompactLayout } = useBreakpoint()
 
 let animationId = null
 let nodes = []
@@ -42,6 +47,16 @@ const props = defineProps({
     type: Boolean,
     default: false
   }
+})
+
+const effectiveNodeCount = computed(() => {
+  if (reducedMotionActive.value) {
+    return 0
+  }
+  if (isCompactLayout.value) {
+    return 20
+  }
+  return props.nodeCount
 })
 
 // Плавная интерполяция скорости
@@ -173,11 +188,15 @@ const initCanvas = () => {
 
   // Создание узлов
   nodes = []
-  for (let i = 0; i < props.nodeCount; i++) {
+  const count = effectiveNodeCount.value
+  for (let i = 0; i < count; i++) {
     nodes.push(new Node(
       Math.random() * width,
       Math.random() * height
     ))
+  }
+  if (count === 0 && ctx) {
+    ctx.clearRect(0, 0, width, height)
   }
 }
 
@@ -202,7 +221,9 @@ const drawConnections = () => {
 }
 
 const animate = () => {
-  if (!ctx) return
+  if (!ctx || effectiveNodeCount.value === 0) {
+    return
+  }
   
   // Плавная интерполяция скорости
   const lerpFactor = 0.05
@@ -234,18 +255,35 @@ const handleMouseMove = (e) => {
   }
 }
 
+const stopAnimation = () => {
+  if (animationId) {
+    cancelAnimationFrame(animationId)
+    animationId = null
+  }
+}
+
+const startAnimation = () => {
+  stopAnimation()
+  if (!reducedMotionActive.value && effectiveNodeCount.value > 0) {
+    animate()
+  }
+}
+
+watch([reducedMotionActive, isCompactLayout], () => {
+  initCanvas()
+  startAnimation()
+})
+
 onMounted(() => {
   initCanvas()
-  animate()
+  startAnimation()
   
   window.addEventListener('resize', handleResize)
   containerRef.value?.addEventListener('mousemove', handleMouseMove)
 })
 
 onUnmounted(() => {
-  if (animationId) {
-    cancelAnimationFrame(animationId)
-  }
+  stopAnimation()
   window.removeEventListener('resize', handleResize)
   containerRef.value?.removeEventListener('mousemove', handleMouseMove)
 })

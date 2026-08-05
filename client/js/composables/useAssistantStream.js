@@ -28,6 +28,7 @@ export function mapApiMessages(messages) {
     chart_config: msg.metadata?.chart_config || null,
     sql: msg.metadata?.sql || msg.sql || null,
     data: msg.metadata?.data || msg.data || null,
+    attachments: msg.metadata?.attachments || [],
     metadata: msg.metadata || {},
   }))
 }
@@ -49,12 +50,14 @@ export function useMessageHistory() {
     streamingMsgId = null
   }
 
-  function addUserMessage(content) {
+  function addUserMessage(content, extras = {}) {
     const msg = {
       id: nextLocalMessageId(),
       type: 'user',
       content,
       timestamp: new Date(),
+      attachments: extras.attachments || [],
+      metadata: extras.metadata || {},
     }
     messages.value.push(msg)
     return msg
