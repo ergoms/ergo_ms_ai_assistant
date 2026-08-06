@@ -11,9 +11,10 @@ $dark-bg-panel: linear-gradient(145deg, rgba(24, 24, 26, 0.96), rgba(17, 17, 18,
 $dark-border: var(--ai-border, #555555);
 $dark-border-accent: rgba(241, 67, 54, 0.28);
 $dark-text-primary: var(--ai-text-primary, #c9cccf);
-$dark-text-secondary: var(--ai-text-secondary, #6e6e6e);
-$dark-text-muted: #6e6e6e;
-$dark-text-placeholder: #555555;
+$dark-text-secondary: var(--ai-text-secondary, #a0a0a4);
+// Muted/placeholder — отдельно от secondary: читаемы на --bg-elevated
+$dark-text-muted: #9a9a9e;
+$dark-text-placeholder: #85858a;
 
 // === Light Theme — как ядро ===
 $light-bg-primary: #f2f2f2;

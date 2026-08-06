@@ -483,7 +483,11 @@ html[data-ergo-motion='reduce'] .ollama-mini-chat__typing-dots span {
   border: none;
   border-radius: 8px;
   background: transparent;
-  color: var(--ai-text-secondary, var(--color-secondary-text));
+  color: color-mix(
+    in srgb,
+    var(--ai-text-primary, var(--color-primary-text, #c9cccf)) 78%,
+    transparent
+  );
   font-size: 0.8125rem;
   font-weight: 500;
   line-height: 1.2;
@@ -525,7 +529,7 @@ html[data-ergo-motion='reduce'] .ollama-mini-chat__typing-dots span {
   border-radius: 10px;
   font-size: 0.8125rem;
   line-height: 1.3;
-  color: var(--ai-text-secondary, var(--color-secondary-text));
+  color: var(--ai-text-primary, var(--color-primary-text));
   text-align: left;
   cursor: pointer;
   transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
@@ -562,10 +566,19 @@ html[data-ergo-motion='reduce'] .ollama-mini-chat__typing-dots span {
   border-radius: 10px;
   padding: 0.5rem 0.75rem;
   background: var(--ai-bg-tertiary, var(--color-secondary-background));
-  color: inherit;
+  color: var(--ai-text-primary, var(--color-primary-text));
   font: inherit;
   font-size: 0.875rem;
   line-height: 1.4;
+
+  &::placeholder {
+    color: color-mix(
+      in srgb,
+      var(--ai-text-primary, var(--color-primary-text, #c9cccf)) 52%,
+      transparent
+    );
+    opacity: 1;
+  }
 
   &:focus {
     outline: none;

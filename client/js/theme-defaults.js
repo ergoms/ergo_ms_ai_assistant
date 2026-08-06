@@ -14,7 +14,8 @@ export default {
     background: '#111112',
     border: '#555555',
     primaryText: '#c9cccf',
-    secondaryText: '#6e6e6e',
+    // Читаемый muted на elevated (#2a2a2c); #6e6e6e давал контраст ~2:1
+    secondaryText: '#a0a0a4',
     primaryBackground: '#18181a',
     secondaryBackground: '#2a2a2c',
     hoverBackground: '#3d3d3f',

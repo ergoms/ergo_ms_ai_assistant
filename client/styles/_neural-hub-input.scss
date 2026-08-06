@@ -41,7 +41,7 @@
   border: none;
   border-radius: 8px;
   background: transparent;
-  color: var(--text-secondary);
+  color: color-mix(in srgb, var(--text-primary) 78%, transparent);
   font-size: $font-size-sm;
   font-weight: 500;
   line-height: 1.2;
@@ -86,7 +86,7 @@
   border-radius: 10px;
   font-size: $font-size-sm;
   line-height: 1.25;
-  color: var(--text-secondary);
+  color: var(--text-primary);
   text-align: left;
   cursor: pointer;
   transition: border-color $transition-fast, color $transition-fast, background $transition-fast;
@@ -148,7 +148,7 @@
   box-sizing: border-box;
 
   &::placeholder {
-    color: var(--text-muted);
+    color: var(--text-placeholder);
     opacity: 1;
   }
 
