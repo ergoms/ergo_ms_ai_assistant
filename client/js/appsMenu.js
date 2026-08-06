@@ -2,9 +2,6 @@
  * Пункт «AI ассистент» в меню приложений — открывает плавающий мини-чат.
  */
 
-import { Bot } from 'lucide-vue-next'
-import { markRaw } from 'vue'
-
 import bridge from '@/integrations/ModuleBridge.js'
 import { APPS_MENU_ITEMS_GROUP } from '@/integrations/moduleContracts.js'
 import { tGlobal } from '@/i18n/index.js'
@@ -21,7 +18,7 @@ bridge.provideMany(APPS_MENU_ITEMS_GROUP, 'ai_assistant_ollama_chat', {
   get title() {
     return tGlobal('ai_assistant.apps.ollamaChat')
   },
-  icon: markRaw(Bot),
+  icon: 'Bot',
   onClick: openOllamaMiniChatWidget,
   isVisible: checkOllamaChatVisibility,
 })
