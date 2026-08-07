@@ -63,7 +63,9 @@ RAG_SIMILARITY_THRESHOLD = env.float('RAG_SIMILARITY_THRESHOLD', default=0.25)
 RAG_MAX_CONTEXT_LENGTH = env.int('RAG_MAX_CONTEXT_LENGTH', default=6000)
 RAG_EMBEDDING_DIMENSIONS = env.int('RAG_EMBEDDING_DIMENSIONS', default=768)
 
-# Системный корпус (.docs, rules) — индексация и подмешивание в chat
+# Пользовательский корпус функционала (меню, UI, guides) — индексация и подмешивание в chat
 RAG_SYSTEM_CORPUS_ENABLED = env.bool('RAG_SYSTEM_CORPUS_ENABLED', default=True)
 RAG_INCLUDE_SYSTEM_IN_CHAT = env.bool('RAG_INCLUDE_SYSTEM_IN_CHAT', default=True)
 RAG_SYSTEM_CORPUS_MAX_FILE_BYTES = env.int('RAG_SYSTEM_CORPUS_MAX_FILE_BYTES', default=1_000_000)
+# Ежедневный sync через Celery Beat (нужны worker + beat и доступный Ollama)
+RAG_SYSTEM_CORPUS_BEAT_ENABLED = env.bool('RAG_SYSTEM_CORPUS_BEAT_ENABLED', default=True)

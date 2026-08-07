@@ -12,6 +12,8 @@ commands:
 notes:
   - 'Вызов: ergoms ai_assistant:sync-knowledge [--sync]'
   - 'В setup-full: после migrate (include_in setup-full-after-migrate, с --sync)'
+  - 'Ежедневно: Celery Beat (RAG_SYSTEM_CORPUS_BEAT_ENABLED; нужны start-beat и start-worker)'
+  - 'Hook модулей: api/user_guides/*.md и user_description в PERMISSION_CATALOG'
   - 'Векторный RAG: ergoms ai_assistant:install-pgvector, затем ergoms ai_assistant:ensure-pgvector'
   - 'Нужны Ollama и модель embeddings (OLLAMA_EMBEDDINGS_MODEL; setup-full: ollama_models.yaml → pull-setup-models)'
   - 'Эквивалент: ergoms api sync_system_knowledge'

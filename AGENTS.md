@@ -27,7 +27,9 @@
 - `document.parse` — media_api path под `ai_assistant/` + `user`, не произвольный FS path
 - Ошибки на клиенте — `logError` / `logWarn` с import из `@/js/utils/logError.js`
 - Тема — `theme-defaults.js` + `useModuleThemeMode('ai_assistant')`
-- Пользовательский корпус RAG — `ergoms ai_assistant:sync-knowledge` (меню, UI-строки, guides; не `.docs`/rules); в setup-full — `include_in: setup-full-after-migrate` (`--sync`)
+- Пользовательский корпус RAG — `ergoms ai_assistant:sync-knowledge` (меню, UI, `system_corpus/guides`, `modules/*/api/user_guides/*.md`; не `.docs`/rules)
+- Setup-full — `include_in: setup-full-after-migrate` (`--sync`); ежедневно — Celery Beat (`celery_beat_config.py`, `RAG_SYSTEM_CORPUS_BEAT_ENABLED`)
+- Описания модулей для корпуса — `user_description` в `PERMISSION_CATALOG`
 - Модели Ollama для setup-full — `ollama_models.yaml` (pull через `ergoms ollama_framework:pull-setup-models`)
 - Chat messages — через `api/rag/chat_messages.py` (помощник пользователя сайта, не разработчика)
 

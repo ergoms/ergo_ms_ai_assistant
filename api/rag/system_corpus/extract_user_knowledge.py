@@ -1,7 +1,8 @@
 """
 Сбор пользовательских знаний о функционале системы для RAG.
 
-Источники: меню, каталог модулей/прав, подписи UI (i18n), локальные guides.
+Источники: меню, каталог модулей/прав (в т.ч. user_description),
+подписи UI (i18n), guides ядра и modules/*/api/user_guides/*.md.
 Не индексирует .docs, .cursor/rules и developer README.
 """
 from __future__ import annotations
@@ -197,13 +198,17 @@ def build_modules_document() -> DocumentTuple | None:
         label = mod.get('module_label') or mod.get('module_name')
         lines.append(f'## {label}')
         lines.append('')
+        description = (mod.get('user_description') or '').strip()
+        if description:
+            lines.append(description)
+            lines.append('')
         perms = mod.get('permissions') or {}
         if perms:
             lines.append('Доступные действия (права):')
             for key, perm_label in sorted(perms.items(), key=lambda x: str(x[1] or x[0])):
                 human = (perm_label or key).strip()
                 lines.append(f'- {human}')
-        else:
+        elif not description:
             lines.append('Модуль установлен; подробные права в каталоге не описаны.')
         lines.append('')
 
@@ -214,8 +219,17 @@ def build_modules_document() -> DocumentTuple | None:
     )
 
 
+def _guide_title_from_content(path: Path, content: str) -> str:
+    title = f'Справка: {path.stem.replace("_", " ")}'
+    first = content.splitlines()[0].strip() if content else ''
+    if first.startswith('# '):
+        title = first[2:].strip()
+    return title
+
+
 def build_guide_documents(root: Path | None = None) -> List[DocumentTuple]:
-    """Локальные пользовательские шпаргалки модуля ai_assistant."""
+    """Локальные пользовательские шпаргалки модуля ai_assistant (CMS / сценарии ядра)."""
+    del root  # guides рядом с этим пакетом, не от корня проекта
     guides_dir = Path(__file__).resolve().parent / 'guides'
     if not guides_dir.is_dir():
         return []
@@ -227,13 +241,35 @@ def build_guide_documents(root: Path | None = None) -> List[DocumentTuple]:
             continue
         if not content:
             continue
-        source = f'user_guides/{path.name}'
-        title = f'Справка: {path.stem.replace("_", " ")}'
-        # Первая строка # заголовка как title
-        first = content.splitlines()[0].strip()
-        if first.startswith('# '):
-            title = first[2:].strip()
-        docs.append((source, title, content))
+        source = f'user_guides/core/{path.name}'
+        docs.append((source, _guide_title_from_content(path, content), content))
+    return docs
+
+
+def build_module_user_guide_documents(root: Path | None = None) -> List[DocumentTuple]:
+    """Пользовательские шпаргалки модулей: modules/*/api/user_guides/*.md."""
+    root = (root or Path(SYSTEM_DIR)).resolve()
+    docs: List[DocumentTuple] = []
+    for path in sorted(root.glob('modules/*/api/user_guides/*.md')):
+        if not path.is_file():
+            continue
+        try:
+            rel_parts = path.relative_to(root).parts
+        except ValueError:
+            continue
+        # modules/<name>/api/user_guides/<file>.md
+        if len(rel_parts) < 5:
+            continue
+        module_name = rel_parts[1]
+        try:
+            content = path.read_text(encoding='utf-8').strip()
+        except OSError as exc:
+            logger.warning('Не удалось прочитать %s: %s', path, exc)
+            continue
+        if not content:
+            continue
+        source = f'user_guides/{module_name}/{path.name}'
+        docs.append((source, _guide_title_from_content(path, content), content))
     return docs
 
 
@@ -253,6 +289,12 @@ def iter_user_knowledge_documents(root: Path | None = None) -> Iterator[Document
         yield source, title, content
 
     for source, title, content in build_guide_documents(root):
+        if source in seen or not content.strip():
+            continue
+        seen.add(source)
+        yield source, title, content
+
+    for source, title, content in build_module_user_guide_documents(root):
         if source in seen or not content.strip():
             continue
         seen.add(source)

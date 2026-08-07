@@ -9,6 +9,49 @@ from celery import shared_task
 logger = logging.getLogger(__name__)
 
 
+@shared_task(name='modules.ai_assistant.api.tasks.sync_system_knowledge_task')
+def sync_system_knowledge_task(force: bool = False) -> dict:
+    """Периодическая синхронизация пользовательского корпуса (меню, UI, guides)."""
+    from .rag.system_corpus import sync_system_corpus
+    from .settings import RAG_SYSTEM_CORPUS_BEAT_ENABLED, RAG_SYSTEM_CORPUS_ENABLED
+    from .views.helpers import _get_rag_services
+
+    if not RAG_SYSTEM_CORPUS_ENABLED and not force:
+        logger.info('RAG_SYSTEM_CORPUS_ENABLED=false — пропуск sync корпуса')
+        return {'success': True, 'skipped': True, 'reason': 'corpus_disabled'}
+
+    if not RAG_SYSTEM_CORPUS_BEAT_ENABLED and not force:
+        logger.info('RAG_SYSTEM_CORPUS_BEAT_ENABLED=false — пропуск beat sync корпуса')
+        return {'success': True, 'skipped': True, 'reason': 'beat_disabled'}
+
+    try:
+        embeddings_service, _ = _get_rag_services()
+        result = sync_system_corpus(
+            embeddings_service=embeddings_service,
+            force=force,
+            use_celery=True,
+        )
+    except Exception as exc:
+        logger.warning('Не удалось синхронизировать корпус RAG: %s', exc)
+        return {'success': False, 'error': str(exc)}
+
+    if not result.get('success'):
+        logger.warning(
+            'Sync корпуса RAG завершился с ошибкой: %s',
+            result.get('error') or result.get('errors') or 'unknown',
+        )
+    else:
+        logger.info(
+            'Корпус RAG: files=%s created=%s updated=%s skipped=%s queued=%s',
+            result.get('files', 0),
+            result.get('created', 0),
+            result.get('updated', 0),
+            result.get('skipped', 0),
+            result.get('queued', 0),
+        )
+    return result
+
+
 @shared_task(name='modules.ai_assistant.api.tasks.index_knowledge_document')
 def index_knowledge_document(document_id: str, force: bool = False) -> dict:
     from .models import KnowledgeDocument

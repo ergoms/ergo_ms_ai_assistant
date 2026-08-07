@@ -25,6 +25,16 @@
 | `OLLAMA_DEFAULT_MODEL` / `OLLAMA_EMBEDDINGS_MODEL` | модели chat / embeddings |
 | `AI_ASSISTANT_CONCURRENCY_LIMIT` | лимит одновременных LLM-запросов в API (+ индексация Celery) |
 | `AI_ASSISTANT_OLLAMA_COMPUTE_DEVICE` | `gpu` / `cpu` (опционально) |
+| `RAG_SYSTEM_CORPUS_ENABLED` | индекс пользовательской справки (меню, UI, guides) |
+| `RAG_SYSTEM_CORPUS_BEAT_ENABLED` | ежедневный sync корпуса через Celery Beat (по умолчанию `true`) |
+
+## Пользовательский корпус RAG
+
+Источники: боковое меню, каталог модулей (`user_description` + права), ru-подписи UI, guides в `api/rag/system_corpus/guides/` и hook `modules/*/api/user_guides/*.md`.
+
+После смены меню или модулей: `ergoms ai_assistant:sync-knowledge` (сразу) или дождаться ночного Beat / следующего setup-full. Нужны `ergoms start-worker` и `ergoms start-beat` для фонового расписания.
+
+Другие модули могут добавить пользовательские шпаргалки в свой `api/user_guides/*.md` и строку `user_description` в `PERMISSION_CATALOG`.
 
 ## Безопасность (кратко)
 
@@ -52,5 +62,7 @@ ergoms ai_assistant:ensure-pgvector
 | ModuleBridge наружу | `api/integrations.py` |
 | Chat / stream | `api/views/chat.py`, `chat_stream.py` |
 | RAG | `api/rag/` |
+| Корпус / guides | `api/rag/system_corpus/`, `api/user_guides/` |
+| Beat sync | `api/celery_beat_config.py`, `api/tasks.py` |
 | Клиентские маршруты | `client/js/routes.js` |
 | Тема модуля | `client/js/theme-defaults.js` |
