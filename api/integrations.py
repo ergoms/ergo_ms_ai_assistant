@@ -62,14 +62,14 @@ def _chat_message_add(
 ) -> Optional[Dict[str, Any]]:
     from modules.ai_assistant.api.models import ChatMessage, ChatSession
 
+    if user is None or not getattr(user, 'is_authenticated', False):
+        return None
+
     session_uuid = _parse_uuid(session_id)
     if session_uuid is None:
         return None
 
-    qs = ChatSession.objects.filter(id=session_uuid)
-    if user is not None:
-        qs = qs.filter(user=user)
-    session = qs.first()
+    session = ChatSession.objects.filter(id=session_uuid, user=user).first()
     if session is None:
         return None
 
@@ -194,17 +194,43 @@ def _knowledge_search(
 
 
 @bridge.provide_op('ai_assistant.document.parse')
-def _document_parse(file_path: str = '', content: str = '') -> Dict[str, Any]:
-    from modules.ai_assistant.api.rag import DocumentParserService, DocumentParseError
+def _document_parse(
+    file_path: str = '',
+    content: str = '',
+    user=None,
+) -> Dict[str, Any]:
+    """Парсинг через media_api path или сырой content. Произвольные FS-пути запрещены."""
+    from rest_framework.exceptions import ValidationError
 
-    parser = DocumentParserService()
+    from src.core.utils.mixins import validate_media_path
+
+    from modules.ai_assistant.api.media_storage import parse_localized_document
+    from modules.ai_assistant.api.rag import DocumentParseError
+
+    if user is None or not getattr(user, 'is_authenticated', False):
+        return {'success': False, 'error': 'Требуется аутентифицированный пользователь'}
+
+    if content and not file_path:
+        return {'success': True, 'content': content, 'file_type': 'txt'}
+
+    if not file_path:
+        return {'success': False, 'error': 'Не указан file_path или content'}
+
     try:
-        if file_path:
-            parsed = parser.parse_file(file_path)
-        elif content:
-            parsed = {'content': content, 'file_type': 'txt'}
-        else:
-            return {'success': False, 'error': 'Не указан file_path или content'}
-        return {'success': True, **parsed}
+        storage_path = validate_media_path(file_path, 'file_path')
+    except ValidationError as exc:
+        detail = getattr(exc, 'detail', None)
+        if isinstance(detail, dict):
+            err = detail.get('file_path') or next(iter(detail.values()), None)
+            return {'success': False, 'error': str(err)}
+        return {'success': False, 'error': str(exc)}
+
+    # Только пути модуля ai_assistant (не чужие каталоги media).
+    if not str(storage_path).replace('\\', '/').startswith('ai_assistant/'):
+        return {'success': False, 'error': 'Путь файла вне хранилища ai_assistant'}
+
+    try:
+        text, file_type = parse_localized_document(storage_path)
+        return {'success': True, 'content': text, 'file_type': file_type}
     except DocumentParseError as exc:
         return {'success': False, 'error': str(exc)}

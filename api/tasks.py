@@ -1,4 +1,4 @@
-"""Фоновая индексация документов RAG."""
+"""Фоновые задачи ai_assistant: индексация RAG."""
 
 from __future__ import annotations
 

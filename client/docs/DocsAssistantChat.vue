@@ -427,7 +427,7 @@ const sendMessage = async () => {
   scrollToBottom()
 
   try {
-    await docsClient.sendMessageStream(
+    const streamResult = await docsClient.sendMessageStream(
       messageText,
       // onChunk
       (chunk) => {
@@ -478,6 +478,21 @@ const sendMessage = async () => {
       currentSessionId,
       selectedDocument.value?.id || null
     )
+    if (streamResult?.disconnected) {
+      const msg = messages.value.find(m => m.id === streamingMessageId)
+      if (msg && !String(msg.content || '').trim()) {
+        msg.content = t('ai_assistant.replyInterrupted')
+        msg.isStreaming = false
+      } else if (msg) {
+        msg.isStreaming = false
+      }
+      isTyping.value = false
+      streamingMessageId = null
+      if (currentSessionId) {
+        emit('session-updated', currentSessionId)
+      }
+      scrollToBottom()
+    }
   } catch (error) {
     logError('Ошибка отправки сообщения:', error)
     const msg = messages.value.find(m => m.id === streamingMessageId)

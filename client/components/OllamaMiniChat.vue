@@ -96,16 +96,24 @@ import { ChevronDown, Send, Zap } from 'lucide-vue-next'
 import { useAppI18n } from '@/i18n/useAppI18n.js'
 import { logError } from '@/js/utils/logError.js'
 import {
+  clearMiniChatState,
   dismissOllamaMiniChat,
+  isAwaitingAssistantReply,
+  miniChatLoading,
   miniChatMessages,
+  miniChatPending,
   miniChatSessionId,
+  setMiniChatLoading,
   setMiniChatMessages,
+  setMiniChatPending,
   setMiniChatSessionId,
+  shouldPreferServerMessages,
 } from '../js/ollamaMiniChatStore.js'
 import { AI_ACCENT_CSS } from '../js/themeAccent.js'
 import { getModuleById } from '../modules/index.js'
 import { ragClient } from '../rag/js/rag-client.js'
 import {
+  mapApiMessages,
   resetLocalMessageIds,
   useMessageHistory,
 } from '../js/composables/useAssistantStream.js'
@@ -136,15 +144,23 @@ const ollamaStatus = computed(() => props.ollamaStatus ?? internalOllama.status.
 const messagesRef = ref(null)
 const inputRef = ref(null)
 const chatInput = ref('')
-const chatLoading = ref(false)
 const sessionId = ref(miniChatSessionId.value)
-const loading = computed(() => chatLoading.value)
+/** Инкремент отменяет колбэки активного стрима (очистка чата / новый запрос). */
+let streamGeneration = 0
+const loading = computed(() => miniChatLoading.value || miniChatPending.value)
 const isThinking = computed(() => {
-  if (chatLoading.value) {
+  const last = messages.value.at(-1)
+  const streamingWithText = Boolean(
+    last?.type === 'assistant' && last?.streaming && String(last?.content || '').trim(),
+  )
+  // Пока идут токены — курсор стрима в HubMessage, не дублируем «генерацию»
+  if (streamingWithText) {
+    return false
+  }
+  if (miniChatLoading.value || miniChatPending.value) {
     return true
   }
-  const last = messages.value.at(-1)
-  return Boolean(last?.type === 'assistant' && last?.streaming && !last?.content?.trim())
+  return Boolean(last?.type === 'assistant' && last?.streaming && !String(last?.content || '').trim())
 })
 const canShowSuggestions = computed(() => (moduleConfig.value?.suggestions?.length ?? 0) > 0)
 const suggestionsExpanded = ref(false)
@@ -160,19 +176,148 @@ function initWelcome() {
   resetLocalMessageIds(2)
 }
 
+function syncLocalMessageIds(list) {
+  const numericIds = (list || [])
+    .map((msg) => Number(msg.id))
+    .filter((id) => Number.isFinite(id) && id > 0)
+  resetLocalMessageIds(numericIds.length ? Math.max(...numericIds) + 1 : 1)
+}
+
+function sanitizeChatMessages(list) {
+  return (list || []).filter((msg) => {
+    const text = String(msg?.content || '').trim()
+    if (text) return true
+    // Пустой пузырь без текста — битый снимок после обрыва SSE
+    if (msg?.type === 'user') return false
+    if (msg?.type === 'assistant' && !msg?.streaming && !msg?.isStreaming) return false
+    return true
+  })
+}
+
 function restoreSavedChat() {
-  const saved = miniChatMessages.value
+  const saved = sanitizeChatMessages(miniChatMessages.value)
   if (!saved?.length) {
     return false
   }
-  const maxId = saved.reduce((max, msg) => Math.max(max, Number(msg.id) || 0), 0)
-  resetLocalMessageIds(maxId + 1)
+  syncLocalMessageIds(saved)
   setMessages(saved.map((msg) => ({
     ...msg,
+    streaming: false,
     timestamp: msg.timestamp instanceof Date ? msg.timestamp : new Date(msg.timestamp || Date.now()),
   })))
   sessionId.value = miniChatSessionId.value
+  setMiniChatMessages(messages.value)
   return true
+}
+
+function applyMappedMessages(mapped, persistedSessionId, sessionMeta = null) {
+  const clean = sanitizeChatMessages(mapped)
+  if (!clean?.length) return false
+  syncLocalMessageIds(clean)
+  setMessages(clean)
+  const nextSessionId = sessionMeta?.id || persistedSessionId
+  sessionId.value = nextSessionId
+  setMiniChatSessionId(nextSessionId)
+  setMiniChatMessages(clean)
+  return true
+}
+
+async function fetchSessionMessages(persistedSessionId) {
+  const result = await ragClient.getChatSession(persistedSessionId)
+  if (!result.success) {
+    if (result.status === 404) {
+      sessionId.value = null
+      clearMiniChatState()
+    }
+    return null
+  }
+  if (!result.messages?.length) {
+    return { mapped: [], session: result.session, status: result.status }
+  }
+  return {
+    mapped: mapApiMessages(result.messages),
+    session: result.session,
+    status: result.status,
+  }
+}
+
+async function restoreChatFromServer(persistedSessionId, { force = false } = {}) {
+  const fetched = await fetchSessionMessages(persistedSessionId)
+  if (!fetched) return false
+  if (!fetched.mapped.length) return false
+  if (!force && !shouldPreferServerMessages(messages.value, fetched.mapped)) {
+    return true
+  }
+  return applyMappedMessages(fetched.mapped, persistedSessionId, fetched.session)
+}
+
+function markReplyInterrupted() {
+  const last = messages.value.at(-1)
+  if (last?.type === 'assistant' && !String(last.content || '').trim()) {
+    last.content = t('ai_assistant.replyInterrupted')
+    last.streaming = false
+    setMiniChatMessages(messages.value)
+    return
+  }
+  if (last?.type === 'user') {
+    setAssistantError(t('ai_assistant.replyInterrupted'))
+  }
+}
+
+async function recoverPendingReply(persistedSessionId) {
+  if (!persistedSessionId) {
+    setMiniChatPending(false)
+    setMiniChatLoading(false)
+    return false
+  }
+
+  setMiniChatPending(true)
+  setMiniChatLoading(true)
+
+  // Celery LLM может отвечать минуты — дольше опрашиваем сессию после F5
+  const delaysMs = [
+    0, 500, 1000, 1500, 2000, 3000, 4000, 5000,
+    5000, 5000, 8000, 10000, 10000, 15000, 15000, 20000, 30000,
+  ]
+  for (const delay of delaysMs) {
+    if (delay) {
+      await new Promise((resolve) => setTimeout(resolve, delay))
+    }
+    try {
+      const fetched = await fetchSessionMessages(persistedSessionId)
+      if (!fetched) {
+        break
+      }
+      if (fetched.mapped.length && shouldPreferServerMessages(messages.value, fetched.mapped)) {
+        applyMappedMessages(fetched.mapped, persistedSessionId, fetched.session)
+      }
+      const current = messages.value
+      const serverDone = fetched.mapped.length && !isAwaitingAssistantReply(fetched.mapped)
+      const localDone = current.length && !isAwaitingAssistantReply(current)
+      if (serverDone || localDone) {
+        setMiniChatPending(false)
+        setMiniChatLoading(false)
+        scrollToBottom()
+        return true
+      }
+    } catch (error) {
+      logError('Ошибка опроса ответа мини-чата', error)
+    }
+  }
+
+  setMiniChatPending(false)
+  setMiniChatLoading(false)
+  if (isAwaitingAssistantReply(messages.value)) {
+    markReplyInterrupted()
+  }
+  scrollToBottom()
+  return false
+}
+
+function applySessionId(nextSessionId) {
+  if (!nextSessionId) return
+  sessionId.value = nextSessionId
+  setMiniChatSessionId(nextSessionId)
 }
 
 function scrollToBottom() {
@@ -183,13 +328,26 @@ function scrollToBottom() {
   })
 }
 
+function clearChat() {
+  streamGeneration += 1
+  chatInput.value = ''
+  sessionId.value = null
+  setMiniChatLoading(false)
+  setMiniChatPending(false)
+  clearMiniChatState()
+  initWelcome()
+  scrollToBottom()
+  nextTick(() => inputRef.value?.focus())
+}
+
 async function sendMessage(prefilled) {
   const text = (typeof prefilled === 'string' ? prefilled : chatInput.value).trim()
-  if (!text || chatLoading.value) return
+  if (!text || miniChatLoading.value || miniChatPending.value) return
 
+  const requestId = ++streamGeneration
   addUserMessage(text)
   chatInput.value = ''
-  chatLoading.value = true
+  setMiniChatLoading(true)
   scrollToBottom()
 
   try {
@@ -197,25 +355,27 @@ async function sendMessage(prefilled) {
       ? { model: ollamaStatus.value.model }
       : null
 
-    await ragClient.sendMessageStream(
+    const streamResult = await ragClient.sendMessageStream(
       text,
       (chunk) => {
-        if (chatLoading.value) chatLoading.value = false
+        if (requestId !== streamGeneration) return
+        if (miniChatLoading.value) setMiniChatLoading(false)
         appendStreamChunk(chunk)
         scrollToBottom()
       },
       (fullResponse, metadata) => {
+        if (requestId !== streamGeneration) return
         finishAssistantStream(fullResponse, metadata || {})
-        if (metadata?.session_id) {
-          sessionId.value = metadata.session_id
-          setMiniChatSessionId(metadata.session_id)
-        }
-        chatLoading.value = false
+        applySessionId(metadata?.session_id)
+        setMiniChatPending(false)
+        setMiniChatLoading(false)
         scrollToBottom()
       },
       (errorMsg) => {
+        if (requestId !== streamGeneration) return
         setAssistantError(errorMsg)
-        chatLoading.value = false
+        setMiniChatPending(false)
+        setMiniChatLoading(false)
         scrollToBottom()
       },
       ollamaConfig,
@@ -223,13 +383,29 @@ async function sendMessage(prefilled) {
       'chat',
       null,
       false,
+      (preparingSessionId) => {
+        if (requestId !== streamGeneration) return
+        applySessionId(preparingSessionId)
+      },
     )
+    // Обрыв SSE (F5): не пишем Failed to fetch — ждём ответ worker в сессии
+    if (streamResult?.disconnected && requestId === streamGeneration) {
+      setMiniChatPending(true)
+      setMiniChatLoading(true)
+      if (sessionId.value) {
+        await recoverPendingReply(sessionId.value)
+      }
+    }
   } catch (error) {
+    if (requestId !== streamGeneration) return
     logError('Ошибка мини-чата Ollama', error)
     setAssistantError(error.message || t('ai_assistant.chatCreateFail'))
-    chatLoading.value = false
+    setMiniChatPending(false)
+    setMiniChatLoading(false)
   }
 }
+
+defineExpose({ clearChat })
 
 async function openFullHub() {
   dismissOllamaMiniChat()
@@ -242,15 +418,70 @@ watch(messages, (value) => {
 }, { deep: true })
 
 watch(sessionId, (value) => {
-  setMiniChatSessionId(value)
+  // Не затираем persistence при временном null — только явный clearMiniChatState
+  if (value) {
+    setMiniChatSessionId(value)
+  }
 })
 
-onMounted(() => {
-  if (!restoreSavedChat()) {
-    initWelcome()
+onMounted(async () => {
+  const hadLocalSnapshot = restoreSavedChat()
+  if (!hadLocalSnapshot) {
+    const persistedSessionId = miniChatSessionId.value
+    if (persistedSessionId) {
+      try {
+        const restored = await restoreChatFromServer(persistedSessionId, { force: true })
+        if (!restored) {
+          initWelcome()
+        }
+      } catch (error) {
+        logError('Ошибка восстановления мини-чата', error)
+        initWelcome()
+      }
+    } else {
+      initWelcome()
+    }
   }
+
+  // Сброс залипшего «Генерация ответа» после битого localStorage / зависшего Celery job
+  const last = messages.value.at(-1)
+  const stuckEmpty = Boolean(
+    last
+    && !String(last.content || '').trim()
+    && !(last.streaming || last.isStreaming),
+  )
+  if (stuckEmpty || (!hadLocalSnapshot && !messages.value.length)) {
+    setMiniChatPending(false)
+    setMiniChatLoading(false)
+  }
+
   scrollToBottom()
   nextTick(() => inputRef.value?.focus())
+
+  const activeSessionId = miniChatSessionId.value || sessionId.value
+  const needsRecovery = Boolean(
+    activeSessionId
+    && (miniChatPending.value || isAwaitingAssistantReply(messages.value)),
+  )
+
+  if (!activeSessionId && miniChatPending.value) {
+    setMiniChatPending(false)
+    setMiniChatLoading(false)
+  }
+
+  if (needsRecovery) {
+    await recoverPendingReply(activeSessionId)
+    return
+  }
+
+  if (hadLocalSnapshot && activeSessionId) {
+    try {
+      await restoreChatFromServer(activeSessionId)
+      scrollToBottom()
+    } catch (error) {
+      logError('Ошибка обновления мини-чата с сервера', error)
+    }
+  }
 })
 </script>
 

@@ -1,5 +1,5 @@
 ---
-description: ai_assistant — RAG, chat, skills; LLM только через ModuleBridge ollama_framework
+description: ai_assistant — RAG, chat, skills; LLM только через ModuleBridge ollama_framework; whitelist ollama_config
 globs:
   - "modules/ai_assistant/**"
 alwaysApply: false
@@ -12,16 +12,20 @@ alwaysApply: false
 ## Обязательно
 
 - Вызовы Ollama — [`api/ollama_gateway.py`](../../api/ollama_gateway.py) → `bridge.call('ollama_framework.*')` (или HTTP REST самого `ollama_framework` при `OLLAMA_FRAMEWORK_TRANSPORT=http`)
+- Клиентский `ollama_config` — только через `map_ollama_config`: whitelist (`model`, `temperature`, `context_window`, `max_tokens`, …); **`base_url` / `compute_device` / `num_gpu` / timeouts всегда с сервера** (`.env` модуля)
+- Embeddings — модель только `OLLAMA_EMBEDDINGS_MODEL` (или `embeddings_model`); chat-`model` из запроса **не** подставлять (иначе `/api/embed` → 501 на mistral и т.п.)
 - Устройство inference — `AI_ASSISTANT_OLLAMA_COMPUTE_DEVICE=gpu|cpu` в `modules/ai_assistant/.env` (пусто — из `OLLAMA_COMPUTE_DEVICE` ollama_framework)
-- Параллелизм LLM — `AI_ASSISTANT_CONCURRENCY_LIMIT` в `modules/ai_assistant/.env` (семафор в `ollama_gateway` + `concurrency_limit` для клиента ollama_framework)
+- Параллелизм LLM — `AI_ASSISTANT_CONCURRENCY_LIMIT` (семафор в `ollama_gateway` + `concurrency_limit` клиента ollama_framework; тот же лимит на очередь индексации Celery)
 - Статус для клиента — `GET /api/ai_assistant/ollama_status/` (proxy), не `ollama_framework/status/`
 - Права — `CanViewAiAssistant` / `permission_catalog`
-- Файлы — media_api + signed URL
+- Файлы — media_api + signed URL; bridge `document.parse` — путь в media под `ai_assistant/` + обязательный `user`
+- Bridge `chat.message.add` — обязательный аутентифицированный `user` и фильтр сессии по владельцу
 - Клиентские ошибки — `import { logError } from '@/js/utils/logError.js'`
 - Тема — `theme-defaults.js` + `useModuleThemeMode('ai_assistant')`
 - Сборка prompt chat/stream — [`api/rag/chat_messages.py`](../../api/rag/chat_messages.py); ответы — с точки зрения пользователя сайта
 - Корпус RAG — меню / UI / guides (`ergoms ai_assistant:sync-knowledge`), не `.docs` и не `.cursor/rules`
 - Модели Ollama для setup-full — `ollama_models.yaml` (pull через `ergoms ollama_framework:pull-setup-models`), не свой `vscode.tasks.yaml`
+- Документация модуля — держать `AGENTS.md` / это правило / `README.md` в синхроне с контрактами ([`module-docs.mdc`](../../../../.cursor/rules/module-docs.mdc))
 
 ## Запрещено
 
@@ -31,19 +35,34 @@ from modules.ollama_framework.api.client.factory import create_client
 ```
 
 ```python
+# BAD — доверять клиентскому base_url (SSRF)
+cfg = dict(ollama_config or {})
+cfg.setdefault('base_url', settings.OLLAMA_BASE_URL)
+```
+
+```python
 # GOOD
+from modules.ai_assistant.api.ollama_gateway import map_ollama_config, chat
+
+cfg = map_ollama_config(ollama_config)  # base_url только из .env
+chat(messages, ollama_config=ollama_config)
+```
+
+```python
+# GOOD — ModuleBridge к провайдеру
 from src.core.integrations import bridge
 
 bridge.call('ollama_framework.chat', messages=messages, config=cfg)
-# или обёртки из api/ollama_gateway.py
 ```
 
 ```js
 // BAD
 apiClient.get('ollama_framework/status/')
+requestBody.ollama_config = { base_url: config.baseUrl, model: config.model }
 
 // GOOD
 apiClient.get('ai_assistant/ollama_status/')
+requestBody.ollama_config = { model: config.model, temperature: config.temperature }
 ```
 
 ## Связанные правила
@@ -51,5 +70,6 @@ apiClient.get('ai_assistant/ollama_status/')
 | Тема | Файл |
 |------|------|
 | Модули, мост | корневой `modules.mdc` |
+| Документация модуля | корневой `module-docs.mdc` |
 | Ollama-провайдер | `modules/ollama_framework/.cursor/rules/ollama-framework.mdc` |
 | logError | корневой `log-error.mdc` |

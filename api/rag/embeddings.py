@@ -42,6 +42,8 @@ class OllamaEmbeddingsService:
         cfg = dict(self._ollama_config)
         cfg['base_url'] = self._base_url
         cfg['embeddings_model'] = self._model
+        # Не тащить chat-model в map_ollama_config(embeddings=True).
+        cfg.pop('model', None)
         return cfg
 
     def generate_embedding(self, text: str) -> List[float]:

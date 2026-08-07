@@ -120,23 +120,22 @@ def _get_rag_services(ollama_config=None):
     """
     global _rag_embeddings_service, _rag_retrieval_service
     
-    # Получаем настройки Ollama для embeddings
-    base_url = OLLAMA_BASE_URL
-    embeddings_model = OLLAMA_EMBEDDINGS_MODEL
-    
-    if ollama_config:
-        base_url = ollama_config.get('base_url', base_url)
-        embeddings_model = ollama_config.get('embeddings_model', embeddings_model)
-    
+    from ..ollama_gateway import map_ollama_config
+
+    # base_url и модель embeddings — только из серверного map (не из сырого клиента).
+    mapped = map_ollama_config(ollama_config, embeddings=True)
+    base_url = mapped.get('base_url') or OLLAMA_BASE_URL
+    embeddings_model = mapped.get('model') or OLLAMA_EMBEDDINGS_MODEL
+
     # Создаем или обновляем сервисы если настройки изменились
-    if (_rag_embeddings_service is None or 
-        _rag_embeddings_service._base_url != base_url or 
+    if (_rag_embeddings_service is None or
+        _rag_embeddings_service._base_url != base_url or
         _rag_embeddings_service._model != embeddings_model):
         _rag_embeddings_service = OllamaEmbeddingsService(
             base_url=base_url,
             model=embeddings_model,
             request_timeout=AI_ASSISTANT_REQUEST_TIMEOUT,
-            ollama_config=ollama_config,
+            ollama_config=mapped,
         )
     
     if _rag_retrieval_service is None:

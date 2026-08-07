@@ -4,6 +4,7 @@ import { buildMediaUploadOptions } from '@/js/mediaUploadLimits.js'
 import { logError, logWarn } from '@/js/utils/logError.js'
 import { fetchOllamaStatus } from '../../js/ollamaStatusApi.js'
 import { buildChatRequestHeaders, withUiLanguage } from '../../js/chatRequestContext.js'
+import { isStreamDisconnectError } from '../../js/streamDisconnect.js'
 import { tGlobal } from '@/i18n/index.js'
 
 const CHAT_UPLOAD_OPTIONS = buildMediaUploadOptions({
@@ -82,7 +83,6 @@ class RAGClient {
 
       if (config) {
         requestBody.ollama_config = {
-          base_url: config.baseUrl,
           model: config.model,
           temperature: config.temperature,
           context_window: config.contextWindow,
@@ -165,7 +165,6 @@ class RAGClient {
 
       if (config) {
         payload.ollama_config = {
-          base_url: config.baseUrl,
           model: config.model,
           temperature: config.temperature,
           context_window: config.contextWindow,
@@ -215,8 +214,10 @@ class RAGClient {
             try {
               const event = JSON.parse(jsonStr)
               
-              if (event.type === 'preparing' && onPreparing) {
-                onPreparing()
+              if (event.type === 'preparing') {
+                if (onPreparing) {
+                  onPreparing(event.session_id || null)
+                }
               } else if (event.type === 'chunk' && onChunk) {
                 accumulatedContent += event.text
                 onChunk(event.text)
@@ -248,11 +249,17 @@ class RAGClient {
       if (!doneEventReceived && accumulatedContent && onDone) {
         onDone(accumulatedContent)
       }
+      return { disconnected: false }
     } catch (error) {
+      // F5/навигация рвут fetch — worker допишет ответ в сессию
+      if (isStreamDisconnectError(error)) {
+        return { disconnected: true }
+      }
       logError('Ошибка streaming сообщения:', error)
       if (onError) {
         onError(error.message || tGlobal('ai_assistant.rag.api.sendMessageFailed'))
       }
+      return { disconnected: false }
     }
   }
 
@@ -301,18 +308,21 @@ class RAGClient {
           success: true,
           session: response.data.session,
           messages: response.data.messages || [],
+          status: response.status,
         }
       }
       
       return {
         success: false,
-        error: response.data?.error || tGlobal('ai_assistant.rag.api.sessionError'),
+        error: response.data?.error || response.message || tGlobal('ai_assistant.rag.api.sessionError'),
+        status: response.status,
       }
     } catch (error) {
       logError('Ошибка получения чата:', error)
       return {
         success: false,
         error: error.message || tGlobal('ai_assistant.rag.api.sessionFailed'),
+        status: error.response?.status,
       }
     }
   }

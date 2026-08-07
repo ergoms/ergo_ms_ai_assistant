@@ -70,7 +70,7 @@ def _concurrency_limit() -> int:
 
 
 def _get_llm_slots() -> threading.Semaphore:
-    """Процессный лимит одновременных chat/embed к Ollama (AI_ASSISTANT_CONCURRENCY_LIMIT)."""
+    """Процессный лимит одновременных chat/embed (AI_ASSISTANT_CONCURRENCY_LIMIT)."""
     global _llm_slot_limit, _llm_slots
     limit = _concurrency_limit()
     with _llm_slot_lock:
@@ -104,31 +104,55 @@ def get_transport() -> str:
     return mode
 
 
+# Разрешённые ключи из тела запроса клиента. base_url / compute / timeouts — только с сервера.
+_CLIENT_OLLAMA_KEYS = frozenset({
+    'model',
+    'embeddings_model',
+    'temperature',
+    'context_window',
+    'max_tokens',
+    'num_predict',
+    'seed',
+    'format',
+})
+
+
 def map_ollama_config(
     ollama_config: Optional[Dict[str, Any]] = None,
     *,
     embeddings: bool = False,
 ) -> Dict[str, Any]:
-    """Преобразует ollama_config из запроса клиента в overrides для ollama_framework."""
-    cfg = dict(ollama_config or {})
-    cfg.setdefault('provider', 'ollama')
+    """Преобразует ollama_config из запроса клиента в overrides для ollama_framework.
+
+    Клиентский dict проходит whitelist: base_url, compute_device, num_gpu и лимиты
+    нагрузки всегда берутся из .env модуля (защита от SSRF / обхода локального Ollama).
+    """
+    raw = ollama_config if isinstance(ollama_config, dict) else {}
+    cfg = {
+        key: raw[key]
+        for key in _CLIENT_OLLAMA_KEYS
+        if key in raw and raw[key] is not None
+    }
+    cfg['provider'] = 'ollama'
 
     if embeddings:
+        # Не использовать chat-model из запроса (mistral и т.п.) — у них /api/embed → 501.
         model = (
             cfg.pop('embeddings_model', None)
-            or cfg.get('model')
             or ai_settings.OLLAMA_EMBEDDINGS_MODEL
         )
+        cfg.pop('model', None)
     else:
         model = cfg.get('model') or ai_settings.OLLAMA_DEFAULT_MODEL
 
     cfg['model'] = model
-    cfg.setdefault('base_url', ai_settings.OLLAMA_BASE_URL)
+    # Всегда серверный URL — клиентский base_url игнорируется.
+    cfg['base_url'] = ai_settings.OLLAMA_BASE_URL
 
-    if 'compute_device' not in cfg and 'num_gpu' not in cfg:
-        module_device = getattr(ai_settings, 'AI_ASSISTANT_OLLAMA_COMPUTE_DEVICE', '')
-        if module_device:
-            cfg['compute_device'] = module_device
+    module_device = getattr(ai_settings, 'AI_ASSISTANT_OLLAMA_COMPUTE_DEVICE', '')
+    if module_device:
+        cfg['compute_device'] = module_device
+    cfg.pop('num_gpu', None)
 
     # Лимиты нагрузки — только из .env модуля, не из тела запроса клиента.
     cfg['concurrency_limit'] = _concurrency_limit()
@@ -288,15 +312,15 @@ def embed_texts(
     model: Optional[str] = None,
 ) -> List[List[float]]:
     cfg = map_ollama_config(ollama_config, embeddings=True)
-    kwargs: Dict[str, Any] = {'texts': texts}
-    if model:
-        kwargs['model'] = model
+    embed_model = model or cfg.get('model') or ai_settings.OLLAMA_EMBEDDINGS_MODEL
+    cfg['model'] = embed_model
     with _llm_slot():
         return _invoke(
             'embed',
+            texts=texts,
+            model=embed_model,
             config=cfg,
-            skip_env_injection=bool(ollama_config),
-            **kwargs,
+            skip_env_injection=True,
         )
 
 
@@ -339,7 +363,7 @@ def chat_stream(
     num_predict: Optional[int] = None,
     seed: Optional[int] = None,
 ) -> Iterator[str]:
-    """Потоковый chat через ModuleBridge (без thread+Queue в SSE)."""
+    """Потоковый chat через ModuleBridge."""
     if get_transport() == 'http':
         raise LLMClientError(
             'Streaming через OLLAMA_FRAMEWORK_TRANSPORT=http не поддерживается. '

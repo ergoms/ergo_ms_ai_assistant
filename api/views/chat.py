@@ -23,11 +23,11 @@ logger = logging.getLogger(__name__)
 class ChatView(SwaggerSafeMixin, APIView):
     """
     POST /api/ai_assistant/chat/
-    RAG-чат с системным корпусом ERGO MS (без streaming)
+    RAG-чат без streaming (LLM в процессе API).
     """
     permission_classes = [permissions.IsAuthenticated, CanViewAiAssistant]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
-    
+
     def post(self, request):
         if self.is_swagger_fake_view():
             return Response({'success': True})
@@ -37,23 +37,23 @@ class ChatView(SwaggerSafeMixin, APIView):
         session_id = request.data.get('session_id')
         module = request.data.get('module', 'chat')
         upload_infos = collect_chat_upload_infos(request)
-        
+
         enable_vectorization = request.data.get('enable_vectorization', False)
         if isinstance(enable_vectorization, str):
             enable_vectorization = enable_vectorization.lower() in ('true', '1', 'yes')
-        
+
         if isinstance(ollama_config, str):
             try:
                 ollama_config = json.loads(ollama_config)
             except (json.JSONDecodeError, TypeError):
                 ollama_config = None
-        
+
         if not message or not message.strip():
             return Response({
                 'success': False,
                 'error': 'Не указано сообщение'
             }, status=status.HTTP_400_BAD_REQUEST)
-        
+
         try:
             if session_id:
                 try:
@@ -62,9 +62,9 @@ class ChatView(SwaggerSafeMixin, APIView):
                     session = None
             else:
                 session = None
-            
+
             document_id = request.data.get('document_id')
-            
+
             if not session:
                 session_metadata = {}
                 if document_id:
@@ -81,7 +81,7 @@ class ChatView(SwaggerSafeMixin, APIView):
                         session.metadata = {}
                     session.metadata['document_id'] = document_id
                     session.save(update_fields=['metadata'])
-            
+
             user_meta: dict = {}
             if ollama_config:
                 user_meta['ollama_config'] = ollama_config
@@ -91,7 +91,7 @@ class ChatView(SwaggerSafeMixin, APIView):
                 content=message,
                 metadata=user_meta,
             )
-            
+
             request_started_at = timezone.now()
 
             model_name = resolved_model(ollama_config)
@@ -122,20 +122,20 @@ class ChatView(SwaggerSafeMixin, APIView):
                 meta['attachments'] = attachments_meta
                 user_message.metadata = meta
                 user_message.save(update_fields=['metadata'])
-            
+
             answer = ollama_chat(
                 messages,
                 ollama_config=ollama_config,
                 temperature=temperature,
                 stream=False,
             ).strip()
-            
+
             skill_result, cleaned_answer, skill_display_name, skill_call = execute_skill_from_llm_response(
                 answer,
                 message,
                 context={'user': request.user, 'session': session, 'module': module}
             )
-            
+
             if skill_result and skill_result.success:
                 if cleaned_answer:
                     answer = f"{skill_result.result}\n\n{cleaned_answer}"
@@ -145,10 +145,10 @@ class ChatView(SwaggerSafeMixin, APIView):
                 answer = f"{cleaned_answer}\n\nОшибка выполнения навыка: {skill_result.error}"
             else:
                 answer = cleaned_answer if cleaned_answer else answer
-            
+
             response_received_at = timezone.now()
             processing_time = int((response_received_at - request_started_at).total_seconds() * 1000)
-            
+
             message_metadata = {
                 'model': model_name,
                 'skill_name': skill_display_name,
@@ -156,11 +156,11 @@ class ChatView(SwaggerSafeMixin, APIView):
             }
             if ollama_config:
                 message_metadata['ollama_config'] = ollama_config
-            
+
             if skill_result and skill_result.success and skill_result.metadata:
                 if 'chart_config' in skill_result.metadata:
                     message_metadata['chart_config'] = skill_result.metadata['chart_config']
-            
+
             assistant_message = ChatMessage.objects.create(
                 session=session,
                 message_type=ChatMessage.MESSAGE_TYPE_ASSISTANT,
@@ -170,10 +170,10 @@ class ChatView(SwaggerSafeMixin, APIView):
                 processing_time_ms=processing_time,
                 metadata=message_metadata
             )
-            
+
             session.updated_at = timezone.now()
             session.save(update_fields=['updated_at'])
-            
+
             response_data = {
                 'success': True,
                 'response': answer,
@@ -187,9 +187,9 @@ class ChatView(SwaggerSafeMixin, APIView):
             }
             if 'chart_config' in message_metadata:
                 response_data['chart_config'] = message_metadata['chart_config']
-            
+
             return Response(response_data, status=status.HTTP_200_OK)
-        
+
         except Exception as e:
             logger.error('Ошибка chat: %s', e, exc_info=True)
             return Response({

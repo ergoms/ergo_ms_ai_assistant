@@ -4,6 +4,7 @@ import { buildMediaUploadOptions } from '@/js/mediaUploadLimits.js'
 import { logError, logWarn } from '@/js/utils/logError.js'
 import { fetchOllamaStatus } from '../../js/ollamaStatusApi.js'
 import { buildChatRequestHeaders, withUiLanguage } from '../../js/chatRequestContext.js'
+import { isStreamDisconnectError } from '../../js/streamDisconnect.js'
 import { tGlobal } from '@/i18n/index.js'
 
 /**
@@ -411,7 +412,6 @@ class DocsClient {
     
     if (config) {
       requestBody.ollama_config = {
-        base_url: config.baseUrl || config.base_url,
         model: config.model,
         temperature: config.temperature,
         context_window: config.contextWindow || config.context_window,
@@ -491,11 +491,16 @@ class DocsClient {
       if (!doneEventReceived && accumulatedContent && onDone) {
         onDone(accumulatedContent)
       }
+      return { disconnected: false }
     } catch (error) {
+      if (isStreamDisconnectError(error)) {
+        return { disconnected: true }
+      }
       logError('Ошибка streaming сообщения:', error)
       if (onError) {
         onError(error.message || tGlobal('ai_assistant.rag.api.sendMessageFailed'))
       }
+      return { disconnected: false }
     }
   }
 }

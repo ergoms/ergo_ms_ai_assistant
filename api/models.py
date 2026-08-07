@@ -239,3 +239,91 @@ class KnowledgeChunk(models.Model):
     
     def __str__(self):
         return f"Chunk {self.chunk_index} из документа '{self.document.title}'"
+
+
+class LlmJob(models.Model):
+    """Задача LLM (chat/stream), выполняется Celery worker'ом."""
+
+    KIND_CHAT = 'chat'
+    KIND_CHAT_STREAM = 'chat_stream'
+    KIND_CHOICES = [
+        (KIND_CHAT, 'Chat'),
+        (KIND_CHAT_STREAM, 'Chat stream'),
+    ]
+
+    STATUS_PENDING = 'pending'
+    STATUS_RUNNING = 'running'
+    STATUS_DONE = 'done'
+    STATUS_ERROR = 'error'
+    STATUS_CHOICES = [
+        (STATUS_PENDING, 'Pending'),
+        (STATUS_RUNNING, 'Running'),
+        (STATUS_DONE, 'Done'),
+        (STATUS_ERROR, 'Error'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='ai_assistant_llm_jobs',
+    )
+    kind = models.CharField(max_length=32, choices=KIND_CHOICES)
+    status = models.CharField(
+        max_length=16,
+        choices=STATUS_CHOICES,
+        default=STATUS_PENDING,
+        db_index=True,
+    )
+    session = models.ForeignKey(
+        ChatSession,
+        on_delete=models.CASCADE,
+        related_name='llm_jobs',
+        null=True,
+        blank=True,
+    )
+    user_message = models.ForeignKey(
+        ChatMessage,
+        on_delete=models.SET_NULL,
+        related_name='llm_jobs',
+        null=True,
+        blank=True,
+    )
+    payload = models.JSONField(default=dict, blank=True)
+    result = models.JSONField(default=dict, blank=True)
+    error = models.TextField(blank=True, default='')
+    event_seq = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['user', '-created_at']),
+            models.Index(fields=['status', '-created_at']),
+        ]
+
+    def __str__(self):
+        return f'LlmJob {self.id} ({self.kind}/{self.status})'
+
+
+class LlmJobEvent(models.Model):
+    """События стрима LLM для SSE (chunk/done/error), пишет worker."""
+
+    id = models.BigAutoField(primary_key=True)
+    job = models.ForeignKey(LlmJob, on_delete=models.CASCADE, related_name='events')
+    seq = models.PositiveIntegerField()
+    event = models.JSONField(default=dict)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['seq']
+        constraints = [
+            models.UniqueConstraint(fields=['job', 'seq'], name='ai_assistant_llmjobevent_job_seq'),
+        ]
+        indexes = [
+            models.Index(fields=['job', 'seq']),
+        ]
+
+    def __str__(self):
+        return f'LlmJobEvent {self.job_id}#{self.seq}'

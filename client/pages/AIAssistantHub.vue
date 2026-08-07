@@ -216,7 +216,7 @@ async function sendChatMessage(text) {
       : null
     const sessionId = resolveChatSessionId()
 
-    await ragClient.sendMessageStream(
+    const streamResult = await ragClient.sendMessageStream(
       messageText,
       (chunk) => {
         if (chatLoading.value) chatLoading.value = false
@@ -251,6 +251,21 @@ async function sendChatMessage(text) {
       chatSelectedFiles.value.length > 0 ? chatSelectedFiles.value : null,
       enableVectorization.value,
     )
+    if (streamResult?.disconnected) {
+      const activeId = currentChatSession.value?.id || sessionId
+      if (activeId) {
+        try {
+          const loaded = await loadSession(activeId)
+          if (loaded?.messages?.length) {
+            setMessages(mapApiMessages(loaded.messages))
+          }
+        } catch (error) {
+          logError('Ошибка восстановления чата после обрыва SSE', error)
+        }
+      }
+      chatLoading.value = false
+      chatPanelRef.value?.scrollToBottom()
+    }
   } catch (error) {
     setAssistantError(error.message)
     chatLoading.value = false

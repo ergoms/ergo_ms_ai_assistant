@@ -1,11 +1,12 @@
 <script setup>
-import { computed, onBeforeUnmount, ref } from 'vue'
-import { Bot, X } from 'lucide-vue-next'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { Bot, Eraser, X } from 'lucide-vue-next'
 import ModuleThemeScope from '@/components/ModuleThemeScope.vue'
 import { useAppI18n } from '@/i18n/useAppI18n.js'
 import { useBreakpoint } from '@/composables/useBreakpoint.js'
 import {
   isOllamaMiniChatOpen,
+  miniChatPanelMounted,
   miniChatDragPosition,
   closeOllamaMiniChat,
   setMiniChatDragPosition,
@@ -31,12 +32,21 @@ const widgetSubtitle = computed(() => modelSubtitle.value || t('ai_assistant.bra
 const showModelCaption = computed(() => Boolean(modelSubtitle.value))
 
 const isOpen = computed(() => isOllamaMiniChatOpen.value)
+const isMounted = computed(() => miniChatPanelMounted.value)
 
 const panelRef = ref(null)
+const chatRef = ref(null)
+const showClearConfirm = ref(false)
 const isDragging = ref(false)
 let dragOffsetX = 0
 let dragOffsetY = 0
 let activePointerId = null
+
+watch(isOpen, (open) => {
+  if (!open) {
+    showClearConfirm.value = false
+  }
+})
 
 /** Слева у края меню (desktop) или у левого края экрана (mobile). */
 const defaultLeft = computed(() => {
@@ -133,6 +143,19 @@ function stopDragging() {
   window.removeEventListener('pointercancel', onPointerUp)
 }
 
+function onClearChat() {
+  showClearConfirm.value = true
+}
+
+function cancelClearChat() {
+  showClearConfirm.value = false
+}
+
+function confirmClearChat() {
+  showClearConfirm.value = false
+  chatRef.value?.clearChat?.()
+}
+
 onBeforeUnmount(() => {
   stopDragging()
 })
@@ -140,17 +163,23 @@ onBeforeUnmount(() => {
 
 <template>
   <Teleport to="body">
-    <div v-if="isOpen" class="ollama-widget-host">
+    <div
+      v-if="isMounted"
+      class="ollama-widget-host"
+      :class="{ 'ollama-widget-host--open': isOpen }"
+      :aria-hidden="isOpen ? 'false' : 'true'"
+    >
       <ModuleThemeScope module-key="ai_assistant">
         <Transition name="ollama-widget-panel">
           <div
-            v-if="isOpen"
+            v-show="isOpen"
             ref="panelRef"
             class="ollama-widget"
             :class="{ 'ollama-widget--dragging': isDragging }"
             role="dialog"
             aria-modal="false"
             :aria-label="t('ai_assistant.apps.ollamaChat')"
+            :inert="!isOpen"
             :style="panelStyle"
           >
             <header
@@ -170,22 +199,65 @@ onBeforeUnmount(() => {
                   >{{ widgetSubtitle }}</div>
                 </div>
               </div>
-              <button
-                type="button"
-                class="ollama-widget__close"
-                :aria-label="t('ai_assistant.apps.close')"
-                @click="closeOllamaMiniChat"
-              >
-                <X :size="18" />
-              </button>
+              <div class="ollama-widget__actions">
+                <button
+                  type="button"
+                  class="ollama-widget__icon-btn"
+                  :aria-label="t('ai_assistant.apps.clearChat')"
+                  :title="t('ai_assistant.apps.clearChat')"
+                  :disabled="showClearConfirm"
+                  @click="onClearChat"
+                >
+                  <Eraser :size="18" />
+                </button>
+                <button
+                  type="button"
+                  class="ollama-widget__icon-btn"
+                  :aria-label="t('ai_assistant.apps.close')"
+                  :title="t('ai_assistant.apps.close')"
+                  @click="closeOllamaMiniChat"
+                >
+                  <X :size="18" />
+                </button>
+              </div>
             </header>
 
             <div class="ollama-widget__body">
               <OllamaMiniChat
+                ref="chatRef"
                 compact
                 :ollama-status="ollamaStatus"
                 @close="closeOllamaMiniChat"
               />
+
+              <div
+                v-if="showClearConfirm"
+                class="ollama-widget__confirm"
+                role="alertdialog"
+                aria-modal="true"
+                :aria-label="t('ai_assistant.apps.clearChatTitle')"
+              >
+                <div class="ollama-widget__confirm-card">
+                  <p class="ollama-widget__confirm-title">{{ t('ai_assistant.apps.clearChatTitle') }}</p>
+                  <p class="ollama-widget__confirm-text">{{ t('ai_assistant.apps.clearChatConfirm') }}</p>
+                  <div class="ollama-widget__confirm-actions">
+                    <button
+                      type="button"
+                      class="ollama-widget__confirm-btn ollama-widget__confirm-btn--ghost"
+                      @click="cancelClearChat"
+                    >
+                      {{ t('common.cancel') }}
+                    </button>
+                    <button
+                      type="button"
+                      class="ollama-widget__confirm-btn ollama-widget__confirm-btn--danger"
+                      @click="confirmClearChat"
+                    >
+                      {{ t('ai_assistant.apps.clearChat') }}
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </Transition>
@@ -200,6 +272,10 @@ onBeforeUnmount(() => {
   inset: 0;
   z-index: 1080;
   pointer-events: none;
+
+  &--open .ollama-widget {
+    pointer-events: auto;
+  }
 }
 
 .ollama-widget-host :deep(.module-theme-scope) {
@@ -207,7 +283,6 @@ onBeforeUnmount(() => {
 }
 
 .ollama-widget {
-  pointer-events: auto;
   position: fixed;
   bottom: max(1rem, env(safe-area-inset-bottom, 0px));
   width: min(380px, calc(100vw - 1.5rem));
@@ -299,7 +374,14 @@ onBeforeUnmount(() => {
   }
 }
 
-.ollama-widget__close {
+.ollama-widget__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+.ollama-widget__icon-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -312,17 +394,92 @@ onBeforeUnmount(() => {
   cursor: pointer;
   flex-shrink: 0;
 
-  &:hover {
+  &:hover:not(:disabled) {
     background: var(--ai-bg-elevated, var(--color-hover-background));
     color: var(--ai-text-primary, var(--color-primary-text));
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
   }
 }
 
 .ollama-widget__body {
+  position: relative;
   flex: 1 1 auto;
   min-height: 0;
   display: flex;
   flex-direction: column;
+}
+
+.ollama-widget__confirm {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: color-mix(in srgb, var(--ai-bg-primary, #111) 72%, transparent);
+  backdrop-filter: blur(2px);
+}
+
+.ollama-widget__confirm-card {
+  width: min(100%, 280px);
+  padding: 1rem;
+  border-radius: 12px;
+  border: 1px solid var(--ai-border, var(--color-border));
+  background: var(--ai-bg-secondary, var(--color-primary-background, #18181a));
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
+}
+
+.ollama-widget__confirm-title {
+  margin: 0 0 0.35rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--ai-text-primary, var(--color-primary-text));
+}
+
+.ollama-widget__confirm-text {
+  margin: 0 0 0.875rem;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  color: var(--ai-text-secondary, var(--color-secondary-text));
+}
+
+.ollama-widget__confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.ollama-widget__confirm-btn {
+  border: none;
+  border-radius: 8px;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+
+  &--ghost {
+    background: transparent;
+    color: var(--ai-text-secondary, var(--color-secondary-text));
+
+    &:hover {
+      background: var(--ai-bg-elevated, var(--color-hover-background));
+      color: var(--ai-text-primary, var(--color-primary-text));
+    }
+  }
+
+  &--danger {
+    background: var(--ai-accent, var(--color-accent, #d0322d));
+    color: #fff;
+
+    &:hover {
+      filter: brightness(1.08);
+    }
+  }
 }
 
 .ollama-widget-panel-enter-active,
