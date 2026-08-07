@@ -1,5 +1,5 @@
 <template>
-  <div class="neural-hub" :class="{ 'neural-hub--light': isLightTheme }">
+  <div ref="hubRef" class="neural-hub" :class="{ 'neural-hub--light': isLightTheme }">
     <NeuralBackground
       :node-count="60"
       :connection-distance="180"
@@ -33,10 +33,13 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { Sparkles } from 'lucide-vue-next'
 import { useAppI18n } from '@/i18n/useAppI18n.js'
 import { useModuleThemeMode } from '@/composables/useModuleThemeMode.js'
+import { MODULE_THEME_CHANGE_EVENT } from '@/js/module-theme-manager.js'
+import { THEME_CHANGE_EVENT } from '@/js/theme-manager.js'
+import { AI_ACCENT_CSS, resolveCssColor } from '../js/themeAccent.js'
 import NeuralBackground from './NeuralBackground.vue'
 
 const props = defineProps({
@@ -48,6 +51,8 @@ const props = defineProps({
 
 const { t } = useAppI18n()
 const { isLight: isLightTheme } = useModuleThemeMode('ai_assistant')
+const hubRef = ref(null)
+const nodeColor = ref('#f14336')
 
 const brandSubtitleText = computed(() => {
   if (props.modelSubtitle) {
@@ -56,10 +61,23 @@ const brandSubtitleText = computed(() => {
   return t('ai_assistant.brandSubtitle')
 })
 
-const nodeColor = computed(() => {
-  if (isLightTheme.value) return '#d0322d'
-  return '#f14336'
+function syncNodeColor() {
+  const accentCss = props.moduleConfig?.color || AI_ACCENT_CSS
+  nodeColor.value = resolveCssColor(hubRef.value, accentCss, isLightTheme.value ? '#d0322d' : '#f14336')
+}
+
+onMounted(() => {
+  nextTick(syncNodeColor)
+  window.addEventListener(MODULE_THEME_CHANGE_EVENT, syncNodeColor)
+  window.addEventListener(THEME_CHANGE_EVENT, syncNodeColor)
 })
+
+onBeforeUnmount(() => {
+  window.removeEventListener(MODULE_THEME_CHANGE_EVENT, syncNodeColor)
+  window.removeEventListener(THEME_CHANGE_EVENT, syncNodeColor)
+})
+
+watch([isLightTheme, () => props.moduleConfig?.color], () => nextTick(syncNodeColor))
 </script>
 
 <style lang="scss" scoped>

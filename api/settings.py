@@ -8,7 +8,7 @@ from src.config.env import env
 
 def _normalize_compute_device(value: str) -> str:
     normalized = (value or '').strip().lower()
-    if normalized in ('gpu', 'cpu'):
+    if normalized in ('auto', 'gpu', 'cpu'):
         return normalized
     return ''
 
@@ -41,8 +41,9 @@ AI_ASSISTANT_SQL_TOKENS = env.int('AI_ASSISTANT_SQL_TOKENS', default=256)
 AI_ASSISTANT_COMMENTARY_TOKENS = env.int('AI_ASSISTANT_COMMENTARY_TOKENS', default=192)
 AI_ASSISTANT_TEMPERATURE_SQL = env.float('AI_ASSISTANT_TEMPERATURE_SQL', default=0.08)
 AI_ASSISTANT_TEMPERATURE_COMMENTARY = env.float('AI_ASSISTANT_TEMPERATURE_COMMENTARY', default=0.24)
-AI_ASSISTANT_CONCURRENCY_LIMIT = env.int('AI_ASSISTANT_CONCURRENCY_LIMIT', default=8)
-AI_ASSISTANT_MAX_RETRIES = env.int('AI_ASSISTANT_MAX_RETRIES', default=2)
+# Одновременные chat/embed в процессе API (семафор в ollama_gateway + пул httpx).
+AI_ASSISTANT_CONCURRENCY_LIMIT = max(1, env.int('AI_ASSISTANT_CONCURRENCY_LIMIT', default=2))
+AI_ASSISTANT_MAX_RETRIES = max(0, env.int('AI_ASSISTANT_MAX_RETRIES', default=2))
 AI_ASSISTANT_KEEP_ALIVE = env.str('AI_ASSISTANT_KEEP_ALIVE', default='10m')
 
 # ============================================================================

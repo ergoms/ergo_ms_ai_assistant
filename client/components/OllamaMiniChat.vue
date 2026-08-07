@@ -10,7 +10,7 @@
       <div v-if="isThinking" class="ollama-mini-chat__typing" role="status" aria-live="polite">
         <div
           class="ollama-mini-chat__typing-avatar"
-          :style="{ '--typing-color': moduleConfig?.color || 'var(--ai-accent, #d0322d)' }"
+          :style="{ '--typing-color': moduleConfig?.color || AI_ACCENT_CSS }"
         >
           <component :is="moduleConfig?.icon" :size="16" />
           <span class="ollama-mini-chat__typing-pulse" aria-hidden="true" />
@@ -90,12 +90,19 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ChevronDown, Send, Zap } from 'lucide-vue-next'
 import { useAppI18n } from '@/i18n/useAppI18n.js'
 import { logError } from '@/js/utils/logError.js'
-import { dismissOllamaMiniChat } from '../js/ollamaMiniChatStore.js'
+import {
+  dismissOllamaMiniChat,
+  miniChatMessages,
+  miniChatSessionId,
+  setMiniChatMessages,
+  setMiniChatSessionId,
+} from '../js/ollamaMiniChatStore.js'
+import { AI_ACCENT_CSS } from '../js/themeAccent.js'
 import { getModuleById } from '../modules/index.js'
 import { ragClient } from '../rag/js/rag-client.js'
 import {
@@ -130,7 +137,7 @@ const messagesRef = ref(null)
 const inputRef = ref(null)
 const chatInput = ref('')
 const chatLoading = ref(false)
-const sessionId = ref(null)
+const sessionId = ref(miniChatSessionId.value)
 const loading = computed(() => chatLoading.value)
 const isThinking = computed(() => {
   if (chatLoading.value) {
@@ -151,6 +158,21 @@ function initWelcome() {
     timestamp: new Date(),
   }])
   resetLocalMessageIds(2)
+}
+
+function restoreSavedChat() {
+  const saved = miniChatMessages.value
+  if (!saved?.length) {
+    return false
+  }
+  const maxId = saved.reduce((max, msg) => Math.max(max, Number(msg.id) || 0), 0)
+  resetLocalMessageIds(maxId + 1)
+  setMessages(saved.map((msg) => ({
+    ...msg,
+    timestamp: msg.timestamp instanceof Date ? msg.timestamp : new Date(msg.timestamp || Date.now()),
+  })))
+  sessionId.value = miniChatSessionId.value
+  return true
 }
 
 function scrollToBottom() {
@@ -186,6 +208,7 @@ async function sendMessage(prefilled) {
         finishAssistantStream(fullResponse, metadata || {})
         if (metadata?.session_id) {
           sessionId.value = metadata.session_id
+          setMiniChatSessionId(metadata.session_id)
         }
         chatLoading.value = false
         scrollToBottom()
@@ -214,8 +237,19 @@ async function openFullHub() {
   await router.push({ name: 'AIAssistantHub', query: { module: 'chat' } })
 }
 
+watch(messages, (value) => {
+  setMiniChatMessages(value)
+}, { deep: true })
+
+watch(sessionId, (value) => {
+  setMiniChatSessionId(value)
+})
+
 onMounted(() => {
-  initWelcome()
+  if (!restoreSavedChat()) {
+    initWelcome()
+  }
+  scrollToBottom()
   nextTick(() => inputRef.value?.focus())
 })
 </script>
@@ -310,9 +344,17 @@ onMounted(() => {
       letter-spacing: 0;
     }
 
-    :deep(.message-time) {
+    :deep(.message-time),
+    :deep(.message-meta-sep) {
       font-size: 0.6875rem;
       color: var(--ai-text-secondary, var(--color-secondary-text));
+    }
+
+    :deep(.message-processing-time) {
+      font-size: 0.6875rem;
+      color: var(--ai-accent, var(--color-accent));
+      background: color-mix(in srgb, var(--ai-accent, var(--color-accent)) 12%, transparent);
+      border-color: color-mix(in srgb, var(--ai-accent, var(--color-accent)) 28%, transparent);
     }
 
     :deep(.message-content) {

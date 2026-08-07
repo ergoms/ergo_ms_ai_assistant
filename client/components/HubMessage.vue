@@ -18,6 +18,11 @@
       <!-- Header: только время и метки, без названия модуля -->
       <div v-if="formattedTime || message.processing_time_ms || message.skill_name" class="message-header">
         <span v-if="formattedTime" class="message-time">{{ formattedTime }}</span>
+        <span
+          v-if="formattedTime && message.processing_time_ms"
+          class="message-meta-sep"
+          aria-hidden="true"
+        >·</span>
         <span v-if="message.processing_time_ms" class="message-processing-time">
           {{ formatProcessingTime(message.processing_time_ms) }}
         </span>
@@ -212,8 +217,10 @@ import ContentImage from '@/components/ContentImage.vue'
 import ApexCharts from 'vue3-apexcharts'
 import {
   formatMessageContent,
+  formatProcessingTime,
   handleDocumentDownloadClick,
 } from '../js/assistantMessageFormat.js'
+import { AI_ACCENT_CSS } from '../js/themeAccent.js'
 
 const { t } = useAppI18n()
 
@@ -296,13 +303,11 @@ const moduleIcon = computed(() => {
   return Bot
 })
 
-const moduleColor = computed(() => {
-  return props.moduleConfig?.color || 'var(--ai-accent, #d0322d)'
-})
+const moduleColor = computed(() => props.moduleConfig?.color || AI_ACCENT_CSS)
 
 const avatarStyle = computed(() => {
   if (props.message.type === 'user') {
-    return { '--avatar-color': 'var(--ai-accent, #d0322d)' }
+    return { '--avatar-color': AI_ACCENT_CSS }
   }
   return { '--avatar-color': moduleColor.value }
 })
@@ -317,13 +322,6 @@ const formattedTime = computed(() => {
     hour12: false,
   })
 })
-
-const formatProcessingTime = (ms) => {
-  if (!ms) return ''
-  if (ms < 1000) return t('ai_assistant.message.durationMs', { ms })
-  const seconds = (ms / 1000).toFixed(1)
-  return t('ai_assistant.message.durationSec', { sec: seconds })
-}
 
 const formattedContent = computed(() => formatMessageContent(props.message.content))
 

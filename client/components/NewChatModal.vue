@@ -14,7 +14,7 @@
         :key="module.id"
         type="button"
         class="new-chat-card"
-        :style="{ '--module-color': module.color }"
+        :style="{ '--module-color': module.color || 'var(--ai-accent, var(--color-accent))' }"
         @click="$emit('select', module.id)"
       >
         <component :is="module.icon" :size="28" class="new-chat-card__icon" />

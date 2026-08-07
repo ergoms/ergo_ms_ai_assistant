@@ -15,7 +15,7 @@
         :key="module.id"
         type="button"
         class="chat-type-card"
-        :style="{ '--card-color': module.color }"
+        :style="{ '--card-color': module.color || 'var(--ai-accent, var(--color-accent))' }"
         @click="selectModule(module.id)"
       >
         <div class="chat-type-card__icon">

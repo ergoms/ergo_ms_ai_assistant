@@ -77,7 +77,7 @@ export default {
         goToPage: 'Aller',
         downloadChart: 'Télécharger le graphique',
         durationMs: '{ms} ms',
-        durationSec: '{sec} s',
+        durationSec: 'en {sec} s',
         processing: 'Neural traite la demande',
         generatingShort: 'Génération...',
         chartDefaultTitle: 'Graphique',

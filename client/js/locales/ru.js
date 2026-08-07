@@ -76,7 +76,7 @@ export default {
         goToPage: 'Перейти',
         downloadChart: 'Скачать график',
         durationMs: '{ms} мс',
-        durationSec: '{sec} с',
+        durationSec: 'за {sec} с',
         processing: 'Neural обрабатывает',
         generatingShort: 'Генерация...',
         chartDefaultTitle: 'График',

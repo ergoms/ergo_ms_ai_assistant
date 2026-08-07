@@ -10,7 +10,7 @@
         />
 
         <div v-if="loading" class="typing-indicator">
-          <div class="typing-avatar" :style="`--avatar-color: ${moduleConfig?.color || 'var(--ai-accent, #d0322d)'}`">
+          <div class="typing-avatar" :style="{ '--avatar-color': moduleAccent }">
             <div class="avatar-core">
               <component :is="moduleConfig?.icon" :size="18" />
             </div>
@@ -76,7 +76,7 @@
           <button
             type="button"
             class="file-btn"
-            :style="{ '--btn-color': moduleConfig?.color }"
+            :style="{ '--btn-color': moduleAccent }"
             :disabled="loading"
             :title="t('ai_assistant.uploadFile')"
             :aria-label="t('ai_assistant.uploadFile')"
@@ -98,7 +98,7 @@
           <button
             type="button"
             class="send-btn"
-            :style="{ '--btn-color': moduleConfig?.color }"
+            :style="{ '--btn-color': moduleAccent }"
             :disabled="!inputModel.trim() || loading"
             :aria-label="t('ai_assistant.apps.send')"
             @click="emit('send')"
@@ -155,6 +155,7 @@
 import { computed, nextTick, ref, watch } from 'vue'
 import { ChevronDown, Send, Upload, X, Zap } from 'lucide-vue-next'
 import { useAppI18n } from '@/i18n/useAppI18n.js'
+import { AI_ACCENT_CSS } from '../js/themeAccent.js'
 import HubMessage from './HubMessage.vue'
 
 const props = defineProps({
@@ -180,6 +181,7 @@ const inputRef = ref(null)
 const fileInputRef = ref(null)
 const suggestionsExpanded = ref(false)
 
+const moduleAccent = computed(() => props.moduleConfig?.color || AI_ACCENT_CSS)
 const hasSuggestions = computed(() => (props.moduleConfig?.suggestions?.length ?? 0) > 0)
 
 const inputModel = computed({

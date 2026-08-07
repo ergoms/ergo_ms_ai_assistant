@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import json
 import logging
+import threading
+from contextlib import contextmanager
 from typing import Any, Callable, Dict, Iterator, List, Optional
 from urllib.parse import urlencode
 
@@ -47,6 +49,50 @@ _OPERATION_PATHS = {
 
 _GET_OPERATIONS = frozenset({'health', 'list_models'})
 
+_llm_slot_lock = threading.Lock()
+_llm_slot_limit: Optional[int] = None
+_llm_slots: Optional[threading.Semaphore] = None
+
+
+def _positive_int(value: Any, default: int) -> int:
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return max(1, int(default))
+    return max(1, parsed)
+
+
+def _concurrency_limit() -> int:
+    return _positive_int(
+        getattr(ai_settings, 'AI_ASSISTANT_CONCURRENCY_LIMIT', 2),
+        2,
+    )
+
+
+def _get_llm_slots() -> threading.Semaphore:
+    """Процессный лимит одновременных chat/embed к Ollama (AI_ASSISTANT_CONCURRENCY_LIMIT)."""
+    global _llm_slot_limit, _llm_slots
+    limit = _concurrency_limit()
+    with _llm_slot_lock:
+        if _llm_slots is None or _llm_slot_limit != limit:
+            _llm_slots = threading.Semaphore(limit)
+            _llm_slot_limit = limit
+            logger.info(
+                'AI Assistant: лимит одновременных LLM-запросов = %s',
+                limit,
+            )
+        return _llm_slots
+
+
+@contextmanager
+def _llm_slot():
+    slots = _get_llm_slots()
+    slots.acquire()
+    try:
+        yield
+    finally:
+        slots.release()
+
 
 def get_transport() -> str:
     transport = getattr(ai_settings, 'OLLAMA_FRAMEWORK_TRANSPORT', None) or 'local'
@@ -83,6 +129,22 @@ def map_ollama_config(
         module_device = getattr(ai_settings, 'AI_ASSISTANT_OLLAMA_COMPUTE_DEVICE', '')
         if module_device:
             cfg['compute_device'] = module_device
+
+    # Лимиты нагрузки — только из .env модуля, не из тела запроса клиента.
+    cfg['concurrency_limit'] = _concurrency_limit()
+    try:
+        cfg['max_retries'] = max(0, int(getattr(ai_settings, 'AI_ASSISTANT_MAX_RETRIES', 2)))
+    except (TypeError, ValueError):
+        cfg['max_retries'] = 2
+    cfg['keep_alive'] = str(
+        getattr(ai_settings, 'AI_ASSISTANT_KEEP_ALIVE', None) or '10m'
+    )
+    cfg['request_timeout'] = float(
+        getattr(ai_settings, 'AI_ASSISTANT_REQUEST_TIMEOUT', 180.0) or 180.0
+    )
+    cfg['stream_timeout'] = float(
+        getattr(ai_settings, 'AI_ASSISTANT_STREAM_TIMEOUT', 300.0) or 300.0
+    )
 
     return cfg
 
@@ -229,12 +291,13 @@ def embed_texts(
     kwargs: Dict[str, Any] = {'texts': texts}
     if model:
         kwargs['model'] = model
-    return _invoke(
-        'embed',
-        config=cfg,
-        skip_env_injection=bool(ollama_config),
-        **kwargs,
-    )
+    with _llm_slot():
+        return _invoke(
+            'embed',
+            config=cfg,
+            skip_env_injection=bool(ollama_config),
+            **kwargs,
+        )
 
 
 def chat(
@@ -250,18 +313,19 @@ def chat(
 ) -> str | tuple[str, Dict[str, Any]]:
     """Chat через ModuleBridge / REST ollama_framework."""
     cfg = map_ollama_config(ollama_config, embeddings=False)
-    result = _invoke(
-        'chat',
-        messages=messages,
-        config=cfg,
-        skip_env_injection=bool(ollama_config),
-        temperature=temperature,
-        stream=stream,
-        stream_callback=stream_callback,
-        num_predict=num_predict,
-        seed=seed,
-        return_stats=return_stats,
-    )
+    with _llm_slot():
+        result = _invoke(
+            'chat',
+            messages=messages,
+            config=cfg,
+            skip_env_injection=bool(ollama_config),
+            temperature=temperature,
+            stream=stream,
+            stream_callback=stream_callback,
+            num_predict=num_predict,
+            seed=seed,
+            return_stats=return_stats,
+        )
     if isinstance(result, str):
         return result
     return result
@@ -288,16 +352,17 @@ def chat_stream(
             f'Операция {op_name} недоступна. '
             'Убедитесь, что модуль ollama_framework установлен и загружен.'
         )
-    try:
-        stream = bridge.call(
-            op_name,
-            messages=messages,
-            config=cfg,
-            skip_env_injection=bool(ollama_config),
-            temperature=temperature,
-            num_predict=num_predict,
-            seed=seed,
-        )
-        yield from stream
-    except Exception as exc:
-        raise LLMClientError(str(exc)) from exc
+    with _llm_slot():
+        try:
+            stream = bridge.call(
+                op_name,
+                messages=messages,
+                config=cfg,
+                skip_env_injection=bool(ollama_config),
+                temperature=temperature,
+                num_predict=num_predict,
+                seed=seed,
+            )
+            yield from stream
+        except Exception as exc:
+            raise LLMClientError(str(exc)) from exc

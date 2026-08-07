@@ -189,9 +189,16 @@ export function formatMessageContent(content, options = {}) {
 }
 
 export function formatProcessingTime(ms) {
-  if (!ms) return ''
-  if (ms < 1000) return tGlobal('ai_assistant.message.durationMs', { ms })
-  return tGlobal('ai_assistant.message.durationSec', { sec: (ms / 1000).toFixed(1) })
+  if (!ms && ms !== 0) return ''
+  const locale = getCurrentBcp47()
+  if (ms < 1000) {
+    return tGlobal('ai_assistant.message.durationMs', { ms: Math.round(ms) })
+  }
+  const sec = (ms / 1000).toLocaleString(locale, {
+    minimumFractionDigits: ms % 1000 === 0 ? 0 : 1,
+    maximumFractionDigits: 1,
+  })
+  return tGlobal('ai_assistant.message.durationSec', { sec })
 }
 
 export function formatCell(value) {

@@ -13,6 +13,7 @@ alwaysApply: false
 
 - Вызовы Ollama — [`api/ollama_gateway.py`](../../api/ollama_gateway.py) → `bridge.call('ollama_framework.*')` (или HTTP REST самого `ollama_framework` при `OLLAMA_FRAMEWORK_TRANSPORT=http`)
 - Устройство inference — `AI_ASSISTANT_OLLAMA_COMPUTE_DEVICE=gpu|cpu` в `modules/ai_assistant/.env` (пусто — из `OLLAMA_COMPUTE_DEVICE` ollama_framework)
+- Параллелизм LLM — `AI_ASSISTANT_CONCURRENCY_LIMIT` в `modules/ai_assistant/.env` (семафор в `ollama_gateway` + `concurrency_limit` для клиента ollama_framework)
 - Статус для клиента — `GET /api/ai_assistant/ollama_status/` (proxy), не `ollama_framework/status/`
 - Права — `CanViewAiAssistant` / `permission_catalog`
 - Файлы — media_api + signed URL

@@ -76,7 +76,7 @@ export default {
         goToPage: 'Go',
         downloadChart: 'Download chart',
         durationMs: '{ms} ms',
-        durationSec: '{sec} s',
+        durationSec: 'in {sec} s',
         processing: 'Neural is processing',
         generatingShort: 'Generating...',
         chartDefaultTitle: 'Chart',

@@ -11,8 +11,9 @@ export default {
   name: '',
   description: '',
   icon: markRaw(MessageSquare),
-  color: '#d0322d',
-  colorLight: 'rgba(208, 50, 45, 0.12)',
+  // Следует accent модульной темы (редактор /settings/themes), не хардкод.
+  color: 'var(--ai-accent, var(--color-accent))',
+  colorLight: 'color-mix(in srgb, var(--ai-accent, var(--color-accent)) 12%, transparent)',
   enabled: true,
 
   // Настройки модуля
