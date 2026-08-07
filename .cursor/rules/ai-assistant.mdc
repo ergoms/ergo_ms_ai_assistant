@@ -24,6 +24,7 @@ alwaysApply: false
 - Тема — `theme-defaults.js` + `useModuleThemeMode('ai_assistant')`
 - Сборка prompt chat/stream — [`api/rag/chat_messages.py`](../../api/rag/chat_messages.py); ответы — с точки зрения пользователя сайта
 - Корпус RAG — меню / UI / guides (`ergoms ai_assistant:sync-knowledge`), не `.docs` и не `.cursor/rules`
+- В setup-full корпус синхронизируется после migrate (`include_in: setup-full-after-migrate`, команда с `--sync`)
 - Модели Ollama для setup-full — `ollama_models.yaml` (pull через `ergoms ollama_framework:pull-setup-models`), не свой `vscode.tasks.yaml`
 - Документация модуля — держать `AGENTS.md` / это правило / `README.md` в синхроне с контрактами ([`module-docs.mdc`](../../../../.cursor/rules/module-docs.mdc))
 

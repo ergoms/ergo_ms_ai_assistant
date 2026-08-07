@@ -5,7 +5,7 @@
     ergoms api sync_system_knowledge
     ergoms ai_assistant:sync-knowledge
 """
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 
 from modules.ai_assistant.api.rag.system_corpus import sync_system_corpus
 from modules.ai_assistant.api.settings import RAG_SYSTEM_CORPUS_ENABLED
@@ -73,9 +73,10 @@ class Command(BaseCommand):
                 self.stderr.write(f"  {item.get('source')}: {item.get('error')}")
             if len(errors) > 20:
                 self.stderr.write(f'  ... и ещё {len(errors) - 20}')
-            return
+            raise CommandError(f'Синхронизация корпуса завершилась с ошибками: {len(errors)}')
 
         if result.get('success'):
             self.stdout.write(self.style.SUCCESS('Пользовательская справка синхронизирована'))
-        else:
-            self.stderr.write(self.style.ERROR(result.get('error') or 'Ошибка синхронизации'))
+            return
+
+        raise CommandError(result.get('error') or 'Ошибка синхронизации')

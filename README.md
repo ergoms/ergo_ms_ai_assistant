@@ -42,6 +42,8 @@ ergoms ai_assistant:install-pgvector
 ergoms ai_assistant:ensure-pgvector
 ```
 
+При `ergoms setup` / Setup Full System: `install-pgvector` идёт до миграций (`include_in: setup-full`), `sync-knowledge --sync` — после миграций (`include_in: setup-full-after-migrate`). Нужны Ollama и модель embeddings (их ставит `ollama_framework:pull-setup-models` в том же setup-full).
+
 ## Куда смотреть в коде
 
 | Область | Путь |

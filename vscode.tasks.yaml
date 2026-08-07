@@ -1,5 +1,5 @@
 # Задачи VS Code / setup-full для ai_assistant
-# Discovery: module_tasks_loader → ModuleSetupTasksStep (до migrate)
+# Discovery: module_tasks_loader → ModuleSetupTasksStep / ModuleSetupTasksAfterMigrateStep
 
 module: ai_assistant
 tasks:
@@ -10,3 +10,11 @@ tasks:
     order: 0
     include_in:
       - setup-full
+
+  - label: "AI Assistant: Sync knowledge"
+    detail: "Синхронизировать пользовательский корпус RAG (меню, UI, guides) после миграций"
+    command: "ergoms ai_assistant:sync-knowledge --sync"
+    hide: true
+    order: 20
+    include_in:
+      - setup-full-after-migrate
