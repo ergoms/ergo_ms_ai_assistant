@@ -221,9 +221,16 @@ function persist(immediate = false) {
 }
 
 function onPageHide() {
-  // F5 во время стрима: pending должен пережить перезагрузку (loading в refs сбрасывается).
-  if (miniChatLoading.value) {
+  // F5 во время стрима/ожидания: pending должен пережить перезагрузку.
+  // Нельзя оставлять в storage хвостовую заглушку interrupted — после F5 нужен typing.
+  if (miniChatLoading.value || isAwaitingAssistantReply(miniChatMessages.value)) {
     miniChatPending.value = true
+  }
+  if (Array.isArray(miniChatMessages.value) && miniChatMessages.value.length) {
+    const cleaned = stripTrailingInterrupted(miniChatMessages.value)
+    if (cleaned.length !== miniChatMessages.value.length) {
+      miniChatMessages.value = cleaned
+    }
   }
   persist(true)
 }

@@ -458,24 +458,16 @@ async function sendMessage(prefilled) {
         applySessionId(preparingSessionId)
       },
     )
-    // Обрыв SSE: на живой вкладке генерация уже убита — сразу подсказка повторить.
-    // При F5/уходе оставляем pending; после открытия чата короткий опрос сессии.
+    // Обрыв SSE: fetch часто abort'ится ДО pagehide — нельзя писать «не удалось» здесь,
+    // иначе после F5 в localStorage уже ошибка вместо pending+typing.
     if (streamResult?.disconnected && requestId === streamGeneration) {
+      setMiniChatPending(true)
+      setMiniChatLoading(true)
       if (isPageUnloading()) {
-        setMiniChatPending(true)
-        setMiniChatLoading(true)
         return
       }
-      if (sessionId.value) {
-        setMiniChatPending(true)
-        setMiniChatLoading(true)
-        scheduleTypingAnimRestart()
-        await recoverPendingReply(sessionId.value)
-      } else {
-        markReplyInterrupted()
-        setMiniChatPending(false)
-        setMiniChatLoading(false)
-      }
+      scheduleTypingAnimRestart()
+      await recoverPendingReply(sessionId.value || null)
     }
   } catch (error) {
     if (requestId !== streamGeneration) return

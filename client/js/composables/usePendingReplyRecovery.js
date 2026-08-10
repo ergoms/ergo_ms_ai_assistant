@@ -8,6 +8,7 @@
 import { ragClient } from '../../rag/js/rag-client.js'
 import { logError } from '@/js/utils/logError.js'
 import { whenSessionReady } from '@/js/sessionReady.js'
+import { isPageUnloading } from '../streamDisconnect.js'
 import {
   isAwaitingAssistantReply,
   shouldPreferServerMessages,
@@ -94,6 +95,11 @@ export async function recoverPendingReply({
   const localUserBaseline = countUserMessages(getLocalMessages() || [])
 
   for (const delay of delaysMs) {
+    if (isPageUnloading()) {
+      // Умирающая вкладка: оставляем pending для следующего F5, без текста ошибки
+      setPending(true)
+      return false
+    }
     if (delay) {
       await new Promise((resolve) => setTimeout(resolve, delay))
     }
@@ -139,6 +145,11 @@ export async function recoverPendingReply({
     } catch (error) {
       logError('Ошибка опроса ответа ассистента после обрыва SSE', error)
     }
+  }
+
+  if (isPageUnloading()) {
+    setPending(true)
+    return false
   }
 
   setPending(false)

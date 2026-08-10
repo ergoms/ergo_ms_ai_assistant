@@ -1,6 +1,9 @@
 /**
  * Обрыв SSE (F5 / закрытие вкладки / kill Daphne) — не показывать как сетевую ошибку fetch.
- * Ответ дотягивается через pending recovery только если сервер успел сохранить сообщение.
+ * Ответ дотягивается через pending recovery.
+ *
+ * Важно: браузер часто abort'ит fetch ДО beforeunload/pagehide.
+ * Поэтому при disconnected нельзя писать «не удалось» — только pending.
  */
 
 let pageUnloading = false
@@ -14,7 +17,7 @@ if (typeof window !== 'undefined') {
   window.addEventListener('beforeunload', markPageUnloading)
 }
 
-/** true, если вкладка уходит (F5 / закрытие / навигация) — JS может не дожить до UI-ошибки. */
+/** true, если вкладка уходит (F5 / закрытие / навигация). */
 export function isPageUnloading() {
   return pageUnloading
 }
