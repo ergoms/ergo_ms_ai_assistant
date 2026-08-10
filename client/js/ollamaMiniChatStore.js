@@ -33,6 +33,7 @@ function serializeMessages(messages) {
     attachments: msg.attachments || [],
     metadata: msg.metadata || {},
     streaming: false,
+    interrupted: Boolean(msg.interrupted),
   }))
 }
 
@@ -41,6 +42,7 @@ function normalizeMessages(messages) {
   return messages.map((msg) => ({
     ...msg,
     streaming: false,
+    interrupted: Boolean(msg.interrupted),
     timestamp: msg.timestamp ? new Date(msg.timestamp) : new Date(),
   }))
 }
@@ -49,13 +51,39 @@ function hasUserMessages(messages) {
   return Array.isArray(messages) && messages.some((msg) => msg?.type === 'user')
 }
 
-/** Последнее сообщение — от пользователя или пустой/стримящийся ответ ассистента. */
+/** Тексты replyInterrupted (ru/en/fr) — старые снимки без флага interrupted. */
+const INTERRUPT_PLACEHOLDER_TEXTS = new Set([
+  'Не удалось получить ответ. Отправьте сообщение ещё раз.',
+  'Could not get a reply. Please send your message again.',
+  'Impossible d’obtenir une réponse. Renvoyez votre message.',
+])
+
+/** Локальная заглушка после неудачного/раннего recovery — не финальный ответ. */
+export function isInterruptedPlaceholder(msg) {
+  if (!msg || msg.type !== 'assistant') return false
+  if (msg.interrupted) return true
+  return INTERRUPT_PLACEHOLDER_TEXTS.has(String(msg.content || '').trim())
+}
+
+/** Убрать хвостовые заглушки «не удалось получить ответ» перед показом typing. */
+export function stripTrailingInterrupted(messages) {
+  if (!Array.isArray(messages) || !messages.length) return messages || []
+  const next = [...messages]
+  while (next.length && isInterruptedPlaceholder(next[next.length - 1])) {
+    next.pop()
+  }
+  return next
+}
+
+/** Последнее сообщение — от пользователя, пустой/стримящийся ответ или локальный «прервано». */
 export function isAwaitingAssistantReply(messages) {
   if (!Array.isArray(messages) || !messages.length) return false
   const last = messages[messages.length - 1]
   if (!last) return false
   if (last.type === 'user') return true
   if (last.type === 'assistant') {
+    // Локальная заглушка после F5 — сервер ещё может дописать настоящий ответ
+    if (isInterruptedPlaceholder(last)) return true
     if (last.streaming) return true
     return !String(last.content || '').trim()
   }
@@ -66,6 +94,19 @@ export function isAwaitingAssistantReply(messages) {
 export function shouldPreferServerMessages(localMessages, serverMessages) {
   if (!serverMessages?.length) return false
   if (!localMessages?.length) return true
+
+  const localLast = localMessages[localMessages.length - 1]
+  const serverLast = serverMessages[serverMessages.length - 1]
+  // Локальная заглушка «прервано» — всегда уступаем реальному ответу с сервера
+  if (
+    isInterruptedPlaceholder(localLast)
+    && serverLast?.type === 'assistant'
+    && String(serverLast.content || '').trim()
+    && !isInterruptedPlaceholder(serverLast)
+  ) {
+    return true
+  }
+
   if (serverMessages.length > localMessages.length) return true
   if (serverMessages.length < localMessages.length) return false
 
@@ -74,8 +115,6 @@ export function shouldPreferServerMessages(localMessages, serverMessages) {
   if (localAwaiting && !serverAwaiting) return true
   if (!localAwaiting && serverAwaiting) return false
 
-  const localLast = localMessages[localMessages.length - 1]
-  const serverLast = serverMessages[serverMessages.length - 1]
   const localLen = String(localLast?.content || '').length
   const serverLen = String(serverLast?.content || '').length
   return serverLen > localLen
@@ -87,7 +126,12 @@ function readPersistedState() {
     if (!raw) return { sessionId: null, messages: null, pending: false }
     const parsed = JSON.parse(raw)
     const sessionId = isUuid(parsed?.sessionId) ? String(parsed.sessionId) : null
-    const messages = normalizeMessages(parsed?.messages)
+    // Заглушку «не удалось получить ответ» не гидратируем — после F5 нужен typing, не ошибка
+    let messages = normalizeMessages(parsed?.messages)
+    if (messages?.length) {
+      const cleaned = stripTrailingInterrupted(messages)
+      messages = cleaned.length ? cleaned : null
+    }
     const pending = Boolean(parsed?.pending) || isAwaitingAssistantReply(messages)
     return { sessionId, messages, pending }
   } catch {

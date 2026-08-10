@@ -96,9 +96,13 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ChevronDown, Send, Zap } from 'lucide-vue-next'
+import {
+  BOOTSTRAP_MASK_HIDDEN_EVENT,
+  isBootstrapMaskActive,
+} from '@/js/bootstrapMask.js'
 import { useAppI18n } from '@/i18n/useAppI18n.js'
 import { logError } from '@/js/utils/logError.js'
 import {
@@ -115,6 +119,7 @@ import {
   setMiniChatPending,
   setMiniChatSessionId,
   shouldPreferServerMessages,
+  stripTrailingInterrupted,
 } from '../js/ollamaMiniChatStore.js'
 import { recoverPendingReply as recoverPendingReplyShared } from '../js/composables/usePendingReplyRecovery.js'
 import { isPageUnloading } from '../js/streamDisconnect.js'
@@ -194,6 +199,19 @@ function scheduleTypingAnimRestart() {
   })
 }
 
+function onBootstrapMaskHidden() {
+  scheduleTypingAnimRestart()
+}
+
+function bindBootstrapTypingRestart() {
+  if (typeof window === 'undefined') return
+  if (isBootstrapMaskActive()) {
+    window.addEventListener(BOOTSTRAP_MASK_HIDDEN_EVENT, onBootstrapMaskHidden, { once: true })
+    return
+  }
+  scheduleTypingAnimRestart()
+}
+
 function initWelcome() {
   resetLocalMessageIds(1)
   setMessages([{
@@ -224,7 +242,8 @@ function sanitizeChatMessages(list) {
 }
 
 function restoreSavedChat() {
-  const saved = sanitizeChatMessages(miniChatMessages.value)
+  // Старые F5-заглушки не показываем — вместо них typing + recovery
+  const saved = stripTrailingInterrupted(sanitizeChatMessages(miniChatMessages.value))
   if (!saved?.length) {
     return false
   }
@@ -232,6 +251,7 @@ function restoreSavedChat() {
   setMessages(saved.map((msg) => ({
     ...msg,
     streaming: false,
+    interrupted: false,
     timestamp: msg.timestamp instanceof Date ? msg.timestamp : new Date(msg.timestamp || Date.now()),
   })))
   sessionId.value = miniChatSessionId.value
@@ -283,10 +303,11 @@ async function restoreChatFromServer(persistedSessionId, { force = false } = {})
 function markReplyInterrupted() {
   const text = t('ai_assistant.replyInterrupted')
   const last = messages.value.at(-1)
-  if (last?.type === 'assistant' && !String(last.content || '').trim()) {
+  if (last?.type === 'assistant' && (last.interrupted || !String(last.content || '').trim())) {
     last.content = text
     last.streaming = false
     last.isStreaming = false
+    last.interrupted = true
     setMiniChatMessages(messages.value)
     return
   }
@@ -297,9 +318,43 @@ function markReplyInterrupted() {
       type: 'assistant',
       content: text,
       timestamp: new Date(),
+      interrupted: true,
     })
     setMiniChatMessages(messages.value)
   }
+}
+
+/** После F5 до preparing sessionId может не попасть в storage — ищем свежую mini_chat сессию. */
+async function resolveMiniChatSessionId() {
+  const listed = await ragClient.getChatSessions(MINI_CHAT_MODULE)
+  if (!listed?.success || !listed.sessions?.length) {
+    return null
+  }
+  const localUsers = messages.value.filter((msg) => msg?.type === 'user')
+  const lastUserText = String(localUsers.at(-1)?.content || '').trim()
+  // API: ordering=-updated_at — сначала свежие
+  const candidates = listed.sessions.slice(0, 5)
+
+  for (const row of candidates) {
+    const id = row?.id
+    if (!id) continue
+    const fetched = await ragClient.getChatSession(id)
+    if (!fetched?.success) continue
+    const mapped = mapApiMessages(fetched.messages || [])
+    const serverUsers = mapped.filter((msg) => msg?.type === 'user')
+    const serverLastUser = String(serverUsers.at(-1)?.content || '').trim()
+    if (lastUserText && serverLastUser && lastUserText === serverLastUser) {
+      applySessionId(id)
+      return id
+    }
+  }
+
+  // Fallback: самая свежая mini_chat
+  const newest = candidates[0]?.id
+  if (newest) {
+    applySessionId(newest)
+  }
+  return newest || null
 }
 
 async function recoverPendingReply(persistedSessionId) {
@@ -307,12 +362,14 @@ async function recoverPendingReply(persistedSessionId) {
     sessionId: persistedSessionId,
     getLocalMessages: () => messages.value,
     applyMessages: (mapped) => {
-      applyMappedMessages(mapped, persistedSessionId)
+      const sid = miniChatSessionId.value || persistedSessionId
+      applyMappedMessages(mapped, sid)
     },
     setPending: (pending) => {
       setMiniChatPending(pending)
       setMiniChatLoading(pending)
     },
+    resolveSessionId: resolveMiniChatSessionId,
     onInterrupted: markReplyInterrupted,
   })
   scrollToBottom()
@@ -457,7 +514,7 @@ watch(showTyping, (visible) => {
 })
 
 onMounted(async () => {
-  scheduleTypingAnimRestart()
+  bindBootstrapTypingRestart()
   // История мини-чата живёт в localStorage; сервер — только для LLM/recovery, не список хаба
   const hadLocalSnapshot = restoreSavedChat()
   if (!hadLocalSnapshot) {
@@ -475,6 +532,13 @@ onMounted(async () => {
     } else {
       initWelcome()
     }
+  }
+
+  // Ещё раз снять заглушку, если успела попасть в messages
+  const withoutInterrupted = stripTrailingInterrupted(messages.value)
+  if (withoutInterrupted.length !== messages.value.length) {
+    setMessages(withoutInterrupted)
+    setMiniChatMessages(withoutInterrupted)
   }
 
   const last = messages.value.at(-1)
@@ -499,10 +563,11 @@ onMounted(async () => {
 
   const activeSessionId = miniChatSessionId.value || sessionId.value
   const needsRecovery = Boolean(
-    activeSessionId && (miniChatPending.value || miniChatLoading.value || awaiting),
+    miniChatPending.value || miniChatLoading.value || awaiting,
   )
 
   if (needsRecovery) {
+    // Пока идёт recovery — только typing, без текста ошибки
     setMiniChatPending(true)
     setMiniChatLoading(true)
     scheduleTypingAnimRestart()
@@ -514,11 +579,11 @@ onMounted(async () => {
     setMiniChatPending(false)
     setMiniChatLoading(false)
   }
+})
 
-  // Без sessionId ответ с сервера не дотянуть — историю мини-чата оставляем как есть
-  if (!activeSessionId && awaiting) {
-    setMiniChatPending(false)
-    setMiniChatLoading(false)
+onBeforeUnmount(() => {
+  if (typeof window !== 'undefined') {
+    window.removeEventListener(BOOTSTRAP_MASK_HIDDEN_EVENT, onBootstrapMaskHidden)
   }
 })
 </script>

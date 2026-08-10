@@ -147,6 +147,7 @@ async function maybeRecoverPendingReply(sessionId) {
         type: 'assistant',
         content: t('ai_assistant.replyInterrupted'),
         timestamp: new Date(),
+        interrupted: true,
       })
     },
   })

@@ -152,8 +152,12 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { ChevronDown, Send, Upload, X, Zap } from 'lucide-vue-next'
+import {
+  BOOTSTRAP_MASK_HIDDEN_EVENT,
+  isBootstrapMaskActive,
+} from '@/js/bootstrapMask.js'
 import { useAppI18n } from '@/i18n/useAppI18n.js'
 import { AI_ACCENT_CSS } from '../js/themeAccent.js'
 import HubMessage from './HubMessage.vue'
@@ -183,23 +187,38 @@ const suggestionsExpanded = ref(false)
 /** Remount typing после снятия app-bootstrapping (F5 за nginx). */
 const typingAnimKey = ref(0)
 
-onMounted(() => {
+function bumpTypingAnimation() {
+  if (!props.loading) return
+  typingAnimKey.value += 1
+}
+
+function scheduleTypingAnimRestart() {
   requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      if (props.loading) typingAnimKey.value += 1
-    })
+    requestAnimationFrame(bumpTypingAnimation)
   })
+}
+
+function onBootstrapMaskHidden() {
+  scheduleTypingAnimRestart()
+}
+
+onMounted(() => {
+  if (isBootstrapMaskActive()) {
+    window.addEventListener(BOOTSTRAP_MASK_HIDDEN_EVENT, onBootstrapMaskHidden, { once: true })
+  } else {
+    scheduleTypingAnimRestart()
+  }
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener(BOOTSTRAP_MASK_HIDDEN_EVENT, onBootstrapMaskHidden)
 })
 
 watch(
   () => props.loading,
   (loading) => {
     if (loading) {
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          typingAnimKey.value += 1
-        })
-      })
+      scheduleTypingAnimRestart()
     }
   },
 )

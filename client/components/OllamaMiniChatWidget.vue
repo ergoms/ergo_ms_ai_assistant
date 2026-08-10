@@ -175,7 +175,8 @@ onBeforeUnmount(() => {
       :inert="!isOpen"
     >
       <ModuleThemeScope module-key="ai_assistant">
-        <Transition name="ollama-widget-panel">
+        <!-- appear: после F5 isOpen уже true — без appear enter-анимация не играет -->
+        <Transition name="ollama-widget-panel" appear>
           <div
             v-show="isOpen"
             ref="panelRef"
