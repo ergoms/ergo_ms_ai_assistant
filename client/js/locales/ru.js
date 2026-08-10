@@ -16,7 +16,7 @@ export default {
       chatDeleteFail: 'Не удалось удалить чат',
       chatDeleteError: 'Ошибка удаления чата',
       chatCreateFail: 'Не удалось создать чат',
-      replyInterrupted: 'Связь прервалась при обновлении страницы. Если ответ не появился — откройте чат снова через несколько секунд.',
+      replyInterrupted: 'Не удалось получить ответ. Отправьте сообщение ещё раз.',
       chatCreateError: 'Ошибка создания чата',
       chatLoadFail: 'Не удалось загрузить чат',
       moduleNotFound: 'Модуль не найден',
@@ -37,7 +37,7 @@ export default {
       newChatWithModule: 'Новый чат: {name}',
       newDialogDraft: 'Новый диалог…',
       routes: {
-        hub: 'AI Hub',
+        hub: 'AI ассистент',
       },
       apps: {
         ollamaChat: 'AI ассистент',
@@ -134,7 +134,7 @@ export default {
         header: {
           title: 'AI Ассистент - База знаний',
           uploadTooltip: 'Загрузить документ',
-          openHub: 'Открыть AI Hub',
+          openHub: 'Открыть AI ассистент',
         },
         compactUpload: 'Загрузить документ',
         uploadModalTitle: 'Загрузка документа',

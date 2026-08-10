@@ -485,6 +485,13 @@ const sendMessage = async () => {
         msg.isStreaming = false
       } else if (msg) {
         msg.isStreaming = false
+      } else {
+        messages.value.push({
+          id: Date.now(),
+          type: 'assistant',
+          content: t('ai_assistant.replyInterrupted'),
+          timestamp: new Date(),
+        })
       }
       isTyping.value = false
       streamingMessageId = null

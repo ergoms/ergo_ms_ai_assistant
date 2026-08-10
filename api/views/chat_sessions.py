@@ -25,11 +25,13 @@ class ChatSessionViewSet(ViewSet, SwaggerSafeMixin):
         queryset = ChatSession.objects.filter(user=user)
         queryset = self.get_safe_queryset(queryset)
         
-        # Фильтрация по модулю
+        # Фильтрация по модулю. Без фильтра — без мини-чата (он не в списке хаба).
         module = request.query_params.get('module')
         if module:
             queryset = queryset.filter(module=module)
-        
+        else:
+            queryset = queryset.exclude(module='mini_chat')
+
         sessions = []
         for session in queryset[:50]:  # Ограничиваем 50 последними
             sessions.append({

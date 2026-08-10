@@ -67,6 +67,19 @@
   }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .typing-dots span {
+    animation: none;
+    opacity: 0.55;
+  }
+}
+
+// partial внутри .neural-hub — селектор на html пишем без лишнего nesting
+html[data-ergo-motion='reduce'] & .typing-dots span {
+  animation: none;
+  opacity: 0.55;
+}
+
 @keyframes typing-bounce {
   0%, 60%, 100% {
     transform: translateY(0);

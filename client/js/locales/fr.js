@@ -16,7 +16,7 @@ export default {
       chatDeleteFail: 'Échec de la suppression du chat',
       chatDeleteError: 'Erreur lors de la suppression du chat',
       chatCreateFail: 'Échec de la création du chat',
-      replyInterrupted: 'La connexion a été interrompue par le rechargement. Si la réponse n’apparaît pas, rouvrez le chat dans quelques secondes.',
+      replyInterrupted: 'Impossible d’obtenir une réponse. Renvoyez votre message.',
       chatCreateError: 'Erreur lors de la création du chat',
       chatLoadFail: 'Échec du chargement du chat',
       moduleNotFound: 'Module introuvable',
@@ -37,7 +37,7 @@ export default {
       newChatWithModule: 'Nouveau chat : {name}',
       newDialogDraft: 'Nouveau dialogue…',
       routes: {
-        hub: 'AI Hub',
+        hub: 'Assistant IA',
       },
       apps: {
         ollamaChat: 'Assistant IA',
@@ -135,7 +135,7 @@ export default {
         header: {
           title: 'Assistant IA - Base de connaissances',
           uploadTooltip: 'Téléverser un document',
-          openHub: "Ouvrir l'AI Hub",
+          openHub: "Ouvrir l'assistant IA",
         },
         compactUpload: 'Téléverser un document',
         uploadModalTitle: 'Téléversement du document',

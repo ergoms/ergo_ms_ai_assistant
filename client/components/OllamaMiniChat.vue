@@ -7,7 +7,13 @@
         :message="msg"
         :module-config="moduleConfig"
       />
-      <div v-if="isThinking" class="ollama-mini-chat__typing" role="status" aria-live="polite">
+      <div
+        v-if="showTyping"
+        :key="typingAnimKey"
+        class="ollama-mini-chat__typing"
+        role="status"
+        aria-live="polite"
+      >
         <div
           class="ollama-mini-chat__typing-avatar"
           :style="{ '--typing-color': moduleConfig?.color || AI_ACCENT_CSS }"
@@ -17,7 +23,7 @@
         </div>
         <div class="ollama-mini-chat__typing-body">
           <span class="ollama-mini-chat__typing-label">{{ t('ai_assistant.generating') }}</span>
-          <div class="ollama-mini-chat__typing-dots" aria-hidden="true">
+          <div class="ollama-mini-chat__typing-dots" data-ergo-motion-safe="pulse" aria-hidden="true">
             <span /><span /><span />
           </div>
         </div>
@@ -99,6 +105,7 @@ import {
   clearMiniChatState,
   dismissOllamaMiniChat,
   isAwaitingAssistantReply,
+  MINI_CHAT_MODULE,
   miniChatLoading,
   miniChatMessages,
   miniChatPending,
@@ -109,11 +116,14 @@ import {
   setMiniChatSessionId,
   shouldPreferServerMessages,
 } from '../js/ollamaMiniChatStore.js'
+import { recoverPendingReply as recoverPendingReplyShared } from '../js/composables/usePendingReplyRecovery.js'
+import { isPageUnloading } from '../js/streamDisconnect.js'
 import { AI_ACCENT_CSS } from '../js/themeAccent.js'
 import { getModuleById } from '../modules/index.js'
 import { ragClient } from '../rag/js/rag-client.js'
 import {
   mapApiMessages,
+  nextLocalMessageId,
   resetLocalMessageIds,
   useMessageHistory,
 } from '../js/composables/useAssistantStream.js'
@@ -147,23 +157,42 @@ const chatInput = ref('')
 const sessionId = ref(miniChatSessionId.value)
 /** Инкремент отменяет колбэки активного стрима (очистка чата / новый запрос). */
 let streamGeneration = 0
+/** Remount typing после снятия app-bootstrapping — иначе CSS infinite animation может не стартовать. */
+const typingAnimKey = ref(0)
 const loading = computed(() => miniChatLoading.value || miniChatPending.value)
-const isThinking = computed(() => {
+/**
+ * Индикатор «генерации» — как loading в HubChatPanel.
+ * Не дублируем, когда в HubMessage уже идёт текст со streaming-курсором.
+ */
+const showTyping = computed(() => {
   const last = messages.value.at(-1)
   const streamingWithText = Boolean(
-    last?.type === 'assistant' && last?.streaming && String(last?.content || '').trim(),
+    last?.type === 'assistant'
+    && (last?.streaming || last?.isStreaming)
+    && String(last?.content || '').trim(),
   )
-  // Пока идут токены — курсор стрима в HubMessage, не дублируем «генерацию»
-  if (streamingWithText) {
-    return false
-  }
-  if (miniChatLoading.value || miniChatPending.value) {
-    return true
-  }
-  return Boolean(last?.type === 'assistant' && last?.streaming && !String(last?.content || '').trim())
+  if (streamingWithText) return false
+  if (loading.value) return true
+  return Boolean(
+    last?.type === 'assistant'
+    && (last?.streaming || last?.isStreaming)
+    && !String(last?.content || '').trim(),
+  )
 })
 const canShowSuggestions = computed(() => (moduleConfig.value?.suggestions?.length ?? 0) > 0)
 const suggestionsExpanded = ref(false)
+
+function bumpTypingAnimation() {
+  if (!showTyping.value) return
+  typingAnimKey.value += 1
+}
+
+function scheduleTypingAnimRestart() {
+  // Двойной rAF — как hideBootstrapMask в App.vue: после снятия маски.
+  requestAnimationFrame(() => {
+    requestAnimationFrame(bumpTypingAnimation)
+  })
+}
 
 function initWelcome() {
   resetLocalMessageIds(1)
@@ -252,66 +281,43 @@ async function restoreChatFromServer(persistedSessionId, { force = false } = {})
 }
 
 function markReplyInterrupted() {
+  const text = t('ai_assistant.replyInterrupted')
   const last = messages.value.at(-1)
   if (last?.type === 'assistant' && !String(last.content || '').trim()) {
-    last.content = t('ai_assistant.replyInterrupted')
+    last.content = text
     last.streaming = false
+    last.isStreaming = false
     setMiniChatMessages(messages.value)
     return
   }
   if (last?.type === 'user') {
-    setAssistantError(t('ai_assistant.replyInterrupted'))
+    // Без префикса «Ошибка:» — обычная подсказка повторить отправку
+    messages.value.push({
+      id: nextLocalMessageId(),
+      type: 'assistant',
+      content: text,
+      timestamp: new Date(),
+    })
+    setMiniChatMessages(messages.value)
   }
 }
 
 async function recoverPendingReply(persistedSessionId) {
-  if (!persistedSessionId) {
-    setMiniChatPending(false)
-    setMiniChatLoading(false)
-    return false
-  }
-
-  setMiniChatPending(true)
-  setMiniChatLoading(true)
-
-  // Celery LLM может отвечать минуты — дольше опрашиваем сессию после F5
-  const delaysMs = [
-    0, 500, 1000, 1500, 2000, 3000, 4000, 5000,
-    5000, 5000, 8000, 10000, 10000, 15000, 15000, 20000, 30000,
-  ]
-  for (const delay of delaysMs) {
-    if (delay) {
-      await new Promise((resolve) => setTimeout(resolve, delay))
-    }
-    try {
-      const fetched = await fetchSessionMessages(persistedSessionId)
-      if (!fetched) {
-        break
-      }
-      if (fetched.mapped.length && shouldPreferServerMessages(messages.value, fetched.mapped)) {
-        applyMappedMessages(fetched.mapped, persistedSessionId, fetched.session)
-      }
-      const current = messages.value
-      const serverDone = fetched.mapped.length && !isAwaitingAssistantReply(fetched.mapped)
-      const localDone = current.length && !isAwaitingAssistantReply(current)
-      if (serverDone || localDone) {
-        setMiniChatPending(false)
-        setMiniChatLoading(false)
-        scrollToBottom()
-        return true
-      }
-    } catch (error) {
-      logError('Ошибка опроса ответа мини-чата', error)
-    }
-  }
-
-  setMiniChatPending(false)
-  setMiniChatLoading(false)
-  if (isAwaitingAssistantReply(messages.value)) {
-    markReplyInterrupted()
-  }
+  const ok = await recoverPendingReplyShared({
+    sessionId: persistedSessionId,
+    getLocalMessages: () => messages.value,
+    applyMessages: (mapped) => {
+      applyMappedMessages(mapped, persistedSessionId)
+    },
+    setPending: (pending) => {
+      setMiniChatPending(pending)
+      setMiniChatLoading(pending)
+    },
+    onInterrupted: markReplyInterrupted,
+  })
   scrollToBottom()
-  return false
+  scheduleTypingAnimRestart()
+  return ok
 }
 
 function applySessionId(nextSessionId) {
@@ -347,7 +353,9 @@ async function sendMessage(prefilled) {
   const requestId = ++streamGeneration
   addUserMessage(text)
   chatInput.value = ''
+  // Как на hub: typing сразу от loading, пузырь — с первого SSE-chunk
   setMiniChatLoading(true)
+  scheduleTypingAnimRestart()
   scrollToBottom()
 
   try {
@@ -359,7 +367,11 @@ async function sendMessage(prefilled) {
       text,
       (chunk) => {
         if (requestId !== streamGeneration) return
-        if (miniChatLoading.value) setMiniChatLoading(false)
+        // Первый токен: гасим только loading (typing → курсор). pending держим до done —
+        // иначе после F5 индикатор и recovery пропадают.
+        if (miniChatLoading.value) {
+          miniChatLoading.value = false
+        }
         appendStreamChunk(chunk)
         scrollToBottom()
       },
@@ -380,7 +392,8 @@ async function sendMessage(prefilled) {
       },
       ollamaConfig,
       sessionId.value,
-      'chat',
+      // Не module=chat: иначе сессии мини-чата засоряют список хаба
+      MINI_CHAT_MODULE,
       null,
       false,
       (preparingSessionId) => {
@@ -388,12 +401,23 @@ async function sendMessage(prefilled) {
         applySessionId(preparingSessionId)
       },
     )
-    // Обрыв SSE (F5): не пишем Failed to fetch — ждём ответ worker в сессии
+    // Обрыв SSE: на живой вкладке генерация уже убита — сразу подсказка повторить.
+    // При F5/уходе оставляем pending; после открытия чата короткий опрос сессии.
     if (streamResult?.disconnected && requestId === streamGeneration) {
-      setMiniChatPending(true)
-      setMiniChatLoading(true)
+      if (isPageUnloading()) {
+        setMiniChatPending(true)
+        setMiniChatLoading(true)
+        return
+      }
       if (sessionId.value) {
+        setMiniChatPending(true)
+        setMiniChatLoading(true)
+        scheduleTypingAnimRestart()
         await recoverPendingReply(sessionId.value)
+      } else {
+        markReplyInterrupted()
+        setMiniChatPending(false)
+        setMiniChatLoading(false)
       }
     }
   } catch (error) {
@@ -410,6 +434,7 @@ defineExpose({ clearChat })
 async function openFullHub() {
   dismissOllamaMiniChat()
   emit('close')
+  // Хаб — отдельный список чатов; сессию мини-чата туда не тащим
   await router.push({ name: 'AIAssistantHub', query: { module: 'chat' } })
 }
 
@@ -424,7 +449,16 @@ watch(sessionId, (value) => {
   }
 })
 
+watch(showTyping, (visible) => {
+  if (visible) {
+    scheduleTypingAnimRestart()
+    scrollToBottom()
+  }
+})
+
 onMounted(async () => {
+  scheduleTypingAnimRestart()
+  // История мини-чата живёт в localStorage; сервер — только для LLM/recovery, не список хаба
   const hadLocalSnapshot = restoreSavedChat()
   if (!hadLocalSnapshot) {
     const persistedSessionId = miniChatSessionId.value
@@ -443,14 +477,19 @@ onMounted(async () => {
     }
   }
 
-  // Сброс залипшего «Генерация ответа» после битого localStorage / зависшего Celery job
   const last = messages.value.at(-1)
   const stuckEmpty = Boolean(
     last
     && !String(last.content || '').trim()
     && !(last.streaming || last.isStreaming),
   )
-  if (stuckEmpty || (!hadLocalSnapshot && !messages.value.length)) {
+  const awaiting = isAwaitingAssistantReply(messages.value)
+
+  // Пустой битый пузырь — сброс; при ожидании ответа loading не трогаем
+  if (stuckEmpty && !awaiting) {
+    setMiniChatPending(false)
+    setMiniChatLoading(false)
+  } else if (!hadLocalSnapshot && !messages.value.length) {
     setMiniChatPending(false)
     setMiniChatLoading(false)
   }
@@ -460,27 +499,26 @@ onMounted(async () => {
 
   const activeSessionId = miniChatSessionId.value || sessionId.value
   const needsRecovery = Boolean(
-    activeSessionId
-    && (miniChatPending.value || isAwaitingAssistantReply(messages.value)),
+    activeSessionId && (miniChatPending.value || miniChatLoading.value || awaiting),
   )
 
-  if (!activeSessionId && miniChatPending.value) {
-    setMiniChatPending(false)
-    setMiniChatLoading(false)
-  }
-
   if (needsRecovery) {
+    setMiniChatPending(true)
+    setMiniChatLoading(true)
+    scheduleTypingAnimRestart()
     await recoverPendingReply(activeSessionId)
     return
   }
 
-  if (hadLocalSnapshot && activeSessionId) {
-    try {
-      await restoreChatFromServer(activeSessionId)
-      scrollToBottom()
-    } catch (error) {
-      logError('Ошибка обновления мини-чата с сервера', error)
-    }
+  if (!activeSessionId && (miniChatPending.value || miniChatLoading.value) && !awaiting) {
+    setMiniChatPending(false)
+    setMiniChatLoading(false)
+  }
+
+  // Без sessionId ответ с сервера не дотянуть — историю мини-чата оставляем как есть
+  if (!activeSessionId && awaiting) {
+    setMiniChatPending(false)
+    setMiniChatLoading(false)
   }
 })
 </script>
@@ -691,8 +729,9 @@ html[data-ergo-motion='reduce'] .ollama-mini-chat__typing-pulse {
   }
 }
 
+/* Не глушим bounce у span правилом animation:none — иначе перекрывает
+   data-ergo-motion-safe="pulse" на контейнере. При reduce контейнер пульсирует. */
 html[data-ergo-motion='reduce'] .ollama-mini-chat__typing-dots span {
-  animation: none;
   opacity: 0.55;
 }
 

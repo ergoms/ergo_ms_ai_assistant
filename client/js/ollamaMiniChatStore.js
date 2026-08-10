@@ -9,6 +9,8 @@
 import { ref } from 'vue'
 
 const STORAGE_KEY = 'ai_assistant.miniChat.v1'
+/** Серверные сессии мини-чата — не попадают в список хаба (module=chat). */
+export const MINI_CHAT_MODULE = 'mini_chat'
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 function isUuid(value) {
@@ -143,6 +145,14 @@ export const miniChatLoading = ref(false)
  */
 export const miniChatPending = ref(hydrated.pending)
 
+// После F5 во время/ожидании генерации сразу открываем панель с typing.
+if (hydrated.pending || isAwaitingAssistantReply(hydrated.messages)) {
+  miniChatPanelMounted.value = true
+  isOllamaMiniChatOpen.value = true
+  miniChatLoading.value = true
+  miniChatPending.value = true
+}
+
 let persistTimer = null
 
 function persist(immediate = false) {
@@ -167,6 +177,10 @@ function persist(immediate = false) {
 }
 
 function onPageHide() {
+  // F5 во время стрима: pending должен пережить перезагрузку (loading в refs сбрасывается).
+  if (miniChatLoading.value) {
+    miniChatPending.value = true
+  }
   persist(true)
 }
 
@@ -181,8 +195,11 @@ export function openOllamaMiniChat() {
 }
 
 export function setMiniChatLoading(value) {
-  miniChatLoading.value = Boolean(value)
-  if (value) {
+  const next = Boolean(value)
+  miniChatLoading.value = next
+  // Включаем pending вместе с loading; выключаем только явно через setMiniChatPending(false)
+  // (на первом SSE-chunk loading гасят отдельно, pending снимает onDone / sendMessage).
+  if (next) {
     miniChatPending.value = true
   }
   persist(true)

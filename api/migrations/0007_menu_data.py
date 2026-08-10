@@ -11,7 +11,7 @@ def populate_menu(apps, schema_editor):
 
     helper = MenuMigrationHelper(apps, 'modules/ai_assistant')
     helper.clear_module_items()
-    helper.create_group('AI Hub', 'AIAssistantHub', icon='Bot')
+    helper.create_group('AI ассистент', 'AIAssistantHub', icon='Bot')
 
 
 def reverse_populate_menu(apps, schema_editor):

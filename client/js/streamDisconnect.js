@@ -1,7 +1,24 @@
 /**
- * Обрыв SSE (F5 / закрытие вкладки / kill Daphne) — не показывать как ошибку чата.
- * Worker Celery продолжает генерацию; UI дотягивает ответ через pending recovery.
+ * Обрыв SSE (F5 / закрытие вкладки / kill Daphne) — не показывать как сетевую ошибку fetch.
+ * Ответ дотягивается через pending recovery только если сервер успел сохранить сообщение.
  */
+
+let pageUnloading = false
+
+function markPageUnloading() {
+  pageUnloading = true
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('pagehide', markPageUnloading)
+  window.addEventListener('beforeunload', markPageUnloading)
+}
+
+/** true, если вкладка уходит (F5 / закрытие / навигация) — JS может не дожить до UI-ошибки. */
+export function isPageUnloading() {
+  return pageUnloading
+}
+
 export function isStreamDisconnectError(error) {
   if (!error) return false
   if (error.name === 'AbortError') return true

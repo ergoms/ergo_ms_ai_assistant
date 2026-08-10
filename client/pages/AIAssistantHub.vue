@@ -46,9 +46,15 @@ import { ragClient } from '../rag/js/rag-client.js'
 import { useAssistantSessions } from '../js/composables/useAssistantSessions.js'
 import {
   mapApiMessages,
+  nextLocalMessageId,
   resetLocalMessageIds,
   useMessageHistory,
 } from '../js/composables/useAssistantStream.js'
+import {
+  isAwaitingAssistantReply,
+  recoverPendingReply,
+} from '../js/composables/usePendingReplyRecovery.js'
+import { isPageUnloading } from '../js/streamDisconnect.js'
 import { useOllamaStatus } from '../js/composables/useOllamaStatus.js'
 import HubShell from '../components/HubShell.vue'
 import HubChatPanel from '../components/HubChatPanel.vue'
@@ -119,6 +125,34 @@ async function onSelectSession(sessionId) {
   await loadChatSession(sessionId)
 }
 
+async function maybeRecoverPendingReply(sessionId) {
+  if (!sessionId || !isAwaitingAssistantReply(messages.value)) {
+    return
+  }
+  await recoverPendingReply({
+    sessionId,
+    getLocalMessages: () => messages.value,
+    applyMessages: (mapped) => {
+      setMessages(mapped)
+      const maxId = mapped.reduce((max, msg) => Math.max(max, Number(msg.id) || 0), 0)
+      resetLocalMessageIds(maxId + 1)
+    },
+    setPending: (pending) => {
+      chatLoading.value = pending
+    },
+    onInterrupted: () => {
+      // Без префикса «Ошибка:» — короткая подсказка повторить
+      messages.value.push({
+        id: nextLocalMessageId(),
+        type: 'assistant',
+        content: t('ai_assistant.replyInterrupted'),
+        timestamp: new Date(),
+      })
+    },
+  })
+  chatPanelRef.value?.scrollToBottom()
+}
+
 async function loadChatSession(sessionId) {
   const result = await loadSession(sessionId)
   if (!result.success) {
@@ -138,6 +172,7 @@ async function loadChatSession(sessionId) {
     initWelcomeChat()
   }
   chatPanelRef.value?.scrollToBottom()
+  await maybeRecoverPendingReply(sessionId)
 }
 
 async function onDeleteSession(sessionId) {
@@ -252,18 +287,23 @@ async function sendChatMessage(text) {
       enableVectorization.value,
     )
     if (streamResult?.disconnected) {
+      if (isPageUnloading()) {
+        chatLoading.value = true
+        return
+      }
       const activeId = currentChatSession.value?.id || sessionId
       if (activeId) {
-        try {
-          const loaded = await loadSession(activeId)
-          if (loaded?.messages?.length) {
-            setMessages(mapApiMessages(loaded.messages))
-          }
-        } catch (error) {
-          logError('Ошибка восстановления чата после обрыва SSE', error)
-        }
+        chatLoading.value = true
+        await maybeRecoverPendingReply(activeId)
+      } else {
+        messages.value.push({
+          id: nextLocalMessageId(),
+          type: 'assistant',
+          content: t('ai_assistant.replyInterrupted'),
+          timestamp: new Date(),
+        })
+        chatLoading.value = false
       }
-      chatLoading.value = false
       chatPanelRef.value?.scrollToBottom()
     }
   } catch (error) {

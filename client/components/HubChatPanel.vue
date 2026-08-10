@@ -9,7 +9,7 @@
           :module-config="moduleConfig"
         />
 
-        <div v-if="loading" class="typing-indicator">
+        <div v-if="loading" :key="typingAnimKey" class="typing-indicator">
           <div class="typing-avatar" :style="{ '--avatar-color': moduleAccent }">
             <div class="avatar-core">
               <component :is="moduleConfig?.icon" :size="18" />
@@ -17,7 +17,7 @@
           </div>
           <div class="typing-content">
             <div class="typing-text">{{ t('ai_assistant.generating') }}</div>
-            <div class="typing-dots">
+            <div class="typing-dots" data-ergo-motion-safe="pulse">
               <span></span><span></span><span></span>
             </div>
           </div>
@@ -152,7 +152,7 @@
 </template>
 
 <script setup>
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { ChevronDown, Send, Upload, X, Zap } from 'lucide-vue-next'
 import { useAppI18n } from '@/i18n/useAppI18n.js'
 import { AI_ACCENT_CSS } from '../js/themeAccent.js'
@@ -180,6 +180,29 @@ const messagesRef = ref(null)
 const inputRef = ref(null)
 const fileInputRef = ref(null)
 const suggestionsExpanded = ref(false)
+/** Remount typing после снятия app-bootstrapping (F5 за nginx). */
+const typingAnimKey = ref(0)
+
+onMounted(() => {
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      if (props.loading) typingAnimKey.value += 1
+    })
+  })
+})
+
+watch(
+  () => props.loading,
+  (loading) => {
+    if (loading) {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          typingAnimKey.value += 1
+        })
+      })
+    }
+  },
+)
 
 const moduleAccent = computed(() => props.moduleConfig?.color || AI_ACCENT_CSS)
 const hasSuggestions = computed(() => (props.moduleConfig?.suggestions?.length ?? 0) > 0)

@@ -45,6 +45,11 @@ let activePointerId = null
 watch(isOpen, (open) => {
   if (!open) {
     showClearConfirm.value = false
+    // Иначе aria-hidden/inert на хосте при фокусе на кнопке закрытия → warning в консоли
+    const active = document.activeElement
+    if (active instanceof HTMLElement && panelRef.value?.contains(active)) {
+      active.blur()
+    }
   }
 })
 
@@ -167,7 +172,7 @@ onBeforeUnmount(() => {
       v-if="isMounted"
       class="ollama-widget-host"
       :class="{ 'ollama-widget-host--open': isOpen }"
-      :aria-hidden="isOpen ? 'false' : 'true'"
+      :inert="!isOpen"
     >
       <ModuleThemeScope module-key="ai_assistant">
         <Transition name="ollama-widget-panel">
@@ -179,7 +184,6 @@ onBeforeUnmount(() => {
             role="dialog"
             aria-modal="false"
             :aria-label="t('ai_assistant.apps.ollamaChat')"
-            :inert="!isOpen"
             :style="panelStyle"
           >
             <header

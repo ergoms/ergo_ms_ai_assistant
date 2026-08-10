@@ -16,7 +16,7 @@ export default {
       chatDeleteFail: 'Failed to delete chat',
       chatDeleteError: 'Error deleting chat',
       chatCreateFail: 'Failed to create chat',
-      replyInterrupted: 'The connection was interrupted by a page refresh. If the reply does not appear, reopen the chat in a few seconds.',
+      replyInterrupted: 'Could not get a reply. Please send your message again.',
       chatCreateError: 'Error creating chat',
       chatLoadFail: 'Failed to load chat',
       moduleNotFound: 'Module not found',
@@ -37,7 +37,7 @@ export default {
       newChatWithModule: 'New chat: {name}',
       newDialogDraft: 'New dialog…',
       routes: {
-        hub: 'AI Hub',
+        hub: 'AI Assistant',
       },
       apps: {
         ollamaChat: 'AI Assistant',
@@ -134,7 +134,7 @@ export default {
         header: {
           title: 'AI Assistant - Knowledge Base',
           uploadTooltip: 'Upload document',
-          openHub: 'Open AI Hub',
+          openHub: 'Open AI Assistant',
         },
         compactUpload: 'Upload document',
         uploadModalTitle: 'Upload document',
