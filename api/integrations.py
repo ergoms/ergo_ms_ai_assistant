@@ -3,6 +3,10 @@ ModuleBridge — публичный API ai_assistant для других мод�
 
 Операции ai_assistant.* предназначены для потребителей через bridge.call;
 внутри модуля предпочтительны прямые сервисы/views.
+
+Chat-профили хостов: bridge.provide_many(CHAT_PROFILES_GROUP, key, {
+  id, ask_stream_op, session_module?, mini_chat_module?, order?
+}).
 """
 
 from __future__ import annotations
@@ -11,6 +15,8 @@ from typing import Any, Dict, List, Optional
 from uuid import UUID
 
 from src.core.integrations import bridge
+
+from .chat_profiles import CHAT_PROFILES_GROUP  # noqa: F401 — публичный экспорт константы
 
 
 def _parse_uuid(value: Any) -> Optional[UUID]:

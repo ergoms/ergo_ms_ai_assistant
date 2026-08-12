@@ -1,13 +1,14 @@
 # ai_assistant — инструкции агенту
 
-Доменный модуль AI-хаба: чат, RAG/документы, skills. LLM — только через `ollama_framework` (ModuleBridge).
+Доменный модуль AI-хаба: чат, RAG/документы, skills, **расширяемые chat-профили**. LLM — только через `ollama_framework` (ModuleBridge).
 
 ## Куда смотреть
 
 - Правила Cursor модуля — `.cursor/rules/ai-assistant.mdc`
 - Обзор для людей — `README.md`
 - Gateway к Ollama — `api/ollama_gateway.py` (`map_ollama_config` + `bridge.call` / HTTP REST)
-- Мост наружу — `api/integrations.py`
+- Мост наружу — `api/integrations.py`, `api/chat_profiles.py`
+- Chat profiles (клиент) — `client/js/chatProfiles.js`, `chatTransport.js`, `miniChatBridge.js`
 - Клиент — `client/js/` (routes, endpoints, theme-defaults, locales)
 
 ## Запрещено
@@ -16,6 +17,7 @@
 - Клиентский REST к чужому модулю (`ollama_framework/status/`) — использовать `ai_assistant/ollama_status/`
 - Прямой httpx к `:11434` из этого модуля
 - Принимать клиентский `base_url` / `compute_device` / `num_gpu` в `ollama_config` (SSRF) — только whitelist в `map_ollama_config`
+- Доменный KAG / корпус чужого модуля внутри ai_assistant — только proxy + chat profile
 
 ## Обязательно
 
@@ -25,6 +27,8 @@
 - Статус Ollama для UI — `GET ai_assistant/ollama_status/`
 - Bridge ops с данными пользователя — передавать `user`; `chat.message.add` без user запрещён
 - `document.parse` — media_api path под `ai_assistant/` + `user`, не произвольный FS path
+- Хост-модуль регистрирует chat-профиль: группа `ai_assistant.chat.profiles` (client + server) + op `*.ask_stream`; UI — `bridge.call('ai_assistant.mini_chat.open', profileId)` или `?profile=`
+- Proxy stream — `POST ai_assistant/chat/profiles/<id>/stream/`; сессии остаются в `ChatSession`
 - Ошибки на клиенте — `logError` / `logWarn` с import из `@/js/utils/logError.js`
 - Тема — `theme-defaults.js` + `useModuleThemeMode('ai_assistant')`
 - Пользовательский корпус RAG — `ergoms ai_assistant:sync-knowledge` (меню, UI, `system_corpus/guides`, `modules/*/api/user_guides/*.md`; не `.docs`/rules)

@@ -7,3 +7,4 @@
 import '../styles/theme-bootstrap.scss'
 import './appsMenu.js'
 import './floatingWidget.js'
+import './miniChatBridge.js'

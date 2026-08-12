@@ -109,7 +109,7 @@ import {
   clearMiniChatState,
   dismissOllamaMiniChat,
   isAwaitingAssistantReply,
-  MINI_CHAT_MODULE,
+  activeMiniChatProfileId,
   miniChatLoading,
   miniChatMessages,
   miniChatPending,
@@ -124,8 +124,11 @@ import {
 import { recoverPendingReply as recoverPendingReplyShared } from '../js/composables/usePendingReplyRecovery.js'
 import { isPageUnloading } from '../js/streamDisconnect.js'
 import { AI_ACCENT_CSS } from '../js/themeAccent.js'
-import { getModuleById } from '../modules/index.js'
-import { ragClient } from '../rag/js/rag-client.js'
+import {
+  getChatProfile,
+  profileToModuleConfig,
+} from '../js/chatProfiles.js'
+import { createChatTransport } from '../js/chatTransport.js'
 import {
   mapApiMessages,
   nextLocalMessageId,
@@ -144,7 +147,23 @@ const emit = defineEmits(['close'])
 const { t } = useAppI18n()
 const router = useRouter()
 
-const moduleConfig = computed(() => getModuleById('chat'))
+const activeProfile = ref(null)
+const transport = ref(null)
+const miniSessionModule = computed(
+  () => activeProfile.value?.miniChatModule || 'mini_chat',
+)
+const moduleConfig = computed(() => {
+  if (!activeProfile.value) return null
+  return profileToModuleConfig(activeProfile.value)
+})
+
+async function ensureProfileLoaded() {
+  const profile = await getChatProfile(activeMiniChatProfileId.value)
+  activeProfile.value = profile
+  transport.value = createChatTransport(profile)
+  return profile
+}
+
 const {
   messages,
   setMessages,
@@ -272,7 +291,8 @@ function applyMappedMessages(mapped, persistedSessionId, sessionMeta = null) {
 }
 
 async function fetchSessionMessages(persistedSessionId) {
-  const result = await ragClient.getChatSession(persistedSessionId)
+  await ensureProfileLoaded()
+  const result = await transport.value.getChatSession(persistedSessionId)
   if (!result.success) {
     if (result.status === 404) {
       sessionId.value = null
@@ -324,9 +344,10 @@ function markReplyInterrupted() {
   }
 }
 
-/** После F5 до preparing sessionId может не попасть в storage — ищем свежую mini_chat сессию. */
+/** После F5 до preparing sessionId может не попасть в storage — ищем свежую mini сессию профиля. */
 async function resolveMiniChatSessionId() {
-  const listed = await ragClient.getChatSessions(MINI_CHAT_MODULE)
+  await ensureProfileLoaded()
+  const listed = await transport.value.getChatSessions(miniSessionModule.value)
   if (!listed?.success || !listed.sessions?.length) {
     return null
   }
@@ -338,7 +359,7 @@ async function resolveMiniChatSessionId() {
   for (const row of candidates) {
     const id = row?.id
     if (!id) continue
-    const fetched = await ragClient.getChatSession(id)
+    const fetched = await transport.value.getChatSession(id)
     if (!fetched?.success) continue
     const mapped = mapApiMessages(fetched.messages || [])
     const serverUsers = mapped.filter((msg) => msg?.type === 'user')
@@ -416,11 +437,12 @@ async function sendMessage(prefilled) {
   scrollToBottom()
 
   try {
+    await ensureProfileLoaded()
     const ollamaConfig = ollamaStatus.value.model
       ? { model: ollamaStatus.value.model }
       : null
 
-    const streamResult = await ragClient.sendMessageStream(
+    const streamResult = await transport.value.sendMessageStream(
       text,
       (chunk) => {
         if (requestId !== streamGeneration) return
@@ -450,7 +472,7 @@ async function sendMessage(prefilled) {
       ollamaConfig,
       sessionId.value,
       // Не module=chat: иначе сессии мини-чата засоряют список хаба
-      MINI_CHAT_MODULE,
+      miniSessionModule.value,
       null,
       false,
       (preparingSessionId) => {
@@ -483,8 +505,12 @@ defineExpose({ clearChat })
 async function openFullHub() {
   dismissOllamaMiniChat()
   emit('close')
-  // Хаб — отдельный список чатов; сессию мини-чата туда не тащим
-  await router.push({ name: 'AIAssistantHub', query: { module: 'chat' } })
+  const profile = activeProfile.value || await ensureProfileLoaded()
+  const query = { module: 'chat' }
+  if (profile?.hubQuery) {
+    query.profile = profile.hubQuery
+  }
+  await router.push({ name: 'AIAssistantHub', query })
 }
 
 watch(messages, (value) => {
@@ -505,8 +531,17 @@ watch(showTyping, (visible) => {
   }
 })
 
+watch(activeMiniChatProfileId, async () => {
+  await ensureProfileLoaded()
+  const hadLocalSnapshot = restoreSavedChat()
+  if (!hadLocalSnapshot) {
+    initWelcome()
+  }
+})
+
 onMounted(async () => {
   bindBootstrapTypingRestart()
+  await ensureProfileLoaded()
   // История мини-чата живёт в localStorage; сервер — только для LLM/recovery, не список хаба
   const hadLocalSnapshot = restoreSavedChat()
   if (!hadLocalSnapshot) {

@@ -65,6 +65,7 @@
 
         <div class="composer">
           <input
+            v-if="allowFiles"
             ref="fileInputRef"
             type="file"
             class="file-input-hidden"
@@ -74,6 +75,7 @@
           />
 
           <button
+            v-if="allowFiles"
             type="button"
             class="file-btn"
             :style="{ '--btn-color': moduleAccent }"
@@ -134,7 +136,7 @@
             </div>
           </div>
 
-          <div class="vectorization-toggle">
+          <div v-if="allowVectorization" class="vectorization-toggle">
             <label class="toggle-label">
               <input
                 v-model="vectorizationModel"
@@ -169,6 +171,8 @@ const props = defineProps({
   input: { type: String, default: '' },
   selectedFiles: { type: Array, default: () => [] },
   enableVectorization: { type: Boolean, default: false },
+  allowFiles: { type: Boolean, default: true },
+  allowVectorization: { type: Boolean, default: true },
 })
 
 const emit = defineEmits([

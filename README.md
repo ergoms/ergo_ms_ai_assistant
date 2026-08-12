@@ -36,6 +36,17 @@
 
 Другие модули могут добавить пользовательские шпаргалки в свой `api/user_guides/*.md` и строку `user_description` в `PERMISSION_CATALOG`.
 
+## Chat-профили (расширение другими модулями)
+
+Хост-модуль может переиспользовать хаб и мини-чат без копирования Vue:
+
+1. Сервер: `bridge.provide_many('ai_assistant.chat.profiles', key, { id, ask_stream_op, session_module, mini_chat_module })` и op `ask_stream` (`user`, `message`, `history`, `stream_callback` → `{ success, response, sources }`).
+2. Клиент: `bridge.provideMany('ai_assistant.chat.profiles', id, { title, welcomeMessage, suggestions, permission*, features, hubQuery, … })`.
+3. Открытие: `bridge.call('ai_assistant.mini_chat.open', profileId)` или маршрут `/ai-assistant?profile=<id>`.
+4. Stream UI ходит только в `POST /api/ai_assistant/chat/profiles/<id>/stream/` (прокси); сессии — `ChatSession` ассистента.
+
+Доменный KAG / свои эмбеддинги остаются в хост-модуле.
+
 ## Безопасность (кратко)
 
 - `ollama_config` из клиента проходит whitelist в `api/ollama_gateway.map_ollama_config` — без `base_url` и compute-полей с клиента

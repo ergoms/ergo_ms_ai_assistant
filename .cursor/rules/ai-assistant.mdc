@@ -29,6 +29,7 @@ alwaysApply: false
 - В `PERMISSION_CATALOG` модулей — опциональный `user_description` для текста «зачем модуль» в корпусе
 - Модели Ollama для setup-full — `ollama_models.yaml` (pull через `ergoms ollama_framework:pull-setup-models`), не свой `vscode.tasks.yaml`
 - Документация модуля — держать `AGENTS.md` / это правило / `README.md` в синхроне с контрактами ([`module-docs.mdc`](../../../../.cursor/rules/module-docs.mdc))
+- **Chat profiles:** хост регистрирует `bridge.provideMany('ai_assistant.chat.profiles', id, {…})` на клиенте и сервере; ask — `ask_stream_op`; открытие мини-чата — `bridge.call('ai_assistant.mini_chat.open', id)`; хаб — `?profile=<id>`
 
 ## Запрещено
 

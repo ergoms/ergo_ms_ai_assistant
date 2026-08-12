@@ -5,6 +5,7 @@ from .chat import ChatView
 from .chat_stream import ChatStreamView
 from .chat_sessions import ChatSessionViewSet
 from .knowledge import GeneratedDocumentDownloadView, KnowledgeDocumentViewSet
+from .profile_chat import ProfileChatStreamView
 
 __all__ = [
     'OllamaStatusView',
@@ -14,4 +15,5 @@ __all__ = [
     'ChatSessionViewSet',
     'KnowledgeDocumentViewSet',
     'GeneratedDocumentDownloadView',
+    'ProfileChatStreamView',
 ]

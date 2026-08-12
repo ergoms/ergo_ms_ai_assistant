@@ -8,10 +8,23 @@
 
 import { ref } from 'vue'
 
-const STORAGE_KEY = 'ai_assistant.miniChat.v1'
+import { DEFAULT_CHAT_PROFILE_ID } from './chatProfiles.js'
+
+const DEFAULT_STORAGE_KEY = 'ai_assistant.miniChat.v1'
 /** Серверные сессии мини-чата — не попадают в список хаба (module=chat). */
 export const MINI_CHAT_MODULE = 'mini_chat'
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+/** Активный chat-профиль мини-чата (default или id хоста). */
+export const activeMiniChatProfileId = ref(DEFAULT_CHAT_PROFILE_ID)
+
+let activeStorageKey = DEFAULT_STORAGE_KEY
+
+function resolveStorageKey(profileId, storageKey) {
+  if (storageKey) return String(storageKey)
+  if (!profileId || profileId === DEFAULT_CHAT_PROFILE_ID) return DEFAULT_STORAGE_KEY
+  return `ai_assistant.miniChat.${profileId}.v1`
+}
 
 function isUuid(value) {
   return Boolean(value && UUID_RE.test(String(value)))
@@ -120,9 +133,9 @@ export function shouldPreferServerMessages(localMessages, serverMessages) {
   return serverLen > localLen
 }
 
-function readPersistedState() {
+function readPersistedState(storageKey = activeStorageKey) {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
+    const raw = localStorage.getItem(storageKey)
     if (!raw) return { sessionId: null, messages: null, pending: false }
     const parsed = JSON.parse(raw)
     const sessionId = isUuid(parsed?.sessionId) ? String(parsed.sessionId) : null
@@ -145,10 +158,10 @@ function writePersistedState(sessionId, messages, pending) {
     const nextMessages = serializeMessages(messages)
     const nextPending = Boolean(pending)
     if (!nextSessionId && !hasUserMessages(nextMessages) && !nextPending) {
-      localStorage.removeItem(STORAGE_KEY)
+      localStorage.removeItem(activeStorageKey)
       return
     }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+    localStorage.setItem(activeStorageKey, JSON.stringify({
       sessionId: nextSessionId,
       messages: nextMessages,
       pending: nextPending,
@@ -295,13 +308,45 @@ export function clearMiniChatState() {
     persistTimer = null
   }
   try {
-    localStorage.removeItem(STORAGE_KEY)
+    localStorage.removeItem(activeStorageKey)
   } catch {
     /* ignore */
   }
 }
 
-/** Точка входа из меню приложений. */
-export function openOllamaMiniChatWidget() {
+/**
+ * Переключить профиль мини-чата и гидратировать его storage.
+ * @param {string} profileId
+ * @param {{ storageKey?: string }} [options]
+ */
+export function switchMiniChatProfile(profileId, options = {}) {
+  const nextId = String(profileId || DEFAULT_CHAT_PROFILE_ID).trim() || DEFAULT_CHAT_PROFILE_ID
+  const nextKey = resolveStorageKey(nextId, options.storageKey)
+  if (nextId === activeMiniChatProfileId.value && nextKey === activeStorageKey) {
+    return
+  }
+  // Сохранить текущий профиль перед переключением
+  persist(true)
+  activeMiniChatProfileId.value = nextId
+  activeStorageKey = nextKey
+  const hydratedProfile = readPersistedState(nextKey)
+  miniChatMessages.value = hydratedProfile.messages
+  miniChatSessionId.value = hydratedProfile.sessionId
+  miniChatLoading.value = Boolean(hydratedProfile.pending)
+  miniChatPending.value = Boolean(hydratedProfile.pending)
+}
+
+/**
+ * Открыть мини-чат с указанным профилем (default или хост-модуль).
+ * @param {string} [profileId]
+ * @param {{ storageKey?: string }} [options]
+ */
+export function openMiniChat(profileId = DEFAULT_CHAT_PROFILE_ID, options = {}) {
+  switchMiniChatProfile(profileId, options)
   openOllamaMiniChat()
+}
+
+/** Точка входа из меню приложений (профиль default). */
+export function openOllamaMiniChatWidget() {
+  openMiniChat(DEFAULT_CHAT_PROFILE_ID)
 }

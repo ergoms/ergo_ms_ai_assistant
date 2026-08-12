@@ -47,10 +47,10 @@ export function useAssistantSessions() {
     return grouped
   })
 
-  async function loadSessions() {
+  async function loadSessions(moduleId = 'chat') {
     loading.value = true
     try {
-      const result = await ragClient.getChatSessions('chat')
+      const result = await ragClient.getChatSessions(moduleId || 'chat')
       const list = result.success && result.sessions ? result.sessions : []
       sessions.value = list.sort((a, b) => {
         const dateA = new Date(a.updated_at || a.created_at || 0)

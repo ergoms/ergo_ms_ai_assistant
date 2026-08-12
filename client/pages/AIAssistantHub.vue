@@ -27,6 +27,8 @@
       :loading="chatLoading"
       :module-config="currentModuleConfig"
       :selected-files="chatSelectedFiles"
+      :allow-files="allowFiles"
+      :allow-vectorization="allowVectorization"
       @send="sendChatMessage"
       @files-selected="handleChatFileSelect"
       @remove-file="removeChatFile"
@@ -35,14 +37,19 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { useAppI18n } from '@/i18n/useAppI18n.js'
 import { useToast } from '@/js/utils/toast.js'
 import { UPLOAD_FEATURE_LIMITS } from '@/js/mediaUploadLimits.js'
 import { logError } from '@/js/utils/logError.js'
 import { confirmDelete } from '@/js/utils/confirm.js'
-import { getModuleById } from '../modules/index.js'
-import { ragClient } from '../rag/js/rag-client.js'
+import {
+  DEFAULT_CHAT_PROFILE_ID,
+  getChatProfile,
+  profileToModuleConfig,
+} from '../js/chatProfiles.js'
+import { createChatTransport } from '../js/chatTransport.js'
 import { useAssistantSessions } from '../js/composables/useAssistantSessions.js'
 import {
   mapApiMessages,
@@ -60,10 +67,22 @@ import HubShell from '../components/HubShell.vue'
 import HubChatPanel from '../components/HubChatPanel.vue'
 import SessionSidebar from '../components/session/SessionSidebar.vue'
 
-const CHAT_MODULE = 'chat'
-
 const { t } = useAppI18n()
 const toast = useToast()
+const route = useRoute()
+
+const activeProfile = ref(null)
+const transport = ref(null)
+
+const chatModuleKey = computed(
+  () => activeProfile.value?.sessionModule || 'chat',
+)
+const allowFiles = computed(() => activeProfile.value?.features?.files !== false
+  && !activeProfile.value?.external)
+const allowVectorization = computed(
+  () => activeProfile.value?.features?.vectorization !== false
+    && !activeProfile.value?.external,
+)
 
 const {
   loading: sessionsLoading,
@@ -93,9 +112,14 @@ const {
 
 const { status: ollamaStatus, modelSubtitle } = useOllamaStatus({ autoPoll: true })
 
-const currentModuleConfig = computed(() => getModuleById(CHAT_MODULE))
+const currentModuleConfig = computed(() => {
+  if (activeProfile.value) return profileToModuleConfig(activeProfile.value)
+  return null
+})
 const chatSessions = computed(() =>
-  filteredSessions.value.filter((s) => (s.module || CHAT_MODULE) === CHAT_MODULE),
+  filteredSessions.value.filter(
+    (s) => (s.module || 'chat') === chatModuleKey.value,
+  ),
 )
 const isAIGenerating = computed(
   () => chatLoading.value || messages.value.some((msg) => msg.streaming),
@@ -108,9 +132,18 @@ const chatSelectedFiles = ref([])
 const enableVectorization = ref(false)
 const currentChatSession = ref(null)
 
+async function ensureProfileFromRoute() {
+  const profileParam = String(route.query.profile || '').trim()
+  const profileId = profileParam || DEFAULT_CHAT_PROFILE_ID
+  const profile = await getChatProfile(profileId)
+  activeProfile.value = profile
+  transport.value = createChatTransport(profile)
+  return profile
+}
+
 function initWelcomeChat() {
   resetLocalMessageIds(1)
-  const config = getModuleById(CHAT_MODULE)
+  const config = currentModuleConfig.value
   setMessages([{
     id: 1,
     type: 'assistant',
@@ -121,7 +154,7 @@ function initWelcomeChat() {
 }
 
 async function onSelectSession(sessionId) {
-  selectSession(sessionId, CHAT_MODULE)
+  selectSession(sessionId, chatModuleKey.value)
   await loadChatSession(sessionId)
 }
 
@@ -161,7 +194,7 @@ async function loadChatSession(sessionId) {
     return
   }
 
-  currentChatSession.value = { id: sessionId, module: CHAT_MODULE, ...result.session }
+  currentChatSession.value = { id: sessionId, module: chatModuleKey.value, ...result.session }
 
   resetLocalMessageIds(1)
   const mapped = mapApiMessages(result.messages)
@@ -196,7 +229,7 @@ async function onDeleteSession(sessionId) {
       initWelcomeChat()
     }
 
-    await loadSessions()
+    await loadSessions(chatModuleKey.value)
     toast.success(t('ai_assistant.chatDeleted'))
   } catch (error) {
     logError('Ошибка удаления чата', error)
@@ -206,7 +239,7 @@ async function onDeleteSession(sessionId) {
 
 async function handleNewChat() {
   try {
-    const result = await createSession(CHAT_MODULE)
+    const result = await createSession(chatModuleKey.value)
     if (!result.success) {
       toast.error(result.error || t('ai_assistant.chatCreateFail'))
       return
@@ -214,11 +247,11 @@ async function handleNewChat() {
 
     currentChatSession.value = {
       id: result.session.id,
-      module: CHAT_MODULE,
+      module: chatModuleKey.value,
     }
-    attachSession(result.session.id, CHAT_MODULE)
+    attachSession(result.session.id, chatModuleKey.value)
     initWelcomeChat()
-    await loadSessions()
+    await loadSessions(chatModuleKey.value)
   } catch (error) {
     logError('Ошибка создания чата', error)
     toast.error(t('ai_assistant.chatCreateError'))
@@ -252,7 +285,7 @@ async function sendChatMessage(text) {
       : null
     const sessionId = resolveChatSessionId()
 
-    const streamResult = await ragClient.sendMessageStream(
+    const streamResult = await transport.value.sendMessageStream(
       messageText,
       (chunk) => {
         if (chatLoading.value) chatLoading.value = false
@@ -266,10 +299,10 @@ async function sendChatMessage(text) {
           currentChatSession.value = {
             ...(currentChatSession.value || {}),
             id: nextSessionId,
-            module: CHAT_MODULE,
+            module: chatModuleKey.value,
           }
-          attachSession(nextSessionId, CHAT_MODULE)
-          loadSessions()
+          attachSession(nextSessionId, chatModuleKey.value)
+          loadSessions(chatModuleKey.value)
         }
         chatLoading.value = false
         chatSelectedFiles.value = []
@@ -283,9 +316,11 @@ async function sendChatMessage(text) {
       },
       ollamaConfig,
       sessionId,
-      CHAT_MODULE,
-      chatSelectedFiles.value.length > 0 ? chatSelectedFiles.value : null,
-      enableVectorization.value,
+      chatModuleKey.value,
+      allowFiles.value && chatSelectedFiles.value.length > 0
+        ? chatSelectedFiles.value
+        : null,
+      allowVectorization.value && enableVectorization.value,
     )
     if (streamResult?.disconnected) {
       if (isPageUnloading()) {
@@ -388,8 +423,20 @@ watchState(async (state, prev) => {
   }
 })
 
+watch(
+  () => route.query.profile,
+  async () => {
+    await ensureProfileFromRoute()
+    currentChatSession.value = null
+    clearSession()
+    initWelcomeChat()
+    await loadSessions(chatModuleKey.value)
+  },
+)
+
 onMounted(async () => {
-  await loadSessions()
+  await ensureProfileFromRoute()
+  await loadSessions(chatModuleKey.value)
   if (activeSessionId.value) {
     await loadChatSession(activeSessionId.value)
   } else {

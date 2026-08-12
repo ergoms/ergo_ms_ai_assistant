@@ -5,6 +5,7 @@
 export const endpoints = {
   chat: 'ai_assistant/chat/',
   chatStream: 'ai_assistant/chat/stream/',
+  profileChatStream: (profileId) => `ai_assistant/chat/profiles/${profileId}/stream/`,
   ollamaStatus: 'ai_assistant/ollama_status/',
   embeddingsStatus: 'ai_assistant/embeddings_status/',
   chatSessions: 'ai_assistant/chat_sessions/',

@@ -3,6 +3,7 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     ChatView, ChatStreamView, ChatSessionViewSet, KnowledgeDocumentViewSet,
     EmbeddingsStatusView, GeneratedDocumentDownloadView, OllamaStatusView,
+    ProfileChatStreamView,
 )
 
 router = DefaultRouter()
@@ -14,5 +15,10 @@ urlpatterns = [
     path('embeddings_status/', EmbeddingsStatusView.as_view(), name='ai-assistant-embeddings-status'),
     path('chat/', ChatView.as_view(), name='ai-assistant-chat'),
     path('chat/stream/', ChatStreamView.as_view(), name='ai-assistant-chat-stream'),
+    path(
+        'chat/profiles/<str:profile_id>/stream/',
+        ProfileChatStreamView.as_view(),
+        name='ai-assistant-profile-chat-stream',
+    ),
     re_path(r'^documents/download/(?P<file_path>.+)$', GeneratedDocumentDownloadView.as_view(), name='ai-assistant-document-download'),
 ] + router.urls
