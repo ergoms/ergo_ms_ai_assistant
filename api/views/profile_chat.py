@@ -19,6 +19,7 @@ from rest_framework.parsers import JSONParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from src.core.cms.adp.services import PermissionService
 from src.core.integrations import bridge
 from src.core.utils.mixins import SwaggerSafeMixin
 
@@ -54,10 +55,23 @@ class ProfileChatStreamView(SwaggerSafeMixin, APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
+        user = request.user
+        perm_module = profile.get('permission_module')
+        perm_key = profile.get('permission')
+        if perm_module and perm_key:
+            if not PermissionService.check_module_permission(
+                user=user,
+                module_name=str(perm_module),
+                permission_key=str(perm_key),
+            ):
+                return Response(
+                    {'success': False, 'error': 'Недостаточно прав'},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
         message = request.data.get('message')
         session_id = request.data.get('session_id')
         module = request.data.get('module') or profile['session_module']
-        user = request.user
 
         if not message or not str(message).strip():
             return Response(

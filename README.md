@@ -40,12 +40,23 @@
 
 Хост-модуль может переиспользовать хаб и мини-чат без копирования Vue:
 
-1. Сервер: `bridge.provide_many('ai_assistant.chat.profiles', key, { id, ask_stream_op, session_module, mini_chat_module })` и op `ask_stream` (`user`, `message`, `history`, `stream_callback` → `{ success, response, sources }`).
-2. Клиент: `bridge.provideMany('ai_assistant.chat.profiles', id, { title, welcomeMessage, suggestions, permission*, features, hubQuery, … })`.
-3. Открытие: `bridge.call('ai_assistant.mini_chat.open', profileId)` или маршрут `/ai-assistant?profile=<id>`.
-4. Stream UI ходит только в `POST /api/ai_assistant/chat/profiles/<id>/stream/` (прокси); сессии — `ChatSession` ассистента.
+1. Сервер: `bridge.provide_many('ai_assistant.chat.profiles', key, { id, ask_stream_op, session_module, mini_chat_module, permission_module?, permission? })` и op `ask_stream` (`user`, `message`, `history`, `stream_callback` → `{ success, response, sources }`).
+2. Клиент: `bridge.provideMany('ai_assistant.chat.profiles', id, { title, welcomeMessage, suggestions, permissionModule, permission, features, hubQuery, … })`.
+3. Открытие: `bridge.call('ai_assistant.mini_chat.open', profileId)` или маршрут `/ai-assistant?profile=<id>`. Профили без права пользователя не показываются.
+4. Stream UI ходит только в `POST /api/ai_assistant/chat/profiles/<id>/stream/` (прокси проверяет `permission_module`/`permission` хоста); сессии — `ChatSession` ассистента.
 
 Доменный KAG / свои эмбеддинги остаются в хост-модуле.
+
+## Права ADP
+
+Назначаются ролевым группам в админке (модульные права):
+
+| Ключ | Назначение |
+|---|---|
+| `ai_assistant_view` | Страница хаба `/ai-assistant` |
+| `ai_assistant_mini_chat` | Пункт «AI ассистент» в меню приложений и плавающий мини-чат. Без права виджет скрыт |
+
+Глобальный администратор имеет все права. Мини-чат не входит в базовый `_view`: его выдают отдельным правом группе роли.
 
 ## Безопасность (кратко)
 

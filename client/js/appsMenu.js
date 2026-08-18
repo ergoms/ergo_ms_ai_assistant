@@ -5,11 +5,12 @@
 import bridge from '@/integrations/ModuleBridge.js'
 import { APPS_MENU_ITEMS_GROUP } from '@/integrations/moduleContracts.js'
 import { tGlobal } from '@/i18n/index.js'
-import { openOllamaMiniChatWidget } from './ollamaMiniChatStore.js'
+import { DEFAULT_CHAT_PROFILE_ID } from './chatProfiles.js'
+import { AI_ASSISTANT_MODULE, AI_ASSISTANT_PERMISSIONS } from './permissionKeys.js'
 
 async function checkOllamaChatVisibility() {
   const { hasModulePermission } = await import('@/core/cms/adp/js/accessControl.js')
-  return hasModulePermission('ai_assistant', 'ai_assistant_view')
+  return hasModulePermission(AI_ASSISTANT_MODULE, AI_ASSISTANT_PERMISSIONS.MINI_CHAT)
 }
 
 bridge.provideMany(APPS_MENU_ITEMS_GROUP, 'ai_assistant_ollama_chat', {
@@ -19,6 +20,8 @@ bridge.provideMany(APPS_MENU_ITEMS_GROUP, 'ai_assistant_ollama_chat', {
     return tGlobal('ai_assistant.apps.ollamaChat')
   },
   icon: 'Bot',
-  onClick: openOllamaMiniChatWidget,
+  onClick: () => {
+    bridge.call('ai_assistant.mini_chat.open', DEFAULT_CHAT_PROFILE_ID, { default: false })
+  },
   isVisible: checkOllamaChatVisibility,
 })

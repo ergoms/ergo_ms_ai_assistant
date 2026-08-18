@@ -17,7 +17,7 @@ alwaysApply: false
 - Устройство inference — `AI_ASSISTANT_OLLAMA_COMPUTE_DEVICE=gpu|cpu` в `modules/ai_assistant/.env` (пусто — из `OLLAMA_COMPUTE_DEVICE` ollama_framework)
 - Параллелизм LLM — `AI_ASSISTANT_CONCURRENCY_LIMIT` (семафор в `ollama_gateway` + `concurrency_limit` клиента ollama_framework; тот же лимит на очередь индексации Celery)
 - Статус для клиента — `GET /api/ai_assistant/ollama_status/` (proxy), не `ollama_framework/status/`
-- Права — `CanViewAiAssistant` / `permission_catalog`
+- Права — `CanViewAiAssistant` (хаб) / `ai_assistant_mini_chat` (плавающий мини-чат, меню приложений) / `permission_catalog`
 - Файлы — media_api + signed URL; bridge `document.parse` — путь в media под `ai_assistant/` + обязательный `user`
 - Bridge `chat.message.add` — обязательный аутентифицированный `user` и фильтр сессии по владельцу
 - Клиентские ошибки — `import { logError } from '@/js/utils/logError.js'`
@@ -29,7 +29,7 @@ alwaysApply: false
 - В `PERMISSION_CATALOG` модулей — опциональный `user_description` для текста «зачем модуль» в корпусе
 - Модели Ollama для setup-full — `ollama_models.yaml` (pull через `ergoms ollama_framework:pull-setup-models`), не свой `vscode.tasks.yaml`
 - Документация модуля — держать `AGENTS.md` / это правило / `README.md` в синхроне с контрактами ([`module-docs.mdc`](../../../../.cursor/rules/module-docs.mdc))
-- **Chat profiles:** хост регистрирует `bridge.provideMany('ai_assistant.chat.profiles', id, {…})` на клиенте и сервере; ask — `ask_stream_op`; открытие мини-чата — `bridge.call('ai_assistant.mini_chat.open', id)`; хаб — `?profile=<id>`
+- **Chat profiles:** хост регистрирует `bridge.provideMany('ai_assistant.chat.profiles', id, {…})` на клиенте и сервере; ask — `ask_stream_op`; открытие мини-чата — `bridge.call('ai_assistant.mini_chat.open', id)`; хаб — `?profile=<id>`; `permissionModule`/`permission` скрывают профиль без права (прокси stream тоже проверяет)
 
 ## Запрещено
 

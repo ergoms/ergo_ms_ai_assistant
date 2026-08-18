@@ -36,11 +36,15 @@ def list_server_profiles() -> Dict[str, Dict[str, Any]]:
         mini_module = str(
             obj.get('mini_chat_module') or f'{profile_id}_mini'
         ).strip()
+        perm_module = str(obj.get('permission_module') or '').strip()
+        perm_key = str(obj.get('permission') or '').strip()
         out[profile_id] = {
             'id': profile_id,
             'ask_stream_op': ask_op,
             'session_module': session_module,
             'mini_chat_module': mini_module,
+            'permission_module': perm_module,
+            'permission': perm_key,
             'order': int(obj.get('order') or 100),
         }
     return out

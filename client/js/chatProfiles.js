@@ -109,7 +109,17 @@ export async function collectChatProfiles() {
     .map(normalizeExternalProfile)
     .filter(Boolean)
     .sort((a, b) => (a.order ?? 100) - (b.order ?? 100))
-  return [...defaults, ...external]
+  const all = [...defaults, ...external]
+  const { hasModulePermission } = await import('@/core/cms/adp/js/accessControl.js')
+  const visible = []
+  for (const profile of all) {
+    if (profile.permissionModule && profile.permission) {
+      const ok = await hasModulePermission(profile.permissionModule, profile.permission)
+      if (!ok) continue
+    }
+    visible.push(profile)
+  }
+  return visible
 }
 
 /**
@@ -118,8 +128,11 @@ export async function collectChatProfiles() {
  */
 export async function getChatProfile(profileId) {
   const id = String(profileId || DEFAULT_CHAT_PROFILE_ID).trim() || DEFAULT_CHAT_PROFILE_ID
+  if (id === DEFAULT_CHAT_PROFILE_ID) {
+    return buildDefaultProfile()
+  }
   const all = await collectChatProfiles()
-  return all.find((p) => p.id === id) || all[0] || null
+  return all.find((p) => p.id === id) || null
 }
 
 /**

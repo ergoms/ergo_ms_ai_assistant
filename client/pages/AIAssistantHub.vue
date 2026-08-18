@@ -135,7 +135,8 @@ const currentChatSession = ref(null)
 async function ensureProfileFromRoute() {
   const profileParam = String(route.query.profile || '').trim()
   const profileId = profileParam || DEFAULT_CHAT_PROFILE_ID
-  const profile = await getChatProfile(profileId)
+  const profile = (await getChatProfile(profileId))
+    || (await getChatProfile(DEFAULT_CHAT_PROFILE_ID))
   activeProfile.value = profile
   transport.value = createChatTransport(profile)
   return profile

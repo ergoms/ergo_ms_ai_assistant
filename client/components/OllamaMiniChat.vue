@@ -76,6 +76,7 @@
           :placeholder="moduleConfig?.settings?.placeholder"
           :disabled="loading"
           @keydown.enter.exact.prevent="sendMessage"
+          @input="syncInputHeight"
         />
         <button
           type="button"
@@ -205,6 +206,14 @@ const showTyping = computed(() => {
 })
 const canShowSuggestions = computed(() => (moduleConfig.value?.suggestions?.length ?? 0) > 0)
 const suggestionsExpanded = ref(false)
+
+function syncInputHeight() {
+  const el = inputRef.value
+  if (!el) return
+  el.style.height = '40px'
+  if (!el.value) return
+  el.style.height = `${Math.min(Math.max(el.scrollHeight, 40), 96)}px`
+}
 
 function bumpTypingAnimation() {
   if (!showTyping.value) return
@@ -421,7 +430,10 @@ function clearChat() {
   clearMiniChatState()
   initWelcome()
   scrollToBottom()
-  nextTick(() => inputRef.value?.focus())
+  nextTick(() => {
+    syncInputHeight()
+    inputRef.value?.focus()
+  })
 }
 
 async function sendMessage(prefilled) {
@@ -513,6 +525,8 @@ async function openFullHub() {
   await router.push({ name: 'AIAssistantHub', query })
 }
 
+watch(chatInput, () => nextTick(syncInputHeight))
+
 watch(messages, (value) => {
   setMiniChatMessages(value)
 }, { deep: true })
@@ -537,6 +551,7 @@ watch(activeMiniChatProfileId, async () => {
   if (!hadLocalSnapshot) {
     initWelcome()
   }
+  nextTick(syncInputHeight)
 })
 
 onMounted(async () => {
@@ -586,7 +601,10 @@ onMounted(async () => {
   }
 
   scrollToBottom()
-  nextTick(() => inputRef.value?.focus())
+  nextTick(() => {
+    syncInputHeight()
+    inputRef.value?.focus()
+  })
 
   const activeSessionId = miniChatSessionId.value || sessionId.value
   const needsRecovery = Boolean(
@@ -868,6 +886,7 @@ html[data-ergo-motion='reduce'] .ollama-mini-chat__typing-dots span {
   gap: 0.5rem;
   align-items: flex-end;
   width: 100%;
+  min-height: 40px;
 }
 
 .ollama-mini-chat__suggestions-wrap {
@@ -963,8 +982,12 @@ html[data-ergo-motion='reduce'] .ollama-mini-chat__typing-dots span {
 .ollama-mini-chat__input {
   flex: 1 1 auto;
   min-width: 0;
+  box-sizing: border-box;
   min-height: 40px;
+  height: 40px;
   max-height: 96px;
+  overflow-x: hidden;
+  overflow-y: auto;
   resize: none;
   border: 1px solid var(--ai-border, var(--color-border));
   border-radius: 10px;
@@ -982,6 +1005,9 @@ html[data-ergo-motion='reduce'] .ollama-mini-chat__typing-dots span {
       transparent
     );
     opacity: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   &:focus {

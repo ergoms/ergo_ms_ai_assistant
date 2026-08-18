@@ -1,4 +1,5 @@
 import { tGlobal } from '@/i18n/index.js'
+import { AI_ASSISTANT_PERMISSIONS } from './permissionKeys.js'
 
 /**
  * Правила проверки прав для ai_assistant (UX).
@@ -9,7 +10,7 @@ export default [
       to.name?.toString().startsWith('AIAssistant') ||
       to.path?.startsWith('/ai-assistant'),
     module: 'ai_assistant',
-    permissions: ['ai_assistant_view'],
+    permissions: [AI_ASSISTANT_PERMISSIONS.VIEW],
     get title() {
       return tGlobal('ai_assistant.access.title')
     },
