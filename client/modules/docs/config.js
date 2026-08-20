@@ -2,7 +2,7 @@
  * Модуль: Работа с документами
  * AI ассистент для анализа и генерации документов
  */
-import { FileText } from 'lucide-vue-next'
+import { FileText } from '@lucide/vue'
 import { markRaw } from 'vue'
 import { tGlobal } from '@/i18n/index.js'
 

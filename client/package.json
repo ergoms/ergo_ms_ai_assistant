@@ -1,0 +1,11 @@
+{
+  "name": "@ergo-ms/ai-assistant-client",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "ИИ-ассистент — клиентская часть",
+  "dependencies": {
+    "apexcharts": "^6.8.0",
+    "vue3-apexcharts": "^1.11.1"
+  }
+}

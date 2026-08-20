@@ -155,7 +155,7 @@
 
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { ChevronDown, Send, Upload, X, Zap } from 'lucide-vue-next'
+import { ChevronDown, Send, Upload, X, Zap } from '@lucide/vue'
 import {
   BOOTSTRAP_MASK_HIDDEN_EVENT,
   isBootstrapMaskActive,

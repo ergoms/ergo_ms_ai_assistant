@@ -6,6 +6,14 @@ import pgvector.django
 EMBEDDING_DIMENSIONS = 768
 
 
+def _ensure_vector_in_core(apps, schema_editor):
+    if schema_editor.connection.vendor != 'postgresql':
+        return
+    from modules.ai_assistant.api.rag.pgvector_ops import ensure_pgvector_extension
+
+    ensure_pgvector_extension()
+
+
 def _copy_embeddings_forward(apps, schema_editor):
     KnowledgeChunk = apps.get_model('ai_assistant', 'KnowledgeChunk')
     for chunk in KnowledgeChunk.objects.iterator():
@@ -30,7 +38,7 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        pgvector.django.VectorExtension(),
+        migrations.RunPython(_ensure_vector_in_core, migrations.RunPython.noop),
         migrations.AddField(
             model_name='knowledgedocument',
             name='indexing_error',

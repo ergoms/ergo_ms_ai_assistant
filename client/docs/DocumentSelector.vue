@@ -114,7 +114,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { RefreshCw, Upload, FileText, File, Check, Database, Trash2 } from 'lucide-vue-next'
+import { RefreshCw, Upload, FileText, File, Check, Database, Trash2 } from '@lucide/vue'
 import SearchInput from '@/components/SearchInput.vue'
 import { useAppI18n } from '@/i18n/useAppI18n.js'
 import { getCurrentBcp47 } from '@/i18n/index.js'

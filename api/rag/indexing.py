@@ -91,7 +91,7 @@ class RAGIndexingService:
             RAGIndexingError: При ошибке индексации
         """
         if document.is_indexed and not force_reindex:
-            logger.info(f"Документ {document.id} уже индексирован, пропускаем")
+            logger.debug('Документ %s уже индексирован, пропускаем', document.id)
             return {
                 "success": True,
                 "chunks_created": 0,
@@ -105,7 +105,11 @@ class RAGIndexingService:
             text_content = document.content
             if document.file and not text_content:
                 try:
-                    logger.info(f"Извлекаем текст из файла {document.file.name} для документа {document.id}")
+                    logger.debug(
+                        'Извлекаем текст из файла %s для документа %s',
+                        document.file.name,
+                        document.id,
+                    )
                     from ..media_storage import parse_localized_document
 
                     text_content, file_type = parse_localized_document(
@@ -118,7 +122,11 @@ class RAGIndexingService:
                         document.file_type = file_type
                     document.save(update_fields=['content', 'file_type'])
                     
-                    logger.info(f"Успешно извлечен текст из файла (тип: {file_type}, длина: {len(text_content)} символов)")
+                    logger.debug(
+                        'Извлечён текст из файла (тип: %s, длина: %s символов)',
+                        file_type,
+                        len(text_content),
+                    )
                 except DocumentParseError as e:
                     raise RAGIndexingError(f"Ошибка парсинга файла: {e}") from e
                 except Exception as e:
@@ -139,7 +147,7 @@ class RAGIndexingService:
             if not chunks_data:
                 raise RAGIndexingError("Не удалось разбить документ на chunks (возможно, документ пуст)")
             
-            logger.info(f"Разбили документ {document.id} на {len(chunks_data)} chunks")
+            logger.debug('Документ %s разбит на %s chunks', document.id, len(chunks_data))
             
             # Генерируем embeddings для всех chunks батчем
             texts_for_embedding = [chunk["content"] for chunk in chunks_data]
@@ -151,7 +159,9 @@ class RAGIndexingService:
             
             if len(embeddings_list) != len(chunks_data):
                 logger.warning(
-                    f"Количество embeddings ({len(embeddings_list)}) не совпадает с количеством chunks ({len(chunks_data)})"
+                    'Количество embeddings (%s) не совпадает с количеством chunks (%s)',
+                    len(embeddings_list),
+                    len(chunks_data),
                 )
                 # Обрезаем или дополняем до нужного количества
                 if len(embeddings_list) < len(chunks_data):
@@ -172,7 +182,11 @@ class RAGIndexingService:
                     if old_chunks_count > 0:
                         document.chunks.all().delete()
                         chunks_deleted = old_chunks_count
-                        logger.info(f"Удалили {chunks_deleted} старых chunks документа {document.id}")
+                        logger.debug(
+                            'Удалили %s старых chunks документа %s',
+                            chunks_deleted,
+                            document.id,
+                        )
                 
                 # Создаем новые chunks
                 embedding_model = self.embeddings_service._model
@@ -200,9 +214,12 @@ class RAGIndexingService:
                 document.indexed_at = timezone.now()
                 document.save(update_fields=["is_indexed", "indexed_at"])
                 
-                logger.info(
-                    f"Успешно проиндексирован документ {document.id}: "
-                    f"создано {chunks_created}, обновлено {chunks_updated}, удалено {chunks_deleted} chunks"
+                logger.debug(
+                    'Проиндексирован документ %s: создано %s, обновлено %s, удалено %s chunks',
+                    document.id,
+                    chunks_created,
+                    chunks_updated,
+                    chunks_deleted,
                 )
                 
                 return {
@@ -216,7 +233,12 @@ class RAGIndexingService:
         except RAGIndexingError:
             raise
         except Exception as e:
-            logger.error(f"Неожиданная ошибка при индексации документа {document.id}: {e}", exc_info=True)
+            logger.error(
+                'Неожиданная ошибка при индексации документа %s: %s',
+                document.id,
+                e,
+                exc_info=True,
+            )
             raise RAGIndexingError(f"Ошибка индексации: {e}") from e
     
     def reindex_document(self, document: KnowledgeDocument) -> Dict[str, Any]:
@@ -244,5 +266,9 @@ class RAGIndexingService:
             document.is_indexed = False
             document.indexed_at = None
             document.save(update_fields=["is_indexed", "indexed_at"])
-            logger.info(f"Деиндексирован документ {document.id}: удалено {chunks_count} chunks")
+            logger.debug(
+                'Деиндексирован документ %s: удалено %s chunks',
+                document.id,
+                chunks_count,
+            )
 

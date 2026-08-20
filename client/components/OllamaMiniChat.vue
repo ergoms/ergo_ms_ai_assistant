@@ -99,7 +99,7 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { ChevronDown, Send, Zap } from 'lucide-vue-next'
+import { ChevronDown, Send, Zap } from '@lucide/vue'
 import {
   BOOTSTRAP_MASK_HIDDEN_EVENT,
   isBootstrapMaskActive,

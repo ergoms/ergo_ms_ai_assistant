@@ -18,7 +18,7 @@
 </template>
 
 <script setup>
-import { Sparkles } from 'lucide-vue-next'
+import { Sparkles } from '@lucide/vue'
 import { useAppI18n } from '@/i18n/useAppI18n.js'
 
 const { t } = useAppI18n()

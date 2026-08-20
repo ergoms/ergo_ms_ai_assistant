@@ -21,7 +21,7 @@ bridge.provideMany(APPS_MENU_ITEMS_GROUP, 'ai_assistant_ollama_chat', {
   },
   icon: 'Bot',
   onClick: () => {
-    bridge.call('ai_assistant.mini_chat.open', DEFAULT_CHAT_PROFILE_ID, { default: false })
+    return bridge.call('ai_assistant.mini_chat.open', DEFAULT_CHAT_PROFILE_ID, { default: false })
   },
   isVisible: checkOllamaChatVisibility,
 })

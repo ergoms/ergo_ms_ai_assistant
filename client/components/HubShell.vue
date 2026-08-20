@@ -34,7 +34,7 @@
 
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { Sparkles } from 'lucide-vue-next'
+import { Sparkles } from '@lucide/vue'
 import { useAppI18n } from '@/i18n/useAppI18n.js'
 import { useModuleThemeMode } from '@/composables/useModuleThemeMode.js'
 import { MODULE_THEME_CHANGE_EVENT } from '@/js/module-theme-manager.js'

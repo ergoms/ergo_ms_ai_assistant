@@ -19,11 +19,13 @@ alwaysApply: false
 - Статус для клиента — `GET /api/ai_assistant/ollama_status/` (proxy), не `ollama_framework/status/`
 - Права — `CanViewAiAssistant` (хаб) / `ai_assistant_mini_chat` (плавающий мини-чат, меню приложений) / `permission_catalog`
 - Файлы — media_api + signed URL; bridge `document.parse` — путь в media под `ai_assistant/` + обязательный `user`
+- Квота загрузок — `AI_ASSISTANT_UPLOAD_RATE_RAG` / `_CHAT` в `.env` модуля (`media.upload_quota_policies`)
 - Bridge `chat.message.add` — обязательный аутентифицированный `user` и фильтр сессии по владельцу
 - Клиентские ошибки — `import { logError } from '@/js/utils/logError.js'`
 - Тема — `theme-defaults.js` + `useModuleThemeMode('ai_assistant')`
 - Сборка prompt chat/stream — [`api/rag/chat_messages.py`](../../api/rag/chat_messages.py); ответы — с точки зрения пользователя сайта
 - Корпус RAG — меню / UI / `api/rag/system_corpus/guides` / `modules/*/api/user_guides/*.md` (`ergoms ai_assistant:sync-knowledge`), не `.docs` и не `.cursor/rules`
+- Индексация RAG: подокументный прогресс (`indexing.py`) — DEBUG; сводка — stdout команды / INFO задачи Beat; ошибки и расхождения embeddings — WARNING/ERROR
 - В setup-full корпус синхронизируется после migrate (`include_in: setup-full-after-migrate`, команда с `--sync`)
 - Ежедневный sync — `celery_beat_config.py` + `sync_system_knowledge_task` (`RAG_SYSTEM_CORPUS_BEAT_ENABLED`, нужны beat и worker)
 - В `PERMISSION_CATALOG` модулей — опциональный `user_description` для текста «зачем модуль» в корпусе

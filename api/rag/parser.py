@@ -164,7 +164,7 @@ class DocumentParserService:
             Извлеченный текст
         """
         try:
-            import PyPDF2
+            from pypdf import PdfReader
         except ImportError:
             try:
                 import pdfplumber
@@ -172,7 +172,7 @@ class DocumentParserService:
             except ImportError:
                 raise DocumentParseError(
                     "Модуль для парсинга PDF не установлен. "
-                    "Установите один из: poetry add PyPDF2 или poetry add pdfplumber"
+                    "Установите один из: pypdf или pdfplumber"
                 )
         else:
             use_pdfplumber = False
@@ -200,13 +200,13 @@ class DocumentParserService:
                 finally:
                     pdf.close()
             else:
-                # Используем PyPDF2
+                # Используем pypdf
                 if file_obj:
                     file_obj.seek(0)
-                    pdf_reader = PyPDF2.PdfReader(file_obj)
+                    pdf_reader = PdfReader(file_obj)
                 elif file_path:
                     with open(file_path, 'rb') as f:
-                        pdf_reader = PyPDF2.PdfReader(f)
+                        pdf_reader = PdfReader(f)
                 else:
                     raise DocumentParseError("Не указан ни путь к файлу, ни файловый объект")
                 

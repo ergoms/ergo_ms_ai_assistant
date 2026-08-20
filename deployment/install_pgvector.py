@@ -51,6 +51,8 @@ PGVECTOR_GIT_TAG = f'v{PGVECTOR_VERSION}'
 WINDOWS_RELEASE_REPO = 'andreiramani/pgvector_pgsql_windows'
 DOWNLOAD_USER_AGENT = 'ergoms/1.0 (pgvector installer)'
 MARKER_NAME = 'PGVECTOR_INSTALLED'
+# Как CORE_SCHEMA в ядре: Django search_path без public, тип vector должен быть в core.
+CORE_SCHEMA = 'core'
 
 
 def pgvector_marker(root: Path) -> Path:
@@ -59,6 +61,21 @@ def pgvector_marker(root: Path) -> Path:
 
 def is_pgvector_installed(root: Path) -> bool:
     return pgvector_marker(root).is_file()
+
+
+def _extension_files_present(root: Path) -> bool:
+    """Маркер без vector.control / библиотеки — устаревшая установка."""
+    base = postgres_packages_dir(root)
+    control = base / 'share' / 'extension' / 'vector.control'
+    if not control.is_file():
+        return False
+    system = platform.system().lower()
+    if system == 'windows':
+        return (base / 'lib' / 'vector.dll').is_file()
+    lib_dir = base / 'lib'
+    if not lib_dir.is_dir():
+        return False
+    return any(lib_dir.glob('vector.so*'))
 
 
 def _postgres_major(version: str) -> int:
@@ -239,15 +256,34 @@ def _create_extension(root: Path) -> None:
             f'port portable (обычно 5433), либо остановите системный Postgres на том же порту.'
         )
 
-    subprocess.run(
-        [
-            str(postgres_bin(root, 'psql')), '-v', 'ON_ERROR_STOP=1',
-            '-h', host, '-p', str(port), '-U', defaults['user'], '-d', defaults['name'],
-            '-c', 'CREATE EXTENSION IF NOT EXISTS vector;',
-        ],
-        env=_psql_env(defaults, host=host, port=port),
-        check=True,
+    _psql_query(
+        root, defaults, host=host, port=port,
+        sql=f'CREATE SCHEMA IF NOT EXISTS {CORE_SCHEMA};',
     )
+    ext_schema = _psql_query(
+        root, defaults, host=host, port=port,
+        sql=(
+            'SELECT n.nspname FROM pg_extension e '
+            'JOIN pg_namespace n ON n.oid = e.extnamespace '
+            "WHERE e.extname = 'vector';"
+        ),
+    )
+    if not ext_schema:
+        extension_sql = f'CREATE EXTENSION vector SCHEMA {CORE_SCHEMA};'
+    elif ext_schema != CORE_SCHEMA:
+        extension_sql = f'ALTER EXTENSION vector SET SCHEMA {CORE_SCHEMA};'
+    else:
+        extension_sql = ''
+    if extension_sql:
+        subprocess.run(
+            [
+                str(postgres_bin(root, 'psql')), '-v', 'ON_ERROR_STOP=1',
+                '-h', host, '-p', str(port), '-U', defaults['user'], '-d', defaults['name'],
+                '-c', extension_sql,
+            ],
+            env=_psql_env(defaults, host=host, port=port),
+            check=True,
+        )
 
     yaml_host = (defaults.get('host') or '').strip().lower()
     yaml_port = str(defaults.get('port') or port)
@@ -281,9 +317,22 @@ def install_pgvector(root: Path, *, force: bool = False) -> int:
         print(_fc('error', 'Portable PostgreSQL не установлен. Выполните: ergoms install-postgres'))
         return 1
 
-    if is_pgvector_installed(root) and not force:
-        print(_fc('skip', 'pgvector уже установлен в portable PostgreSQL'))
+    files_ready = is_pgvector_installed(root) and _extension_files_present(root)
+    if files_ready and not force:
+        try:
+            _create_extension(root)
+        except subprocess.CalledProcessError as exc:
+            print(_fc('error', f'Ошибка CREATE EXTENSION vector: {exc}'))
+            return 1
+        except Exception as exc:
+            print(_fc('error', str(exc)))
+            return 1
+        print(_fc('skip', 'Файлы pgvector уже есть в portable PostgreSQL'))
+        print(_fc('ok', 'Расширение vector проверено в текущей БД'))
         return 0
+
+    if is_pgvector_installed(root) and not _extension_files_present(root):
+        print(_fc('warning', 'Маркер pgvector есть, но файлов расширения нет — переустановка'))
 
     version = read_installed_version(root) or '17.0'
     pg_major = _postgres_major(version)

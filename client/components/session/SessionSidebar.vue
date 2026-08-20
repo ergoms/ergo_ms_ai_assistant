@@ -60,7 +60,7 @@
 </template>
 
 <script setup>
-import { Plus, Trash2, MessageSquare } from 'lucide-vue-next'
+import { Plus, Trash2, MessageSquare } from '@lucide/vue'
 import SearchInput from '@/components/SearchInput.vue'
 import LoadingContentArea from '@/components/LoadingContentArea.vue'
 import { getRelativeTime } from '@/js/utils/timeUtils.js'

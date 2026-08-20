@@ -208,7 +208,7 @@ import { computed, ref } from 'vue'
 import { 
   User, Bot, Terminal, Copy, Check, 
   Grid3x3, AlertTriangle, Database, ChevronLeft, ChevronRight, Sparkles, Download
-} from 'lucide-vue-next'
+} from '@lucide/vue'
 import { logError } from '@/js/utils/logError.js'
 import { buildApexOptions } from '@/composables/useApexTheme.js'
 import { useAppI18n } from '@/i18n/useAppI18n.js'

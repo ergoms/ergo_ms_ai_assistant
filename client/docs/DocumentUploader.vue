@@ -161,7 +161,7 @@
 
 <script setup>
 import { ref } from 'vue'
-import { Upload, FileText, File, X, Save } from 'lucide-vue-next'
+import { Upload, FileText, File, X, Save } from '@lucide/vue'
 import { useAppI18n } from '@/i18n/useAppI18n.js'
 import { docsClient } from './js/docs-client.js'
 import { useToast } from '@/js/utils/toast.js'

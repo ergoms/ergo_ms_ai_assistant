@@ -74,7 +74,7 @@ ergoms ai_assistant:install-pgvector
 ergoms ai_assistant:ensure-pgvector
 ```
 
-При `ergoms setup` / Setup Full System: `install-pgvector` идёт до миграций (`include_in: setup-full`), `sync-knowledge --sync` — после миграций (`include_in: setup-full-after-migrate`). Нужны Ollama и модель embeddings (их ставит `ollama_framework:pull-setup-models` в том же setup-full).
+При `ergoms setup` / Setup Full System: `install-pgvector` идёт до миграций (`include_in: setup-full`) и каждый раз проверяет расширение `vector` в схеме `core` (в `search_path` Django нет `public`). Повторный запуск не пропускает этот шаг, даже если файлы уже лежат в portable PostgreSQL. `sync-knowledge --sync` — после миграций (`include_in: setup-full-after-migrate`). Нужны Ollama и модель embeddings (их ставит `ollama_framework:pull-setup-models` в том же setup-full).
 
 ## Куда смотреть в коде
 

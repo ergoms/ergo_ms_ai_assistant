@@ -10,5 +10,6 @@ packages:
     version: "0.8.6"
     installer: deployment/install_pgvector.py
     pass_root: true
+    always_run: true
     marker_windows: PGVECTOR_INSTALLED
     marker_linux: PGVECTOR_INSTALLED

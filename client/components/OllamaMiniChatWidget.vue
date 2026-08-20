@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
-import { Bot, Eraser, X } from 'lucide-vue-next'
+import { Bot, Eraser, X } from '@lucide/vue'
 import ModuleThemeScope from '@/components/ModuleThemeScope.vue'
 import { useAppI18n } from '@/i18n/useAppI18n.js'
 import { useBreakpoint } from '@/composables/useBreakpoint.js'

@@ -15,8 +15,14 @@ from typing import Any, Dict, List, Optional
 from uuid import UUID
 
 from src.core.integrations import bridge
+from src.core.integrations.module_contracts import MEDIA_UPLOAD_QUOTA_POLICIES_GROUP
+from src.core.utils.media_upload_quota import (
+    allows_module_permission,
+    env_upload_rate,
+)
 
 from .chat_profiles import CHAT_PROFILES_GROUP  # noqa: F401 — публичный экспорт константы
+from .permissions import AI_ASSISTANT_VIEW, MODULE_NAME
 
 
 def _parse_uuid(value: Any) -> Optional[UUID]:
@@ -240,3 +246,18 @@ def _document_parse(
         return {'success': True, 'content': text, 'file_type': file_type}
     except DocumentParseError as exc:
         return {'success': False, 'error': str(exc)}
+
+
+bridge.provide_many(MEDIA_UPLOAD_QUOTA_POLICIES_GROUP, 'ai_assistant_rag', {
+    'target_dir_prefix': 'ai_assistant/rag_documents',
+    'quota': 'ai_assistant_rag',
+    'rate': lambda: env_upload_rate('AI_ASSISTANT_UPLOAD_RATE_RAG', '60/minute'),
+    'allows': allows_module_permission(MODULE_NAME, AI_ASSISTANT_VIEW),
+})
+
+bridge.provide_many(MEDIA_UPLOAD_QUOTA_POLICIES_GROUP, 'ai_assistant_chat', {
+    'target_dir_prefix': 'ai_assistant/chat_uploads',
+    'quota': 'ai_assistant_chat',
+    'rate': lambda: env_upload_rate('AI_ASSISTANT_UPLOAD_RATE_CHAT', '20/minute'),
+    'allows': allows_module_permission(MODULE_NAME, AI_ASSISTANT_VIEW),
+})

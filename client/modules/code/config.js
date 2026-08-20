@@ -2,7 +2,7 @@
  * Модуль: Помощник по коду
  * AI ассистент для генерации и анализа кода
  */
-import { Code } from 'lucide-vue-next'
+import { Code } from '@lucide/vue'
 import { markRaw } from 'vue'
 import { tGlobal } from '@/i18n/index.js'
 

@@ -6,7 +6,7 @@ commands:
   sync-knowledge:
     summary: Проиндексировать справку по разделам сайта (меню, UI, модули) в RAG
   install-pgvector:
-    summary: Установить расширение pgvector в portable PostgreSQL для векторного RAG
+    summary: Установить файлы pgvector в portable PostgreSQL и создать расширение vector в текущей БД
   ensure-pgvector:
     summary: Проверить и создать расширение pgvector в текущей БД
 notes:

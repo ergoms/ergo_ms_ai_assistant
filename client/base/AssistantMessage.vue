@@ -69,7 +69,7 @@
 </template>
 
 <script setup>
-import { Sparkles, User, Terminal, Loader2, AlertCircle } from 'lucide-vue-next'
+import { Sparkles, User, Terminal, Loader2, AlertCircle } from '@lucide/vue'
 import { useAppI18n } from '@/i18n/useAppI18n.js'
 import { getCurrentBcp47 } from '@/i18n/index.js'
 import { formatMessageContent } from '../js/assistantMessageFormat.js'

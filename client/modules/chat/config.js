@@ -1,7 +1,7 @@
 /**
  * Единственный режим чата AI-хаба (без вариаций типов).
  */
-import { MessageSquare } from 'lucide-vue-next'
+import { MessageSquare } from '@lucide/vue'
 import { markRaw } from 'vue'
 import { tGlobal } from '@/i18n/index.js'
 
