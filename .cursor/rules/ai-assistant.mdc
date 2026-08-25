@@ -16,8 +16,10 @@ alwaysApply: false
 - Embeddings — модель только `OLLAMA_EMBEDDINGS_MODEL` (или `embeddings_model`); chat-`model` из запроса **не** подставлять (иначе `/api/embed` → 501 на mistral и т.п.)
 - Устройство inference — `AI_ASSISTANT_OLLAMA_COMPUTE_DEVICE=gpu|cpu` в `modules/ai_assistant/.env` (пусто — из `OLLAMA_COMPUTE_DEVICE` ollama_framework)
 - Параллелизм LLM — `AI_ASSISTANT_CONCURRENCY_LIMIT` (семафор в `ollama_gateway` + `concurrency_limit` клиента ollama_framework; тот же лимит на очередь индексации Celery)
-- Статус для клиента — `GET /api/ai_assistant/ollama_status/` (proxy), не `ollama_framework/status/`
+- Статус для клиента — `GET /api/ai_assistant/ollama_status/` (proxy), не `ollama_framework/status/`. Не опрашивать без права хаба/мини-чата и при deny ACL (`denied_api` / страница `/ai-assistant`)
 - Права — `CanViewAiAssistant` (хаб) / `ai_assistant_mini_chat` (плавающий мини-чат, меню приложений) / `permission_catalog`
+- Плавающий виджет — `shell.floating_widgets` + `isVisible` (`client/js/aiAssistantAccess.js`): право мини-чата **или** внешний chat-профиль, и нет deny на `/ai-assistant` / `/api/ai_assistant/`
+- **Chat profiles:** хост регистрирует `bridge.provideMany('ai_assistant.chat.profiles', id, {…})` на клиенте и сервере; ask — `ask_stream_op`; открытие мини-чата — `bridge.call('ai_assistant.mini_chat.open', id)`; хаб — `?profile=<id>`; `permissionModule`/`permission` скрывают профиль без права (прокси stream тоже проверяет); `mini_chat.open` не открывает чат, если ACL закрыл модуль
 - Файлы — media_api + signed URL; bridge `document.parse` — путь в media под `ai_assistant/` + обязательный `user`
 - Квота загрузок — `AI_ASSISTANT_UPLOAD_RATE_RAG` / `_CHAT` в `.env` модуля (`media.upload_quota_policies`)
 - Bridge `chat.message.add` — обязательный аутентифицированный `user` и фильтр сессии по владельцу
@@ -31,7 +33,6 @@ alwaysApply: false
 - В `PERMISSION_CATALOG` модулей — опциональный `user_description` для текста «зачем модуль» в корпусе
 - Модели Ollama для setup-full — `ollama_models.yaml` (pull через `ergoms ollama_framework:pull-setup-models`), не свой `vscode.tasks.yaml`
 - Документация модуля — держать `AGENTS.md` / это правило / `README.md` в синхроне с контрактами ([`module-docs.mdc`](../../../../.cursor/rules/module-docs.mdc))
-- **Chat profiles:** хост регистрирует `bridge.provideMany('ai_assistant.chat.profiles', id, {…})` на клиенте и сервере; ask — `ask_stream_op`; открытие мини-чата — `bridge.call('ai_assistant.mini_chat.open', id)`; хаб — `?profile=<id>`; `permissionModule`/`permission` скрывают профиль без права (прокси stream тоже проверяет)
 
 ## Запрещено
 

@@ -11,6 +11,11 @@ bridge.provide('ai_assistant.mini_chat.open', async (profileId = 'default', opti
   const requestedId = String(profileId || DEFAULT_CHAT_PROFILE_ID).trim()
     || DEFAULT_CHAT_PROFILE_ID
   const { hasModulePermission } = await import('@/core/cms/adp/js/accessControl.js')
+  const { isAiAssistantAclDenied } = await import('./aiAssistantAccess.js')
+
+  if (await isAiAssistantAclDenied()) {
+    return false
+  }
 
   if (requestedId === DEFAULT_CHAT_PROFILE_ID) {
     const ok = await hasModulePermission(

@@ -9,6 +9,10 @@ import { DEFAULT_CHAT_PROFILE_ID } from './chatProfiles.js'
 import { AI_ASSISTANT_MODULE, AI_ASSISTANT_PERMISSIONS } from './permissionKeys.js'
 
 async function checkOllamaChatVisibility() {
+  const { isAiAssistantAclDenied } = await import('./aiAssistantAccess.js')
+  if (await isAiAssistantAclDenied()) {
+    return false
+  }
   const { hasModulePermission } = await import('@/core/cms/adp/js/accessControl.js')
   return hasModulePermission(AI_ASSISTANT_MODULE, AI_ASSISTANT_PERMISSIONS.MINI_CHAT)
 }

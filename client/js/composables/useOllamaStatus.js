@@ -81,6 +81,9 @@ export function useOllamaStatus(options = {}) {
       }
       const result = await fetchOllamaStatus({ force, includeEmbeddings })
       status.value = result
+      if (result?.forbidden) {
+        stopPolling()
+      }
     } finally {
       loading.value = false
     }
@@ -99,8 +102,13 @@ export function useOllamaStatus(options = {}) {
   }
 
   onMounted(async () => {
-    refresh(true)
-    if (autoPoll) {
+    const { canFetchOllamaStatus } = await import('../aiAssistantAccess.js')
+    if (!(await canFetchOllamaStatus())) {
+      stopPolling()
+      return
+    }
+    await refresh(true)
+    if (autoPoll && !status.value.forbidden) {
       startPolling()
     }
     const snapshot = await getPermissionsSnapshot()

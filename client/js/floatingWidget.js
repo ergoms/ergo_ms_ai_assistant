@@ -6,6 +6,7 @@ import { defineAsyncComponent, markRaw } from 'vue'
 
 import bridge from '@/integrations/ModuleBridge.js'
 import { FLOATING_WIDGETS_GROUP } from '@/integrations/moduleContracts.js'
+import { canUseAiAssistantChatUi } from './aiAssistantAccess.js'
 
 bridge.provideMany(FLOATING_WIDGETS_GROUP, 'ai_assistant_mini_chat', {
   id: 'ai_assistant_mini_chat',
@@ -13,4 +14,5 @@ bridge.provideMany(FLOATING_WIDGETS_GROUP, 'ai_assistant_mini_chat', {
   component: markRaw(
     defineAsyncComponent(() => import('../components/OllamaMiniChatWidget.vue')),
   ),
+  isVisible: canUseAiAssistantChatUi,
 })
