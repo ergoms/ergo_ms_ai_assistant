@@ -15,13 +15,17 @@ from typing import Any, Dict, List, Optional
 from uuid import UUID
 
 from src.core.integrations import bridge
-from src.core.integrations.module_contracts import MEDIA_UPLOAD_QUOTA_POLICIES_GROUP
+from src.core.integrations.module_contracts import (
+    CORE_USER_DELETE,
+    MEDIA_UPLOAD_QUOTA_POLICIES_GROUP,
+)
 from src.core.utils.media_upload_quota import (
     allows_module_permission,
     env_upload_rate,
 )
 
 from .chat_profiles import CHAT_PROFILES_GROUP  # noqa: F401 — публичный экспорт константы
+from .ownership import owner_public_id
 from .permissions import AI_ASSISTANT_VIEW, MODULE_NAME
 
 
@@ -48,13 +52,17 @@ def _chat_session_get_or_create(
 
     if metadata:
         session, _created = ChatSession.objects.get_or_create(
-            user=user,
+            user_public_id=owner_public_id(user),
             module=module,
             metadata=metadata,
             defaults={'title': title or ''},
         )
     else:
-        session = ChatSession.objects.create(user=user, module=module, title=title or '')
+        session = ChatSession.objects.create(
+            user_public_id=owner_public_id(user),
+            module=module,
+            title=title or '',
+        )
 
     return {
         'id': str(session.id),
@@ -81,7 +89,10 @@ def _chat_message_add(
     if session_uuid is None:
         return None
 
-    session = ChatSession.objects.filter(id=session_uuid, user=user).first()
+    session = ChatSession.objects.filter(
+        id=session_uuid,
+        user_public_id=owner_public_id(user),
+    ).first()
     if session is None:
         return None
 
@@ -115,7 +126,7 @@ def _knowledge_document_create(
         return None
 
     doc = KnowledgeDocument.objects.create(
-        user=user,
+        user_public_id=owner_public_id(user),
         corpus=KnowledgeDocument.CORPUS_USER,
         title=title,
         content=content,
@@ -135,7 +146,7 @@ def _knowledge_document_get(user, document_id) -> Optional[Dict[str, Any]]:
         return None
     doc = KnowledgeDocument.objects.filter(
         id=doc_uuid,
-        user=user,
+        user_public_id=owner_public_id(user),
         corpus=KnowledgeDocument.CORPUS_USER,
     ).first()
     if doc is None:
@@ -154,7 +165,7 @@ def _knowledge_index(document_id, user) -> Dict[str, Any]:
 
     doc = KnowledgeDocument.objects.filter(
         id=doc_uuid,
-        user=user,
+        user_public_id=owner_public_id(user),
         corpus=KnowledgeDocument.CORPUS_USER,
     ).first()
     if doc is None:
@@ -254,6 +265,16 @@ bridge.provide_many(MEDIA_UPLOAD_QUOTA_POLICIES_GROUP, 'ai_assistant_rag', {
     'rate': lambda: env_upload_rate('AI_ASSISTANT_UPLOAD_RATE_RAG', '60/minute'),
     'allows': allows_module_permission(MODULE_NAME, AI_ASSISTANT_VIEW),
 })
+
+@bridge.subscribe_to(CORE_USER_DELETE)
+def _on_user_delete(*, user_public_id=None, **_):
+    if not user_public_id:
+        return
+    from .models import ChatSession, KnowledgeDocument, LlmJob
+    LlmJob.objects.filter(user_public_id=user_public_id).delete()
+    ChatSession.objects.filter(user_public_id=user_public_id).delete()
+    KnowledgeDocument.objects.filter(user_public_id=user_public_id).delete()
+
 
 bridge.provide_many(MEDIA_UPLOAD_QUOTA_POLICIES_GROUP, 'ai_assistant_chat', {
     'target_dir_prefix': 'ai_assistant/chat_uploads',

@@ -156,7 +156,7 @@ def sync_system_corpus(
                     continue
                 existing.title = title
                 existing.content = text
-                existing.user = None
+                existing.user_public_id = None
                 existing.file_type = 'md'
                 existing.metadata = {
                     **meta,
@@ -175,7 +175,7 @@ def sync_system_corpus(
                     stats['created'] += 1
                     continue
                 document = KnowledgeDocument.objects.create(
-                    user=None,
+                    user_public_id=None,
                     corpus=KnowledgeDocument.CORPUS_SYSTEM,
                     title=title,
                     content=text,

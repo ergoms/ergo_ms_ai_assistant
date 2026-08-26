@@ -12,6 +12,7 @@ from src.core.utils.mixins import SwaggerSafeMixin
 
 from ..ollama_gateway import chat as ollama_chat, resolved_model
 from ..models import ChatSession, ChatMessage
+from ..ownership import owner_public_id
 from ..skills.integration import execute_skill_from_llm_response
 from ..file_uploads import collect_chat_upload_infos
 from ..rag import build_ollama_messages, resolve_ui_language
@@ -57,7 +58,10 @@ class ChatView(SwaggerSafeMixin, APIView):
         try:
             if session_id:
                 try:
-                    session = ChatSession.objects.get(id=session_id, user=request.user)
+                    session = ChatSession.objects.get(
+                        id=session_id,
+                        user_public_id=owner_public_id(request.user),
+                    )
                 except ChatSession.DoesNotExist:
                     session = None
             else:
@@ -70,7 +74,7 @@ class ChatView(SwaggerSafeMixin, APIView):
                 if document_id:
                     session_metadata['document_id'] = document_id
                 session = ChatSession.objects.create(
-                    user=request.user,
+                    user_public_id=owner_public_id(request.user),
                     module=module,
                     title=message[:50] if message else 'Новый чат',
                     metadata=session_metadata

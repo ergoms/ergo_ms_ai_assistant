@@ -16,6 +16,7 @@ from ....media_storage import (
     signed_url,
 )
 from ....file_uploads import assign_knowledge_file
+from ....ownership import owner_public_id
 
 
 class DocumentSkill(BaseSkill):
@@ -281,7 +282,7 @@ class DocumentSkill(BaseSkill):
             user = context.get('user') if context else None
             
             document = KnowledgeDocument.objects.create(
-                user=user,
+                user_public_id=owner_public_id(user, required=False),
                 corpus=KnowledgeDocument.CORPUS_USER,
                 title=title,
                 content=f"Документ в формате {doc_format.upper()}",

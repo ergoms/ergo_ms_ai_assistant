@@ -1,0 +1,13 @@
+# OS-службы API и worker модуля. install-services ставит их только при
+# MODULE_RUNTIME=microservice и имени модуля в MICROSERVICE_MODULES.
+module: ai_assistant
+host:
+  install_service_commands:
+    - install-module-service --module=ai_assistant --kind=api
+    - install-module-service --module=ai_assistant --kind=worker
+  uninstall_service_commands:
+    - uninstall-module-service --module=ai_assistant --kind=api
+    - uninstall-module-service --module=ai_assistant --kind=worker
+  service_units:
+    - ergo_ms_module_ai_assistant_api
+    - ergo_ms_module_ai_assistant_worker

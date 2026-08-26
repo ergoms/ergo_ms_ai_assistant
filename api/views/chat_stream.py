@@ -16,6 +16,7 @@ from src.core.utils.mixins import SwaggerSafeMixin
 
 from ..file_uploads import collect_chat_upload_infos
 from ..models import ChatMessage, ChatSession
+from ..ownership import owner_public_id
 from ..ollama_gateway import chat_stream, resolved_model
 from ..permissions import CanViewAiAssistant
 from ..rag import build_ollama_messages, resolve_ui_language
@@ -69,7 +70,10 @@ class ChatStreamView(SwaggerSafeMixin, APIView):
 
         if session_id:
             try:
-                session = ChatSession.objects.get(id=session_id, user=user)
+                session = ChatSession.objects.get(
+                    id=session_id,
+                    user_public_id=owner_public_id(user),
+                )
             except ChatSession.DoesNotExist:
                 session = None
         else:
@@ -80,7 +84,7 @@ class ChatStreamView(SwaggerSafeMixin, APIView):
             if document_id:
                 session_metadata['document_id'] = document_id
             session = ChatSession.objects.create(
-                user=user,
+                user_public_id=owner_public_id(user),
                 module=module,
                 title=message[:50] if message else 'Новый чат',
                 metadata=session_metadata

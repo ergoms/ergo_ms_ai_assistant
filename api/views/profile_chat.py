@@ -25,6 +25,7 @@ from src.core.utils.mixins import SwaggerSafeMixin
 
 from ..chat_profiles import get_server_profile
 from ..models import ChatMessage, ChatSession
+from ..ownership import owner_public_id
 from ..permissions import CanViewAiAssistant
 from .helpers import _safe_json_dumps
 
@@ -83,11 +84,14 @@ class ProfileChatStreamView(SwaggerSafeMixin, APIView):
 
         session = None
         if session_id:
-            session = ChatSession.objects.filter(id=session_id, user=user).first()
+            session = ChatSession.objects.filter(
+                id=session_id,
+                user_public_id=owner_public_id(user),
+            ).first()
 
         if session is None:
             session = ChatSession.objects.create(
-                user=user,
+                user_public_id=owner_public_id(user),
                 module=module,
                 title=message[:50],
                 metadata={'profile': profile['id']},

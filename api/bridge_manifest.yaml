@@ -1,0 +1,13 @@
+# Владелец ops/groups для ModuleBridge HTTP-маршрутизации (MODULE_RUNTIME=microservice).
+service: ai_assistant
+version: 1
+ops:
+  - ai_assistant.chat.session.get_or_create
+  - ai_assistant.chat.message.add
+  - ai_assistant.knowledge.document.create
+  - ai_assistant.knowledge.document.get
+  - ai_assistant.knowledge.index
+  - ai_assistant.knowledge.search
+  - ai_assistant.document.parse
+groups:
+  - media.upload_quota_policies

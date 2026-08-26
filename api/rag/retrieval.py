@@ -13,6 +13,7 @@ from django.db.models import Q, QuerySet
 from pgvector.django import CosineDistance
 
 from ..models import KnowledgeDocument, KnowledgeChunk
+from ..ownership import owner_public_id
 from .embeddings import OllamaEmbeddingsService, EmbeddingsError
 
 logger = logging.getLogger(__name__)
@@ -74,7 +75,7 @@ class RAGRetrievalService:
             return chunks_query.filter(
                 Q(document__corpus=KnowledgeDocument.CORPUS_SYSTEM)
                 | Q(
-                    document__user=user,
+                    document__user_public_id=owner_public_id(user),
                     document__corpus=KnowledgeDocument.CORPUS_USER,
                 )
             )
@@ -84,7 +85,7 @@ class RAGRetrievalService:
             )
         if user is not None:
             return chunks_query.filter(
-                document__user=user,
+                document__user_public_id=owner_public_id(user),
                 document__corpus=KnowledgeDocument.CORPUS_USER,
             )
         return chunks_query

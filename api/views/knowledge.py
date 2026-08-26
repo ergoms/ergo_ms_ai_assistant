@@ -15,6 +15,7 @@ from src.core.utils.media_signing import get_signed_media_url
 from ..file_uploads import assign_knowledge_file
 from ..media_storage import parse_localized_document, signed_url_from_field
 from ..models import KnowledgeDocument
+from ..ownership import owner_public_id
 from ..rag import (
     RAGIndexingService,
     DocumentParserService,
@@ -76,7 +77,7 @@ class KnowledgeDocumentViewSet(MediaApiFileMixin, ViewSet, SwaggerSafeMixin):
         """
         user = self.get_safe_user()
         queryset = KnowledgeDocument.objects.filter(
-            user=user,
+            user_public_id=owner_public_id(user, required=False),
             corpus=KnowledgeDocument.CORPUS_USER,
         )
         queryset = self.get_safe_queryset(queryset)
@@ -164,7 +165,7 @@ class KnowledgeDocumentViewSet(MediaApiFileMixin, ViewSet, SwaggerSafeMixin):
             final_content = extracted_content or content
             
             document = KnowledgeDocument.objects.create(
-                user=user,
+                user_public_id=owner_public_id(user),
                 corpus=KnowledgeDocument.CORPUS_USER,
                 title=title,
                 content=final_content,
@@ -212,7 +213,7 @@ class KnowledgeDocumentViewSet(MediaApiFileMixin, ViewSet, SwaggerSafeMixin):
         """
         user = self.get_safe_user()
         queryset = KnowledgeDocument.objects.filter(
-            user=user,
+            user_public_id=owner_public_id(user, required=False),
             corpus=KnowledgeDocument.CORPUS_USER,
         )
         queryset = self.get_safe_queryset(queryset)
@@ -279,7 +280,7 @@ class KnowledgeDocumentViewSet(MediaApiFileMixin, ViewSet, SwaggerSafeMixin):
         """
         user = self.get_safe_user()
         queryset = KnowledgeDocument.objects.filter(
-            user=user,
+            user_public_id=owner_public_id(user, required=False),
             corpus=KnowledgeDocument.CORPUS_USER,
         )
         queryset = self.get_safe_queryset(queryset)
@@ -326,7 +327,7 @@ class KnowledgeDocumentViewSet(MediaApiFileMixin, ViewSet, SwaggerSafeMixin):
         """
         user = self.get_safe_user()
         queryset = KnowledgeDocument.objects.filter(
-            user=user,
+            user_public_id=owner_public_id(user, required=False),
             corpus=KnowledgeDocument.CORPUS_USER,
         )
         queryset = self.get_safe_queryset(queryset)
@@ -353,7 +354,7 @@ class KnowledgeDocumentViewSet(MediaApiFileMixin, ViewSet, SwaggerSafeMixin):
         """
         user = self.get_safe_user()
         queryset = KnowledgeDocument.objects.filter(
-            user=user,
+            user_public_id=owner_public_id(user, required=False),
             corpus=KnowledgeDocument.CORPUS_USER,
         )
         queryset = self.get_safe_queryset(queryset)
@@ -391,7 +392,7 @@ class KnowledgeDocumentViewSet(MediaApiFileMixin, ViewSet, SwaggerSafeMixin):
         """GET /api/ai_assistant/knowledge_documents/{id}/index_status/"""
         user = self.get_safe_user()
         queryset = KnowledgeDocument.objects.filter(
-            user=user,
+            user_public_id=owner_public_id(user, required=False),
             corpus=KnowledgeDocument.CORPUS_USER,
         )
         queryset = self.get_safe_queryset(queryset)
@@ -421,7 +422,7 @@ class KnowledgeDocumentViewSet(MediaApiFileMixin, ViewSet, SwaggerSafeMixin):
         """
         user = self.get_safe_user()
         queryset = KnowledgeDocument.objects.filter(
-            user=user,
+            user_public_id=owner_public_id(user, required=False),
             corpus=KnowledgeDocument.CORPUS_USER,
         )
         queryset = self.get_safe_queryset(queryset)
@@ -468,7 +469,7 @@ class KnowledgeDocumentViewSet(MediaApiFileMixin, ViewSet, SwaggerSafeMixin):
         """
         user = self.get_safe_user()
         queryset = KnowledgeDocument.objects.filter(
-            user=user,
+            user_public_id=owner_public_id(user, required=False),
             corpus=KnowledgeDocument.CORPUS_USER,
         )
         queryset = self.get_safe_queryset(queryset)
@@ -511,7 +512,7 @@ class GeneratedDocumentDownloadView(SwaggerSafeMixin, APIView):
         if user_prefix in norm:
             return True
         for doc in KnowledgeDocument.objects.filter(
-            user=user,
+            user_public_id=owner_public_id(user, required=False),
             corpus=KnowledgeDocument.CORPUS_USER,
         ).only('file', 'metadata'):
             meta_path = (doc.metadata or {}).get('storage_path') or (doc.metadata or {}).get('file_path', '')

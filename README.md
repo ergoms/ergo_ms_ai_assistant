@@ -64,7 +64,7 @@
 - Для RAG/embeddings всегда используется `OLLAMA_EMBEDDINGS_MODEL`, а не chat-модель из запроса
 - Статус для UI — только `GET /api/ai_assistant/ollama_status/`, не REST чужого модуля
 - Файлы — media_api; bridge `document.parse` принимает только пути под `ai_assistant/` и требует `user`
-- Идентификаторы сущностей — UUID
+- Идентификаторы сущностей — UUID; владелец сессий, документов и задач LLM — `user_public_id`, без FK на пользователя ядра (`api/schema.yaml` `isolated: true`)
 
 ## Команды
 

@@ -1,13 +1,9 @@
-from django.conf import settings
 from django.db import models
-from django.contrib.auth import get_user_model
 from pgvector.django import HnswIndex, VectorField
 
 from .settings import RAG_EMBEDDING_DIMENSIONS
 
 import uuid
-
-User = get_user_model()
 
 
 class ChatSession(models.Model):
@@ -15,7 +11,7 @@ class ChatSession(models.Model):
     Сессия чата - представляет один разговор с AI ассистентом
     """
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='chat_sessions')
+    user_public_id = models.UUIDField(db_index=True)
     title = models.CharField(max_length=255, blank=True, null=True)
     module = models.CharField(max_length=50, default='chat', help_text='Модуль AI ассистента (chat, docs, code и т.д.)')
     created_at = models.DateTimeField(auto_now_add=True)
@@ -26,12 +22,18 @@ class ChatSession(models.Model):
     class Meta:
         ordering = ['-updated_at']
         indexes = [
-            models.Index(fields=['user', '-updated_at']),
-            models.Index(fields=['user', 'module', '-updated_at']),
+            models.Index(
+                fields=['user_public_id', '-updated_at'],
+                name='ai_assistan_usrpid_upd_idx',
+            ),
+            models.Index(
+                fields=['user_public_id', 'module', '-updated_at'],
+                name='ai_assistan_usrpid_mod_idx',
+            ),
         ]
     
     def __str__(self):
-        return f"{self.user.username} - {self.title or 'Без названия'} ({self.module})"
+        return f"{self.user_public_id} - {self.title or 'Без названия'} ({self.module})"
     
     @property
     def message_count(self):
@@ -87,7 +89,7 @@ class KnowledgeDocument(models.Model):
     Может хранить либо файл (Word, PDF и т.д.), либо текстовый контент.
     При наличии файла контент извлекается автоматически при индексации.
 
-    corpus=system — общий корпус документации ERGO MS (user=None).
+    corpus=system — общий корпус документации ERGO MS (user_public_id=None).
     corpus=user — документы пользователя.
     """
     CORPUS_USER = 'user'
@@ -98,10 +100,8 @@ class KnowledgeDocument(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        related_name='knowledge_documents',
+    user_public_id = models.UUIDField(
+        db_index=True,
         null=True,
         blank=True,
         help_text='Владелец документа; пусто для системного корпуса',
@@ -170,7 +170,10 @@ class KnowledgeDocument(models.Model):
     class Meta:
         ordering = ['-created_at']
         indexes = [
-            models.Index(fields=['user', '-created_at']),
+            models.Index(
+                fields=['user_public_id', '-created_at'],
+                name='ai_assistan_usrpid_crt_idx',
+            ),
             models.Index(fields=['is_indexed']),
             models.Index(
                 fields=['corpus', 'is_indexed'],
@@ -263,11 +266,7 @@ class LlmJob(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        related_name='ai_assistant_llm_jobs',
-    )
+    user_public_id = models.UUIDField(db_index=True)
     kind = models.CharField(max_length=32, choices=KIND_CHOICES)
     status = models.CharField(
         max_length=16,
@@ -299,7 +298,10 @@ class LlmJob(models.Model):
     class Meta:
         ordering = ['-created_at']
         indexes = [
-            models.Index(fields=['user', '-created_at']),
+            models.Index(
+                fields=['user_public_id', '-created_at'],
+                name='ai_assistan_usrpid_job_idx',
+            ),
             models.Index(fields=['status', '-created_at']),
         ]
 

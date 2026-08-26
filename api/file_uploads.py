@@ -13,6 +13,7 @@ from rest_framework.exceptions import ValidationError
 from src.core.utils.mixins import MediaApiFileMixin, validate_media_path
 
 from . import settings as ai_settings
+from .ownership import owner_public_id
 
 logger = logging.getLogger(__name__)
 
@@ -228,7 +229,7 @@ def create_temp_knowledge_document(*, user, session, info: dict[str, Any]):
 
     name = info.get('name') or 'file'
     doc = KnowledgeDocument.objects.create(
-        user=user,
+        user_public_id=owner_public_id(user),
         corpus=KnowledgeDocument.CORPUS_USER,
         title=f"Временный документ: {name}",
         source=f"chat_upload_{session.id}",

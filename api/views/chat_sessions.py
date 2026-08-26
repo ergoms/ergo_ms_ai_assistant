@@ -7,6 +7,7 @@ from rest_framework.viewsets import ViewSet
 
 from src.core.utils.mixins import SwaggerSafeMixin
 from ..models import ChatSession
+from ..ownership import owner_public_id
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +23,9 @@ class ChatSessionViewSet(ViewSet, SwaggerSafeMixin):
         Получить список сессий чатов пользователя
         """
         user = self.get_safe_user()
-        queryset = ChatSession.objects.filter(user=user)
+        queryset = ChatSession.objects.filter(
+            user_public_id=owner_public_id(user, required=False),
+        )
         queryset = self.get_safe_queryset(queryset)
         
         # Фильтрация по модулю. Без фильтра — без мини-чата (он не в списке хаба).
@@ -56,7 +59,9 @@ class ChatSessionViewSet(ViewSet, SwaggerSafeMixin):
         Получить сессию чата с сообщениями
         """
         user = self.get_safe_user()
-        queryset = ChatSession.objects.filter(user=user)
+        queryset = ChatSession.objects.filter(
+            user_public_id=owner_public_id(user, required=False),
+        )
         queryset = self.get_safe_queryset(queryset)
         
         try:
@@ -125,7 +130,7 @@ class ChatSessionViewSet(ViewSet, SwaggerSafeMixin):
         module = request.data.get('module', 'chat')
         
         session = ChatSession.objects.create(
-            user=user,
+            user_public_id=owner_public_id(user),
             title=title,
             module=module
         )
@@ -147,7 +152,9 @@ class ChatSessionViewSet(ViewSet, SwaggerSafeMixin):
         Удалить сессию чата
         """
         user = self.get_safe_user()
-        queryset = ChatSession.objects.filter(user=user)
+        queryset = ChatSession.objects.filter(
+            user_public_id=owner_public_id(user, required=False),
+        )
         queryset = self.get_safe_queryset(queryset)
         
         try:
