@@ -11,7 +11,7 @@ alwaysApply: false
 
 ## Обязательно
 
-- Вызовы Ollama — [`api/ollama_gateway.py`](../../api/ollama_gateway.py) → `bridge.call('ollama_framework.*')` (или HTTP REST самого `ollama_framework` при `OLLAMA_FRAMEWORK_TRANSPORT=http`)
+- Вызовы Ollama — [`api/ollama_gateway.py`](../../api/ollama_gateway.py) → `bridge.call('ollama_framework.*')` (или HTTP REST самого `ollama_framework` при `OLLAMA_FRAMEWORK_TRANSPORT=http`). `chat_stream` по HTTP-мосту — NDJSON, не один JSON
 - Клиентский `ollama_config` — только через `map_ollama_config`: whitelist (`model`, `temperature`, `context_window`, `max_tokens`, …); **`base_url` / `compute_device` / `num_gpu` / timeouts всегда с сервера** (`.env` модуля)
 - Embeddings — модель только `OLLAMA_EMBEDDINGS_MODEL` (или `embeddings_model`), имя из библиотеки Ollama; chat-`model` из запроса **не** подставлять (иначе `/api/embed` → 501 на mistral и т.п.). Снимок Hugging Face `org/name` в этой переменной не качается через `ollama pull` — для RAG берётся `embeddinggemma`
 - Устройство inference — `AI_ASSISTANT_OLLAMA_COMPUTE_DEVICE=gpu|cpu` в `modules/ai_assistant/.env` (пусто — из `OLLAMA_COMPUTE_DEVICE` ollama_framework)

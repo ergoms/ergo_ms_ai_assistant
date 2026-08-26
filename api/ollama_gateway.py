@@ -387,6 +387,13 @@ def chat_stream(
                 num_predict=num_predict,
                 seed=seed,
             )
+            if stream is None:
+                raise LLMClientError(
+                    f'Операция {op_name} не вернула поток. '
+                    'HTTP-мост должен отдавать NDJSON для генератора.'
+                )
             yield from stream
+        except LLMClientError:
+            raise
         except Exception as exc:
             raise LLMClientError(str(exc)) from exc
