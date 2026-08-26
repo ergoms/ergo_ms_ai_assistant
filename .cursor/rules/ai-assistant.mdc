@@ -13,7 +13,7 @@ alwaysApply: false
 
 - Вызовы Ollama — [`api/ollama_gateway.py`](../../api/ollama_gateway.py) → `bridge.call('ollama_framework.*')` (или HTTP REST самого `ollama_framework` при `OLLAMA_FRAMEWORK_TRANSPORT=http`)
 - Клиентский `ollama_config` — только через `map_ollama_config`: whitelist (`model`, `temperature`, `context_window`, `max_tokens`, …); **`base_url` / `compute_device` / `num_gpu` / timeouts всегда с сервера** (`.env` модуля)
-- Embeddings — модель только `OLLAMA_EMBEDDINGS_MODEL` (или `embeddings_model`); chat-`model` из запроса **не** подставлять (иначе `/api/embed` → 501 на mistral и т.п.)
+- Embeddings — модель только `OLLAMA_EMBEDDINGS_MODEL` (или `embeddings_model`), имя из библиотеки Ollama; chat-`model` из запроса **не** подставлять (иначе `/api/embed` → 501 на mistral и т.п.). Снимок Hugging Face `org/name` в этой переменной не качается через `ollama pull` — для RAG берётся `embeddinggemma`
 - Устройство inference — `AI_ASSISTANT_OLLAMA_COMPUTE_DEVICE=gpu|cpu` в `modules/ai_assistant/.env` (пусто — из `OLLAMA_COMPUTE_DEVICE` ollama_framework)
 - Параллелизм LLM — `AI_ASSISTANT_CONCURRENCY_LIMIT` (семафор в `ollama_gateway` + `concurrency_limit` клиента ollama_framework; тот же лимит на очередь индексации Celery)
 - Статус для клиента — `GET /api/ai_assistant/ollama_status/` (proxy), не `ollama_framework/status/`. Не опрашивать без права хаба/мини-чата и при deny ACL (`denied_api` / страница `/ai-assistant`)

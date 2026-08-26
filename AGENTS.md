@@ -23,7 +23,7 @@
 
 - Вызовы LLM/embeddings — `api/ollama_gateway.py`; `base_url` и лимиты нагрузки — из `.env` модуля
 - Параллелизм LLM — `AI_ASSISTANT_CONCURRENCY_LIMIT` (семафор в gateway); индексация RAG — Celery `index_knowledge_document`
-- Embeddings — только `OLLAMA_EMBEDDINGS_MODEL` (не chat-`model` из запроса; иначе Ollama 501)
+- Embeddings — только `OLLAMA_EMBEDDINGS_MODEL` (имя библиотеки Ollama, не chat-`model` из запроса; иначе Ollama 501). Снимок Hugging Face `org/name` в этой переменной игнорируется, берётся `embeddinggemma`
 - Статус Ollama для UI — `GET ai_assistant/ollama_status/`; не звать без `ai_assistant_view` / `ai_assistant_mini_chat` и при deny ACL (`denied_api` / `/ai-assistant`)
 - Bridge ops с данными пользователя — передавать `user`; `chat.message.add` без user запрещён
 - `document.parse` — media_api path под `ai_assistant/` + `user`, не произвольный FS path

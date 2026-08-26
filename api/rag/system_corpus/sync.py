@@ -8,6 +8,8 @@ import logging
 from pathlib import Path
 from typing import Any, Dict, Optional
 
+from src.core.utils.huggingface_snapshot import is_huggingface_repo_id
+
 from ...models import KnowledgeDocument
 from ...settings import (
     RAG_CHUNK_OVERLAP,
@@ -72,12 +74,21 @@ def sync_system_corpus(
             }
         if health.get('model_available') is False:
             model = health.get('model') or 'embeddinggemma'
-            return {
-                'success': False,
-                'error': (
+            if is_huggingface_repo_id(model):
+                hint = (
+                    f'OLLAMA_EMBEDDINGS_MODEL «{model}» — снимок Hugging Face, '
+                    f'не модель Ollama. Укажите имя из библиотеки Ollama '
+                    f'(например embeddinggemma) или: '
+                    f'ergoms ollama_framework:pull-setup-models'
+                )
+            else:
+                hint = (
                     f'Модель embeddings «{model}» не найдена. '
                     f'Установите: ergoms ollama_framework:ollama --pull {model}'
-                ),
+                )
+            return {
+                'success': False,
+                'error': hint,
                 'created': 0,
                 'updated': 0,
                 'skipped': 0,

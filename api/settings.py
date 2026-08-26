@@ -3,7 +3,14 @@
 
 Единственный источник истины для RAG, Ollama embeddings и таймаутов модуля.
 """
+import logging
+
 from src.config.env import env
+from src.core.utils.huggingface_snapshot import is_huggingface_repo_id
+
+logger = logging.getLogger(__name__)
+
+_OLLAMA_EMBEDDINGS_DEFAULT = 'embeddinggemma'
 
 
 def _normalize_compute_device(value: str) -> str:
@@ -19,7 +26,20 @@ def _normalize_compute_device(value: str) -> str:
 
 OLLAMA_BASE_URL = env.str('OLLAMA_BASE_URL', default='http://127.0.0.1:11434')
 OLLAMA_DEFAULT_MODEL = env.str('OLLAMA_DEFAULT_MODEL', default='mistral:latest')
-OLLAMA_EMBEDDINGS_MODEL = env.str('OLLAMA_EMBEDDINGS_MODEL', default='embeddinggemma')
+_raw_embeddings_model = env.str(
+    'OLLAMA_EMBEDDINGS_MODEL',
+    default=_OLLAMA_EMBEDDINGS_DEFAULT,
+)
+if is_huggingface_repo_id(_raw_embeddings_model):
+    logger.warning(
+        'OLLAMA_EMBEDDINGS_MODEL=%s — снимок Hugging Face, для RAG используется %s. '
+        'Исправьте modules/ai_assistant/.env (имя из библиотеки Ollama).',
+        _raw_embeddings_model,
+        _OLLAMA_EMBEDDINGS_DEFAULT,
+    )
+    OLLAMA_EMBEDDINGS_MODEL = _OLLAMA_EMBEDDINGS_DEFAULT
+else:
+    OLLAMA_EMBEDDINGS_MODEL = _raw_embeddings_model
 
 # Транспорт ollama_framework: local (ModuleBridge) или http (REST API)
 OLLAMA_FRAMEWORK_TRANSPORT = env.str('OLLAMA_FRAMEWORK_TRANSPORT', default='local')

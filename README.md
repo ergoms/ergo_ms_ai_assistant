@@ -22,7 +22,7 @@
 |------|------------|
 | `OLLAMA_FRAMEWORK_TRANSPORT` | `local` (ModuleBridge) или `http` (REST ollama_framework) |
 | `OLLAMA_BASE_URL` | URL Ollama на сервере (клиент **не** может переопределить) |
-| `OLLAMA_DEFAULT_MODEL` / `OLLAMA_EMBEDDINGS_MODEL` | модели chat / embeddings |
+| `OLLAMA_DEFAULT_MODEL` / `OLLAMA_EMBEDDINGS_MODEL` | модели chat / embeddings (embeddings — имя библиотеки Ollama, не `org/name` с Hugging Face) |
 | `AI_ASSISTANT_CONCURRENCY_LIMIT` | лимит одновременных LLM-запросов в API (+ индексация Celery) |
 | `AI_ASSISTANT_OLLAMA_COMPUTE_DEVICE` | `gpu` / `cpu` (опционально) |
 | `RAG_SYSTEM_CORPUS_ENABLED` | индекс пользовательской справки (меню, UI, guides) |
