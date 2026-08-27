@@ -29,7 +29,7 @@
 - Удаление пользователя — подписка на `core.user_delete` в `integrations.py`
 - Bridge ops с данными пользователя — передавать `user`; владелец в таблицах — `user_public_id`, без FK на пользователя ядра
 - Удаление пользователя — подписка на `core.user_delete` в `integrations.py`
-- Вынос в отдельный процесс: `api/bridge_manifest.yaml`, `api/schema.yaml` (`isolated: true`), `host_lifecycle.yaml`
+- Вынос в отдельный процесс: `api/bridge_manifest.yaml`, `api/schema.yaml` (`isolated: true`), `host_lifecycle.yaml` (API, worker и Beat)
 - `chat.message.add` без user запрещён
 - `document.parse` — media_api path под `ai_assistant/` + `user`, не произвольный FS path
 - Частота загрузок — `AI_ASSISTANT_UPLOAD_RATE_RAG` / `_CHAT` в `.env` модуля (`media.upload_quota_policies`)

@@ -32,7 +32,7 @@
 
 Источники: боковое меню, каталог модулей (`user_description` + права), ru-подписи UI, guides в `api/rag/system_corpus/guides/` и hook `modules/*/api/user_guides/*.md`.
 
-После смены меню или модулей: `ergoms ai_assistant:sync-knowledge` (сразу) или дождаться ночного Beat / следующего setup-full. Нужны `ergoms start-worker` и `ergoms start-beat` для фонового расписания.
+После смены меню или модулей: `ergoms ai_assistant:sync-knowledge` (сразу) или дождаться ночного Beat / следующего setup-full. Нужны worker и Beat модуля: `ergoms start-worker --module=ai_assistant` и `ergoms start-beat --module=ai_assistant` (в монолите достаточно общих `start-worker` / `start-beat`).
 
 Другие модули могут добавить пользовательские шпаргалки в свой `api/user_guides/*.md` и строку `user_description` в `PERMISSION_CATALOG`.
 

@@ -1,15 +1,18 @@
-# Учёт процессов API/worker модуля в ergoms resource-usage.
+# Учёт процессов API/worker/beat модуля в ergoms resource-usage.
 module: ai_assistant
 roles:
   - id: module-api:ai_assistant
     when:
       - cmdline_contains_any:
           - start_module_api.py
-          - --module=ai_assistant
         project_bound: true
   - id: module-worker:ai_assistant
     when:
       - cmdline_contains_any:
-          - start_celery_worker.py
-          - --module=ai_assistant
+          - --hostname=worker@ai_assistant
+        project_bound: true
+  - id: module-beat:ai_assistant
+    when:
+      - cmdline_contains_any:
+          - celerybeat-schedule-ai_assistant
         project_bound: true
