@@ -204,7 +204,7 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, defineAsyncComponent, ref } from 'vue'
 import { 
   User, Bot, Terminal, Copy, Check, 
   Grid3x3, AlertTriangle, Database, ChevronLeft, ChevronRight, Sparkles, Download
@@ -214,7 +214,7 @@ import { buildApexOptions } from '@/composables/useApexTheme.js'
 import { useAppI18n } from '@/i18n/useAppI18n.js'
 import { getCurrentBcp47 } from '@/i18n/index.js'
 import ContentImage from '@/components/ContentImage.vue'
-import ApexCharts from 'vue3-apexcharts'
+const ApexCharts = defineAsyncComponent(() => import('vue3-apexcharts'))
 import {
   formatMessageContent,
   formatProcessingTime,

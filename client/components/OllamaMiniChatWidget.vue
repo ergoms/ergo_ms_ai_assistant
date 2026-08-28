@@ -1,9 +1,10 @@
 <script setup>
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, onBeforeUnmount, ref, watch } from 'vue'
 import { Bot, Eraser, X } from '@lucide/vue'
 import ModuleThemeScope from '@/components/ModuleThemeScope.vue'
 import { useAppI18n } from '@/i18n/useAppI18n.js'
 import { useBreakpoint } from '@/composables/useBreakpoint.js'
+import bridge from '@/integrations/ModuleBridge.js'
 import {
   isOllamaMiniChatOpen,
   miniChatPanelMounted,
@@ -11,8 +12,8 @@ import {
   closeOllamaMiniChat,
   setMiniChatDragPosition,
 } from '../js/ollamaMiniChatStore.js'
-import { useOllamaStatus } from '../js/composables/useOllamaStatus.js'
-import OllamaMiniChat from './OllamaMiniChat.vue'
+
+const OllamaMiniChat = defineAsyncComponent(() => import('./OllamaMiniChat.vue'))
 
 const props = defineProps({
   menuRightEdge: {
@@ -23,13 +24,8 @@ const props = defineProps({
 
 const { t } = useAppI18n()
 const { isShellDesktop } = useBreakpoint()
-const {
-  status: ollamaStatus,
-  modelSubtitle,
-} = useOllamaStatus({ autoPoll: true })
-
-const widgetSubtitle = computed(() => modelSubtitle.value || t('ai_assistant.brandSubtitle'))
-const showModelCaption = computed(() => Boolean(modelSubtitle.value))
+const widgetSubtitle = computed(() => t('ai_assistant.brandSubtitle'))
+const showModelCaption = computed(() => false)
 
 const isOpen = computed(() => isOllamaMiniChatOpen.value)
 const isMounted = computed(() => miniChatPanelMounted.value)
@@ -43,15 +39,17 @@ let dragOffsetY = 0
 let activePointerId = null
 
 watch(isOpen, (open) => {
-  if (!open) {
-    showClearConfirm.value = false
-    // Иначе aria-hidden/inert на хосте при фокусе на кнопке закрытия → warning в консоли
-    const active = document.activeElement
-    if (active instanceof HTMLElement && panelRef.value?.contains(active)) {
-      active.blur()
-    }
+  if (open) {
+    void bridge.call('shell.ensure_remote_styles', 'ai_assistant', { default: null })
+    return
   }
-})
+  showClearConfirm.value = false
+  // Иначе aria-hidden/inert на хосте при фокусе на кнопке закрытия → warning в консоли
+  const active = document.activeElement
+  if (active instanceof HTMLElement && panelRef.value?.contains(active)) {
+    active.blur()
+  }
+}, { immediate: true })
 
 /** Слева у края меню (desktop) или у левого края экрана (mobile). */
 const defaultLeft = computed(() => {
@@ -229,9 +227,9 @@ onBeforeUnmount(() => {
 
             <div class="ollama-widget__body">
               <OllamaMiniChat
+                v-if="isOpen"
                 ref="chatRef"
                 compact
-                :ollama-status="ollamaStatus"
                 @close="closeOllamaMiniChat"
               />
 
