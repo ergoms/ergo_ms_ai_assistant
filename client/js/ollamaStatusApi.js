@@ -1,4 +1,5 @@
 import { apiClient } from '@/js/api/manager'
+import { logError } from '@/js/utils/logError.js'
 import { tGlobal } from '@/i18n/index.js'
 import { formatOllamaModelLabel } from './formatOllamaModelLabel.js'
 
