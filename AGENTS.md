@@ -29,7 +29,7 @@
 - Удаление пользователя — подписка на `core.user_delete` в `integrations.py`
 - Bridge ops с данными пользователя — передавать `user`; владелец в таблицах — `user_public_id`, без FK на пользователя ядра
 - Удаление пользователя — подписка на `core.user_delete` в `integrations.py`
-- Вынос в отдельный процесс: `api/bridge_manifest.yaml`, `api/schema.yaml` (`isolated: true`), `host_lifecycle.yaml` (API, worker и Beat)
+- Вынос в отдельный процесс: `api/bridge_manifest.yaml`, `api/schema.yaml` (`isolated: true`), `host_lifecycle.yaml` (API, worker и Beat); `knowledge.sign_read.ai_assistant` и группа `knowledge.packs`
 - `chat.message.add` без user запрещён
 - `document.parse` — media_api path под `ai_assistant/` + `user`, не произвольный FS path
 - Частота загрузок — `AI_ASSISTANT_UPLOAD_RATE_RAG` / `_CHAT` в `.env` модуля (`media.upload_quota_policies`)
@@ -39,7 +39,7 @@
 - Сохранение мини-чата в хаб — `POST ai_assistant/chat_sessions/<id>/save/` (module `mini_chat` / `*_mini` → `chat` / `session_module`); кнопка в шапке плавающего виджета
 - Ошибки на клиенте — `logError` / `logWarn` с import из `@/js/utils/logError.js`
 - Тема — `theme-defaults.js` + `useModuleThemeMode('ai_assistant')`
-- Пользовательский корпус RAG — `ergoms ai_assistant:sync-knowledge` (меню, UI, `system_corpus/guides`, `modules/*/api/user_guides/*.md`; не `.docs`/rules)
+- Пользовательский корпус RAG — пакеты `knowledge/` в media_api плюс меню/свой UI/`system_corpus/guides`. Не обходить чужие `modules/` и `core/` на диске. Sync: `ergoms ai_assistant:sync-knowledge`; свой пакет: `ergoms publish-knowledge-packs --module=ai_assistant`
 - Индексация RAG: подокументный прогресс — DEBUG; сводка — stdout `sync-knowledge` / один INFO задачи Beat
 - Setup-full — `include_in: setup-full-after-migrate` (`--sync`); ежедневно — Celery Beat (`celery_beat_config.py`, `RAG_SYSTEM_CORPUS_BEAT_ENABLED`)
 - Описания модулей для корпуса — `user_description` в `PERMISSION_CATALOG`

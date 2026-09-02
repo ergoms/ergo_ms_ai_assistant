@@ -19,6 +19,7 @@ from src.core.integrations.module_contracts import (
     CORE_USER_DELETE,
     MEDIA_UPLOAD_QUOTA_POLICIES_GROUP,
 )
+from src.core.utils.knowledge_pack import register_module_knowledge_sign_read
 from src.core.utils.media_upload_quota import (
     allows_module_permission,
     env_upload_rate,
@@ -282,3 +283,5 @@ bridge.provide_many(MEDIA_UPLOAD_QUOTA_POLICIES_GROUP, 'ai_assistant_chat', {
     'rate': lambda: env_upload_rate('AI_ASSISTANT_UPLOAD_RATE_CHAT', '20/minute'),
     'allows': allows_module_permission(MODULE_NAME, AI_ASSISTANT_VIEW),
 })
+
+register_module_knowledge_sign_read('ai_assistant')

@@ -56,6 +56,29 @@ class RAGRetrievalService:
             embedding_model=self.embeddings_service._model,
         )
 
+    def _system_corpus_visibility_q(self, user) -> Q | None:
+        """Сужает системный корпус по снимку прав. None — все пакеты (админ)."""
+        try:
+            from src.core.utils.knowledge_pack import visible_knowledge_owners
+
+            owners = visible_knowledge_owners(user)
+        except Exception:
+            logger.warning(
+                'Не удалось получить видимые пакеты справки, чанки с pack_owner скрыты',
+                exc_info=True,
+            )
+            return (
+                ~Q(document__metadata__has_key='pack_owner')
+                | Q(document__metadata__pack_owner='')
+            )
+        if owners is None:
+            return None
+        return (
+            ~Q(document__metadata__has_key='pack_owner')
+            | Q(document__metadata__pack_owner='')
+            | Q(document__metadata__pack_owner__in=sorted(owners))
+        )
+
     def _apply_scope_filters(
         self,
         chunks_query: QuerySet,
@@ -65,24 +88,37 @@ class RAGRetrievalService:
         include_system: bool = False,
         system_only: bool = False,
     ) -> QuerySet:
+        visibility = None
+        if system_only or include_system:
+            visibility = self._system_corpus_visibility_q(user)
+
         if document_ids:
             return chunks_query.filter(document_id__in=document_ids)
         if system_only:
-            return chunks_query.filter(
+            queryset = chunks_query.filter(
                 document__corpus=KnowledgeDocument.CORPUS_SYSTEM,
             )
+            if visibility is not None:
+                queryset = queryset.filter(visibility)
+            return queryset
         if include_system and user is not None:
+            system_q = Q(document__corpus=KnowledgeDocument.CORPUS_SYSTEM)
+            if visibility is not None:
+                system_q &= visibility
             return chunks_query.filter(
-                Q(document__corpus=KnowledgeDocument.CORPUS_SYSTEM)
+                system_q
                 | Q(
                     document__user_public_id=owner_public_id(user),
                     document__corpus=KnowledgeDocument.CORPUS_USER,
                 )
             )
         if include_system and user is None:
-            return chunks_query.filter(
+            queryset = chunks_query.filter(
                 document__corpus=KnowledgeDocument.CORPUS_SYSTEM,
             )
+            if visibility is not None:
+                queryset = queryset.filter(visibility)
+            return queryset
         if user is not None:
             return chunks_query.filter(
                 document__user_public_id=owner_public_id(user),

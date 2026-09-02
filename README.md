@@ -30,11 +30,11 @@
 
 ## Пользовательский корпус RAG
 
-Источники: боковое меню, каталог модулей (`user_description` + права), ru-подписи UI, guides в `api/rag/system_corpus/guides/` и hook `modules/*/api/user_guides/*.md`.
+Источники: боковое меню, каталог модулей (`user_description` + права), ru-подписи своего UI, guides в `api/rag/system_corpus/guides/` и опубликованные пакеты `knowledge/` в media_api. Ассистент не обходит чужие `modules/` и `core/` на диске: пакет читается с местного media или по подписанному URL владельца. Чанки пакетов при ответе режутся по правам ADP.
 
-После смены меню или модулей: `ergoms ai_assistant:sync-knowledge` (сразу) или дождаться ночного Beat / следующего setup-full. Нужны worker и Beat модуля: `ergoms start-worker --module=ai_assistant` и `ergoms start-beat --module=ai_assistant` (в монолите достаточно общих `start-worker` / `start-beat`).
+После смены меню или пакетов: `ergoms ai_assistant:sync-knowledge` (сразу) или дождаться ночного Beat / следующего setup-full. Нужны worker и Beat модуля: `ergoms start-worker --module=ai_assistant` и `ergoms start-beat --module=ai_assistant` (в монолите достаточно общих `start-worker` / `start-beat`).
 
-Другие модули могут добавить пользовательские шпаргалки в свой `api/user_guides/*.md` и строку `user_description` в `PERMISSION_CATALOG`.
+Другие модули кладут шпаргалки в свой `api/user_guides/*.md`, строку `user_description` в `PERMISSION_CATALOG` и публикуют пакет (`knowledge.sign_read.<name>`, Beat / `ergoms publish-knowledge-packs`).
 
 ## Chat-профили (расширение другими модулями)
 
@@ -75,7 +75,7 @@ ergoms ai_assistant:install-pgvector
 ergoms ai_assistant:ensure-pgvector
 ```
 
-При `ergoms setup` / Setup Full System: `install-pgvector` идёт до миграций (`include_in: setup-full`) и каждый раз проверяет расширение `vector` в схеме `core` (в `search_path` Django нет `public`). Повторный запуск не пропускает этот шаг, даже если файлы уже лежат в portable PostgreSQL. `sync-knowledge --sync` — после миграций (`include_in: setup-full-after-migrate`). Нужны Ollama и модель embeddings (их ставит `ollama_framework:pull-setup-models` в том же setup-full).
+При `ergoms setup` / Setup Full System: `install-pgvector` идёт до миграций (`include_in: setup-full`) и каждый раз проверяет расширение `vector` в схеме `core` (в `search_path` Django нет `public`). Повторный запуск не пропускает этот шаг, даже если файлы уже лежат в portable PostgreSQL. После миграций сначала публикуется пакет модуля (`ergoms publish-knowledge-packs --module=ai_assistant`), затем `sync-knowledge --sync`. Нужны Ollama и модель embeddings (их ставит `ollama_framework:pull-setup-models` в том же setup-full).
 
 ## Куда смотреть в коде
 

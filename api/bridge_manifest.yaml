@@ -9,5 +9,7 @@ ops:
   - ai_assistant.knowledge.index
   - ai_assistant.knowledge.search
   - ai_assistant.document.parse
+  - knowledge.sign_read.ai_assistant
 groups:
   - media.upload_quota_policies
+  - knowledge.packs

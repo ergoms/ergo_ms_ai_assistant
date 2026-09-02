@@ -19,6 +19,7 @@ from ...settings import (
 )
 from ...indexing_queue import enqueue_knowledge_document_index
 from ..indexing import RAGIndexingError, RAGIndexingService
+from .extract_user_knowledge import pack_sync_state
 from .sources import iter_system_corpus_documents, project_root
 
 logger = logging.getLogger(__name__)
@@ -26,6 +27,30 @@ logger = logging.getLogger(__name__)
 
 def _content_hash(text: str) -> str:
     return hashlib.sha256(text.encode('utf-8')).hexdigest()
+
+
+def _pack_owner_from_source(source_id: str) -> str:
+    parts = source_id.replace('\\', '/').split('/')
+    if len(parts) >= 3 and parts[0] == 'knowledge' and parts[1]:
+        return parts[1]
+    return ''
+
+
+def _keep_existing_knowledge_sources(seen_sources: set[str]) -> None:
+    """Не вычищать индекс пакетов, которые в этом цикле не удалось прочитать."""
+    state = pack_sync_state()
+    stale_qs = KnowledgeDocument.objects.filter(
+        corpus=KnowledgeDocument.CORPUS_SYSTEM,
+        source__startswith='knowledge/',
+    )
+    if not state.complete:
+        seen_sources.update(stale_qs.values_list('source', flat=True))
+        return
+    for owner in state.failed_owners:
+        prefix = f'knowledge/{owner}/'
+        seen_sources.update(
+            stale_qs.filter(source__startswith=prefix).values_list('source', flat=True)
+        )
 
 
 def sync_system_corpus(
@@ -141,6 +166,7 @@ def sync_system_corpus(
                 continue
 
             digest = _content_hash(text)
+            pack_owner = _pack_owner_from_source(source_id)
             existing = KnowledgeDocument.objects.filter(
                 corpus=KnowledgeDocument.CORPUS_SYSTEM,
                 source=source_id,
@@ -149,6 +175,10 @@ def sync_system_corpus(
             if existing:
                 meta = existing.metadata or {}
                 if not force and meta.get('content_hash') == digest and existing.is_indexed:
+                    if pack_owner and meta.get('pack_owner') != pack_owner:
+                        if not dry_run:
+                            existing.metadata = {**meta, 'pack_owner': pack_owner}
+                            existing.save(update_fields=['metadata'])
                     stats['skipped'] += 1
                     continue
                 if dry_run:
@@ -164,6 +194,7 @@ def sync_system_corpus(
                     'rel_path': source_id,
                     'system_corpus': True,
                     'audience': 'end_user',
+                    **({'pack_owner': pack_owner} if pack_owner else {}),
                 }
                 existing.is_indexed = False
                 existing.indexed_at = None
@@ -186,6 +217,7 @@ def sync_system_corpus(
                         'rel_path': source_id,
                         'system_corpus': True,
                         'audience': 'end_user',
+                        **({'pack_owner': pack_owner} if pack_owner else {}),
                     },
                 )
                 stats['created'] += 1
@@ -214,6 +246,7 @@ def sync_system_corpus(
             logger.error('Ошибка sync корпуса %s: %s', source_id, exc, exc_info=True)
 
     # Удаляем устаревшие системные документы (в т.ч. старый developer-корпус)
+    _keep_existing_knowledge_sources(seen_sources)
     stale_qs = KnowledgeDocument.objects.filter(
         corpus=KnowledgeDocument.CORPUS_SYSTEM,
     ).exclude(source__in=seen_sources)

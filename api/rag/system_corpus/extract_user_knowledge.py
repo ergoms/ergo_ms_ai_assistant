@@ -2,13 +2,14 @@
 Сбор пользовательских знаний о функционале системы для RAG.
 
 Источники: меню, каталог модулей/прав (в т.ч. user_description),
-подписи UI (i18n), guides ядра и modules/*/api/user_guides/*.md.
-Не индексирует .docs, .cursor/rules и developer README.
+подписи своего UI, локальные guides модуля и пакеты knowledge/ из media_api.
+Чужие modules/ и core/ на диске не обходим. Не индексирует .cursor/rules и код.
 """
 from __future__ import annotations
 
 import logging
 import re
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, Iterator, List, Tuple
 
@@ -82,9 +83,9 @@ def _extract_strings_from_js(path: Path) -> List[str]:
 def _iter_locale_files(root: Path) -> Iterator[Path]:
     patterns = [
         'core/client/src/i18n/locales/ru/**/*.js',
-        'modules/*/client/js/locales/ru.js',
-        'modules/*/client/js/locales.js',
-        'modules/*/client/js/locales/ru/*.js',
+        'modules/ai_assistant/client/js/locales/ru.js',
+        'modules/ai_assistant/client/js/locales.js',
+        'modules/ai_assistant/client/js/locales/ru/*.js',
     ]
     seen: set[str] = set()
     for pattern in patterns:
@@ -246,31 +247,76 @@ def build_guide_documents(root: Path | None = None) -> List[DocumentTuple]:
     return docs
 
 
-def build_module_user_guide_documents(root: Path | None = None) -> List[DocumentTuple]:
-    """Пользовательские шпаргалки модулей: modules/*/api/user_guides/*.md."""
-    root = (root or Path(SYSTEM_DIR)).resolve()
+@dataclass
+class PackLoadState:
+    """Результат чтения пакетов knowledge/: для prune при недоступном соседе."""
+
+    complete: bool = True
+    failed_owners: frozenset[str] = field(default_factory=frozenset)
+    sources: List[DocumentTuple] = field(default_factory=list)
+
+
+_pack_state = PackLoadState()
+
+
+def pack_sync_state() -> PackLoadState:
+    return _pack_state
+
+
+def load_pack_documents_for_sync() -> PackLoadState:
+    """Забирает опубликованные пакеты. complete=False — мост недоступен, индекс не чистить."""
+    global _pack_state
+    try:
+        from src.core.utils.knowledge_pack import load_published_pack_documents
+
+        result = load_published_pack_documents()
+    except Exception as exc:
+        logger.warning('Пакеты справки недоступны: %s', exc)
+        _pack_state = PackLoadState(complete=False)
+        return _pack_state
+
     docs: List[DocumentTuple] = []
-    for path in sorted(root.glob('modules/*/api/user_guides/*.md')):
-        if not path.is_file():
+    for item in result.get('documents') or []:
+        text = str(item.get('text') or '').strip()
+        if not text:
             continue
-        try:
-            rel_parts = path.relative_to(root).parts
-        except ValueError:
-            continue
-        # modules/<name>/api/user_guides/<file>.md
-        if len(rel_parts) < 5:
-            continue
-        module_name = rel_parts[1]
-        try:
-            content = path.read_text(encoding='utf-8').strip()
-        except OSError as exc:
-            logger.warning('Не удалось прочитать %s: %s', path, exc)
-            continue
-        if not content:
-            continue
-        source = f'user_guides/{module_name}/{path.name}'
-        docs.append((source, _guide_title_from_content(path, content), content))
-    return docs
+        source = str(item.get('source') or '').strip()
+        if not source:
+            owner = str(item.get('owner') or '').strip()
+            doc_id = str(item.get('id') or '').strip()
+            if not owner or not doc_id:
+                continue
+            source = f'knowledge/{owner}/{doc_id}'
+        title = str(item.get('title') or source)
+        docs.append((source, title, text))
+
+    failed = result.get('failed_owners')
+    if failed is None:
+        logger.warning('Дескрипторы пакетов справки недоступны, старый индекс сохранён')
+        _pack_state = PackLoadState(complete=False, sources=docs)
+    else:
+        _pack_state = PackLoadState(
+            complete=True,
+            failed_owners=frozenset(str(name) for name in failed),
+            sources=docs,
+        )
+    if failed:
+        logger.warning(
+            'Часть пакетов справки недоступна, старый индекс сохранён: %s',
+            ', '.join(sorted(str(name) for name in failed)),
+        )
+    return _pack_state
+
+
+def build_published_pack_documents(root: Path | None = None) -> List[DocumentTuple]:
+    """Документы пакетов knowledge/ (media_api), не обход modules/ на диске."""
+    del root
+    return list(load_pack_documents_for_sync().sources)
+
+
+def build_module_user_guide_documents(root: Path | None = None) -> List[DocumentTuple]:
+    """Совместимость: шпаргалки модулей теперь из опубликованных пакетов."""
+    return build_published_pack_documents(root)
 
 
 def iter_user_knowledge_documents(root: Path | None = None) -> Iterator[DocumentTuple]:
@@ -294,7 +340,7 @@ def iter_user_knowledge_documents(root: Path | None = None) -> Iterator[Document
         seen.add(source)
         yield source, title, content
 
-    for source, title, content in build_module_user_guide_documents(root):
+    for source, title, content in build_published_pack_documents(root):
         if source in seen or not content.strip():
             continue
         seen.add(source)

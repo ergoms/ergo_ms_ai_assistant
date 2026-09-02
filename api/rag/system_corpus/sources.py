@@ -1,7 +1,8 @@
 """
 Источники системного корпуса: пользовательский функционал системы.
 
-Developer-документация (.docs, .cursor/rules, AGENTS.md) не индексируется.
+Пакеты knowledge/ читаются из media_api. Developer-документация
+(.cursor/rules, AGENTS.md, исходники) не индексируется.
 """
 from __future__ import annotations
 

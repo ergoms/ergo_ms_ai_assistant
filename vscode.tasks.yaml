@@ -11,8 +11,16 @@ tasks:
     include_in:
       - setup-full
 
+  - label: "AI Assistant: Publish knowledge packs"
+    detail: "Опубликовать пакет справки модуля в media_api до синхронизации RAG"
+    command: "ergoms publish-knowledge-packs --module=ai_assistant"
+    hide: true
+    order: 15
+    include_in:
+      - setup-full-after-migrate
+
   - label: "AI Assistant: Sync knowledge"
-    detail: "Синхронизировать пользовательский корпус RAG (меню, UI, guides) после миграций"
+    detail: "Синхронизировать пользовательский корпус RAG (меню, UI, пакеты knowledge/) после миграций"
     command: "ergoms ai_assistant:sync-knowledge --sync"
     hide: true
     order: 20
