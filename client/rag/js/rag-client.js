@@ -33,6 +33,7 @@ const endpoints = {
   ollamaStatus: 'ai_assistant/ollama_status/',
   chatSessions: 'ai_assistant/chat_sessions/',
   chatSessionDetail: (id) => `ai_assistant/chat_sessions/${id}/`,
+  chatSessionSave: (id) => `ai_assistant/chat_sessions/${id}/save/`,
 }
 
 /**
@@ -356,6 +357,34 @@ class RAGClient {
       return {
         success: false,
         error: error.message || tGlobal('ai_assistant.chatCreateFail'),
+      }
+    }
+  }
+
+  /**
+   * Перенести сессию мини-чата в список хаба
+   * @param {string} sessionId
+   * @returns {Promise<Object>}
+   */
+  async saveChatSessionToHub(sessionId) {
+    try {
+      const response = await apiClient.post(endpoints.chatSessionSave(sessionId))
+      if (response.success) {
+        return {
+          success: true,
+          alreadySaved: Boolean(response.data?.already_saved),
+          session: response.data?.session,
+        }
+      }
+      return {
+        success: false,
+        error: response.data?.error || tGlobal('ai_assistant.apps.chatSaveFail'),
+      }
+    } catch (error) {
+      logError('Ошибка сохранения чата в хаб', error)
+      return {
+        success: false,
+        error: error.message || tGlobal('ai_assistant.apps.chatSaveFail'),
       }
     }
   }

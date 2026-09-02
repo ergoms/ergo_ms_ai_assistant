@@ -44,6 +44,7 @@
 2. Клиент: `bridge.provideMany('ai_assistant.chat.profiles', id, { title, welcomeMessage, suggestions, permissionModule, permission, features, hubQuery, … })`.
 3. Открытие: `bridge.call('ai_assistant.mini_chat.open', profileId)` или маршрут `/ai-assistant?profile=<id>`. Профили без права пользователя не показываются.
 4. Stream UI ходит только в `POST /api/ai_assistant/chat/profiles/<id>/stream/` (прокси проверяет `permission_module`/`permission` хоста); сессии — `ChatSession` ассистента.
+5. Сессии мини-чата пишутся с `module=mini_chat` (или `mini_chat_module` профиля) и не попадают в список хаба. Кнопка «Сохранить чат» в шапке виджета вызывает `POST /api/ai_assistant/chat_sessions/<id>/save/` и переносит сессию в хаб.
 
 Доменный KAG / свои эмбеддинги остаются в хост-модуле.
 

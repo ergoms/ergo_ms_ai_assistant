@@ -54,3 +54,32 @@ def get_server_profile(profile_id: str) -> Optional[Dict[str, Any]]:
     if not profile_id or profile_id == DEFAULT_PROFILE_ID:
         return None
     return list_server_profiles().get(str(profile_id).strip())
+
+
+DEFAULT_MINI_CHAT_MODULE = 'mini_chat'
+DEFAULT_SESSION_MODULE = 'chat'
+
+
+def hub_module_for_mini(mini_module: str) -> Optional[str]:
+    """session_module хаба для модуля мини-чата; иначе None."""
+    key = str(mini_module or '').strip()
+    if not key:
+        return None
+    if key == DEFAULT_MINI_CHAT_MODULE:
+        return DEFAULT_SESSION_MODULE
+    for profile in list_server_profiles().values():
+        if profile['mini_chat_module'] == key:
+            return profile['session_module']
+    return None
+
+
+def is_hub_session_module(module: str) -> bool:
+    key = str(module or '').strip()
+    if not key:
+        return False
+    if key == DEFAULT_SESSION_MODULE:
+        return True
+    return any(
+        profile['session_module'] == key
+        for profile in list_server_profiles().values()
+    )

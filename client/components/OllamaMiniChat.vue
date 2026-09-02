@@ -106,6 +106,7 @@ import {
 } from '@/js/bootstrapMask.js'
 import { useAppI18n } from '@/i18n/useAppI18n.js'
 import { logError } from '@/js/utils/logError.js'
+import { useToast } from '@/js/utils/toast.js'
 import {
   clearMiniChatState,
   dismissOllamaMiniChat,
@@ -114,10 +115,12 @@ import {
   miniChatLoading,
   miniChatMessages,
   miniChatPending,
+  miniChatSaved,
   miniChatSessionId,
   setMiniChatLoading,
   setMiniChatMessages,
   setMiniChatPending,
+  setMiniChatSaved,
   setMiniChatSessionId,
   shouldPreferServerMessages,
   stripTrailingInterrupted,
@@ -146,6 +149,7 @@ const props = defineProps({
 
 const emit = defineEmits(['close'])
 const { t } = useAppI18n()
+const toast = useToast()
 const router = useRouter()
 
 const activeProfile = ref(null)
@@ -206,6 +210,20 @@ const showTyping = computed(() => {
 })
 const canShowSuggestions = computed(() => (moduleConfig.value?.suggestions?.length ?? 0) > 0)
 const suggestionsExpanded = ref(false)
+const savingChat = ref(false)
+const hubSessionModule = computed(() => activeProfile.value?.sessionModule || 'chat')
+const isChatSaved = computed(() => miniChatSaved.value)
+const canSaveChat = computed(() => {
+  if (miniChatSaved.value || savingChat.value) return false
+  if (!sessionId.value && !miniChatSessionId.value) return false
+  return messages.value.some((msg) => msg?.type === 'user' && String(msg.content || '').trim())
+})
+
+function markSavedFromSessionMeta(sessionMeta) {
+  if (sessionMeta?.module && sessionMeta.module === hubSessionModule.value) {
+    setMiniChatSaved(true)
+  }
+}
 
 function syncInputHeight() {
   const el = inputRef.value
@@ -296,6 +314,7 @@ function applyMappedMessages(mapped, persistedSessionId, sessionMeta = null) {
   sessionId.value = nextSessionId
   setMiniChatSessionId(nextSessionId)
   setMiniChatMessages(clean)
+  markSavedFromSessionMeta(sessionMeta)
   return true
 }
 
@@ -512,7 +531,38 @@ async function sendMessage(prefilled) {
   }
 }
 
-defineExpose({ clearChat })
+async function saveChat() {
+  if (miniChatSaved.value) return true
+  if (!canSaveChat.value) return false
+
+  const persistedId = sessionId.value || miniChatSessionId.value
+  if (!persistedId) return false
+
+  savingChat.value = true
+  try {
+    await ensureProfileLoaded()
+    const result = await transport.value.saveChatSessionToHub(persistedId)
+    if (!result.success) {
+      toast.error(result.error || t('ai_assistant.apps.chatSaveFail'))
+      return false
+    }
+    setMiniChatSaved(true)
+    toast.success(
+      result.alreadySaved
+        ? t('ai_assistant.apps.chatAlreadySaved')
+        : t('ai_assistant.apps.chatSaved'),
+    )
+    return true
+  } catch (error) {
+    logError('Ошибка сохранения мини-чата', error)
+    toast.error(t('ai_assistant.apps.chatSaveFail'))
+    return false
+  } finally {
+    savingChat.value = false
+  }
+}
+
+defineExpose({ clearChat, saveChat, canSaveChat, isChatSaved, savingChat })
 
 async function openFullHub() {
   dismissOllamaMiniChat()
@@ -521,6 +571,9 @@ async function openFullHub() {
   const query = { module: 'chat' }
   if (profile?.hubQuery) {
     query.profile = profile.hubQuery
+  }
+  if (miniChatSaved.value && (sessionId.value || miniChatSessionId.value)) {
+    query.session = sessionId.value || miniChatSessionId.value
   }
   await router.push({ name: 'AIAssistantHub', query })
 }
@@ -739,6 +792,35 @@ onBeforeUnmount(() => {
     :deep(.message-content) {
       font-size: 0.875rem;
       line-height: 1.45;
+    }
+
+    :deep(.message-content h1) { font-size: 1rem; }
+    :deep(.message-content h2) { font-size: 0.9375rem; }
+    :deep(.message-content h3),
+    :deep(.message-content h4),
+    :deep(.message-content h5),
+    :deep(.message-content h6) { font-size: 0.875rem; }
+
+    :deep(.markdown-table-wrapper) {
+      margin: 0.5rem 0;
+      max-width: 100%;
+    }
+
+    :deep(.markdown-table) {
+      min-width: 0;
+      font-size: 0.75rem;
+
+      th,
+      td {
+        padding: 0.35rem 0.5rem;
+        vertical-align: top;
+      }
+
+      ul,
+      ol {
+        margin: 0.1rem 0;
+        padding-left: 1rem;
+      }
     }
   }
 }

@@ -10,6 +10,128 @@ function escapeHtml(text) {
   return div.innerHTML
 }
 
+const BR_TAG_RE = /<\s*br\b[^>]*>/gi
+const BR_ENTITY_RE = /&lt;\s*br\b[^>]*&gt;/gi
+const UNORDERED_LINE_RE = /^(?:[-*•]|—)\s+/
+const ORDERED_LINE_RE = /^\d+\.\s+/
+const BULLET_LINE_RE = /^(?:[-*•]|—|\d+\.)\s+/
+const PLACEHOLDER_RE = /^%%MD_(?:CODE|THINK|TABLE)_[A-Za-z0-9-]+%%$/
+const BLOCK_OPEN_RE = '(?:pre|div|table|blockquote|ul|ol|h[1-6]|hr)'
+const BLOCK_CLOSE_RE = '(?:pre|div|table|blockquote|ul|ol|h[1-6])'
+
+function applyInlineMarkdown(text) {
+  return String(text || '')
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/__(.+?)__/g, '<strong>$1</strong>')
+    .replace(/~~(.*?)~~/g, '<del>$1</del>')
+    .replace(/`([^`\n]+)`/g, '<code>$1</code>')
+    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+    .replace(/(?<![\w*])_(?!_)(.+?)(?<!_)_(?![\w*])/g, '<em>$1</em>')
+}
+
+/** Жирный, курсив, код и переносы внутри уже извлечённого фрагмента. */
+function formatInlineMarkdown(raw) {
+  let text = String(raw || '')
+  text = text.replace(BR_TAG_RE, '\n').replace(BR_ENTITY_RE, '\n')
+  return applyInlineMarkdown(escapeHtml(text)).replace(/\n+/g, '<br>')
+}
+
+function isHorizontalRule(line) {
+  const trimmed = String(line || '').trim()
+  return /^(?:-{3,}|\*{3,}|_{3,})$/.test(trimmed)
+}
+
+function consumePrefixedLines(lines, start, test) {
+  const items = []
+  let index = start
+  while (index < lines.length && test(lines[index].trim())) {
+    items.push(lines[index].trim())
+    index += 1
+  }
+  return { items, next: index }
+}
+
+/** Заголовки, линейки, цитаты и списки — то, что модель пишет вне таблиц. */
+function formatBlockMarkdown(text) {
+  const lines = String(text).split('\n')
+  const out = []
+  let i = 0
+
+  while (i < lines.length) {
+    const raw = lines[i]
+    const trimmed = raw.trim()
+
+    if (!trimmed) {
+      out.push('')
+      i += 1
+      continue
+    }
+
+    if (PLACEHOLDER_RE.test(trimmed)) {
+      out.push(trimmed)
+      i += 1
+      continue
+    }
+
+    if (isHorizontalRule(trimmed)) {
+      out.push('<hr>')
+      i += 1
+      continue
+    }
+
+    const heading = trimmed.match(/^(#{1,6})\s+(.+?)(?:\s+#*)?$/)
+    if (heading) {
+      const level = heading[1].length
+      const title = heading[2].replace(BR_TAG_RE, '').trim()
+      out.push(`<h${level}>${title}</h${level}>`)
+      i += 1
+      continue
+    }
+
+    if (/^>\s?/.test(trimmed)) {
+      const { items, next } = consumePrefixedLines(lines, i, (line) => /^>\s?/.test(line))
+      const body = items.map((line) => line.replace(/^>\s?/, '')).join('\n')
+      out.push(`<blockquote>${body}</blockquote>`)
+      i = next
+      continue
+    }
+
+    if (ORDERED_LINE_RE.test(trimmed)) {
+      const { items, next } = consumePrefixedLines(lines, i, (line) => ORDERED_LINE_RE.test(line))
+      const lis = items.map((line) => `<li>${line.replace(ORDERED_LINE_RE, '')}</li>`).join('')
+      out.push(`<ol>${lis}</ol>`)
+      i = next
+      continue
+    }
+
+    if (UNORDERED_LINE_RE.test(trimmed)) {
+      const { items, next } = consumePrefixedLines(lines, i, (line) => UNORDERED_LINE_RE.test(line))
+      const lis = items.map((line) => `<li>${line.replace(UNORDERED_LINE_RE, '')}</li>`).join('')
+      out.push(`<ul>${lis}</ul>`)
+      i = next
+      continue
+    }
+
+    out.push(raw)
+    i += 1
+  }
+
+  return out.join('\n')
+}
+
+/** Ячейка markdown-таблицы: инлайн-разметка и список, если модель пишет пункты через <br>. */
+function formatTableCell(raw) {
+  let text = String(raw ?? '')
+  text = text.replace(BR_TAG_RE, '\n').replace(BR_ENTITY_RE, '\n')
+  const lines = text.split(/\n/).map((line) => line.trim()).filter(Boolean)
+  const asList = lines.length >= 2 && lines.every((line) => BULLET_LINE_RE.test(line))
+  if (asList) {
+    const items = lines.map((line) => formatInlineMarkdown(line.replace(BULLET_LINE_RE, '')))
+    return `<ul>${items.map((item) => `<li>${item}</li>`).join('')}</ul>`
+  }
+  return formatInlineMarkdown(text)
+}
+
 export function parseMarkdownTable(markdownTable) {
   try {
     const lines = markdownTable.trim().split('\n').map((line) => line.trim()).filter(Boolean)
@@ -47,7 +169,7 @@ export function parseMarkdownTable(markdownTable) {
 
     let html = '<div class="markdown-table-wrapper"><table class="markdown-table"><thead><tr>'
     headers.forEach((header) => {
-      html += `<th>${escapeHtml(header)}</th>`
+      html += `<th>${formatTableCell(header)}</th>`
     })
     html += '</tr></thead>'
 
@@ -56,7 +178,7 @@ export function parseMarkdownTable(markdownTable) {
       rows.forEach((row) => {
         html += '<tr>'
         headers.forEach((_, index) => {
-          html += `<td>${escapeHtml(row[index] || '')}</td>`
+          html += `<td>${formatTableCell(row[index] || '')}</td>`
         })
         html += '</tr>'
       })
@@ -90,7 +212,7 @@ function extractFencedCodeBlocks(text) {
         `<code class="markdown-code${langClass}">${escapeHtml(codeBody)}</code>` +
         `</pre>`,
     })
-    return `\n__CODE_PLACEHOLDER_${id}__\n`
+    return `\n%%MD_CODE_${id}%%\n`
   })
   return { text: replaced, blocks }
 }
@@ -109,7 +231,7 @@ function extractThinkBlocks(text, thinkingLabel) {
         `<div class="think-block__content">${escapeHtml(String(thinkContent || '').trim())}</div>` +
         `</div>`,
     })
-    return `__THINK_PLACEHOLDER_${id}__`
+    return `%%MD_THINK_${id}%%`
   })
   return { text: replaced, blocks }
 }
@@ -142,28 +264,26 @@ export function formatMessageContent(content, options = {}) {
     const htmlTable = parseMarkdownTable(match)
     if (htmlTable === match) return match
     tables.push({ id: tableId, html: htmlTable })
-    return `\n\n__TABLE_PLACEHOLDER_${tableId}__\n\n`
+    return `\n\n%%MD_TABLE_${tableId}%%\n\n`
   })
 
-  text = text
-    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.*?)\*/g, '<em>$1</em>')
-    .replace(/`([^`\n]+)`/g, '<code>$1</code>')
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (match, linkText, url) => {
-      if (url.includes('/api/ai_assistant/documents/download/')) {
-        return `<a href="#" class="download-link" data-download-url="${url}" data-filename="${linkText}">${linkText}</a>`
-      }
-      return `<a href="${url}" target="_blank" rel="noopener noreferrer">${linkText}</a>`
-    })
+  text = formatBlockMarkdown(text)
+  text = applyInlineMarkdown(text)
+  text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (match, linkText, url) => {
+    if (url.includes('/api/ai_assistant/documents/download/')) {
+      return `<a href="#" class="download-link" data-download-url="${url}" data-filename="${linkText}">${linkText}</a>`
+    }
+    return `<a href="${url}" target="_blank" rel="noopener noreferrer">${linkText}</a>`
+  })
 
   codeBlocks.forEach((block) => {
-    text = text.replace(`__CODE_PLACEHOLDER_${block.id}__`, block.html)
+    text = text.replace(`%%MD_CODE_${block.id}%%`, block.html)
   })
   thinkBlocks.forEach((block) => {
-    text = text.replace(`__THINK_PLACEHOLDER_${block.id}__`, block.html)
+    text = text.replace(`%%MD_THINK_${block.id}%%`, block.html)
   })
   tables.forEach((table) => {
-    text = text.replace(`__TABLE_PLACEHOLDER_${table.id}__`, table.html)
+    text = text.replace(`%%MD_TABLE_${table.id}%%`, table.html)
   })
 
   // Убираем лишние пустые строки — иначе вокруг кода появляются «дыры»
@@ -181,8 +301,8 @@ export function formatMessageContent(content, options = {}) {
 
   // Схлопываем br вокруг блоков и серии br
   text = text
-    .replace(/(?:<br>\s*)+(<(?:pre|div|table)\b)/gi, '$1')
-    .replace(/(<\/(?:pre|div|table)>)(?:\s*<br>)+/gi, '$1')
+    .replace(new RegExp(`(?:<br>\\s*)+(<(?:${BLOCK_OPEN_RE})\\b)`, 'gi'), '$1')
+    .replace(new RegExp(`(</(?:${BLOCK_CLOSE_RE})>|<hr\\s*/?>)(?:\\s*<br>)+`, 'gi'), '$1')
     .replace(/(?:<br>\s*){3,}/g, '<br><br>')
 
   return sanitizeHtml(text)

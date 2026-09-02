@@ -20,6 +20,7 @@ alwaysApply: false
 - Права — `CanViewAiAssistant` (хаб) / `ai_assistant_mini_chat` (плавающий мини-чат, меню приложений) / `permission_catalog`
 - Плавающий виджет — `shell.floating_widgets` + `isVisible` (`client/js/aiAssistantAccess.js`): право мини-чата **или** внешний chat-профиль, и нет deny на `/ai-assistant` / `/api/ai_assistant/`
 - **Chat profiles:** хост регистрирует `bridge.provideMany('ai_assistant.chat.profiles', id, {…})` на клиенте и сервере; ask — `ask_stream_op`; открытие мини-чата — `bridge.call('ai_assistant.mini_chat.open', id)`; хаб — `?profile=<id>`; `permissionModule`/`permission` скрывают профиль без права (прокси stream тоже проверяет); `mini_chat.open` не открывает чат, если ACL закрыл модуль
+- Сохранение мини-чата в список хаба — `POST /api/ai_assistant/chat_sessions/<id>/save/` меняет `module` с `mini_chat` / `mini_chat_module` профиля на `chat` / `session_module`; кнопка в шапке `OllamaMiniChatWidget`
 - Владелец записей — `user_public_id`, без FK на `AUTH_USER_MODEL`; фильтры через `owner_public_id` из `api/ownership.py`. Системный корпус RAG — `user_public_id=None`. Удаление пользователя — `core.user_delete` в `integrations.py`. Схема — `api/schema.yaml` `isolated: true`
 - Файлы — media_api + signed URL; bridge `document.parse` — путь в media под `ai_assistant/` + обязательный `user`
 - Квота загрузок — `AI_ASSISTANT_UPLOAD_RATE_RAG` / `_CHAT` в `.env` модуля (`media.upload_quota_policies`)

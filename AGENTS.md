@@ -36,6 +36,7 @@
 - Хост-модуль регистрирует chat-профиль: группа `ai_assistant.chat.profiles` (client + server) + op `*.ask_stream`; UI — `bridge.call('ai_assistant.mini_chat.open', profileId)` или `?profile=`; право профиля (`permissionModule` / `permission`) скрывает виджет и блокирует stream; `mini_chat.open` сразу `false`, если ACL закрыл модуль
 - Плавающий мини-чат — право `ai_assistant_mini_chat` **или** видимый внешний chat-профиль, плюс нет deny на `/ai-assistant` / `/api/ai_assistant/` (`isVisible` у `shell.floating_widgets`); хаб `/ai-assistant` — `ai_assistant_view`
 - Proxy stream — `POST ai_assistant/chat/profiles/<id>/stream/`; сессии остаются в `ChatSession`
+- Сохранение мини-чата в хаб — `POST ai_assistant/chat_sessions/<id>/save/` (module `mini_chat` / `*_mini` → `chat` / `session_module`); кнопка в шапке плавающего виджета
 - Ошибки на клиенте — `logError` / `logWarn` с import из `@/js/utils/logError.js`
 - Тема — `theme-defaults.js` + `useModuleThemeMode('ai_assistant')`
 - Пользовательский корпус RAG — `ergoms ai_assistant:sync-knowledge` (меню, UI, `system_corpus/guides`, `modules/*/api/user_guides/*.md`; не `.docs`/rules)

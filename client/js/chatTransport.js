@@ -174,6 +174,10 @@ export function createChatTransport(profile) {
       )
     },
 
+    saveChatSessionToHub(sessionId) {
+      return ragClient.saveChatSessionToHub(sessionId)
+    },
+
     deleteChatSession(sessionId) {
       return ragClient.deleteChatSession(sessionId)
     },

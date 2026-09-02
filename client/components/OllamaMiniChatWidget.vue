@@ -1,6 +1,6 @@
 <script setup>
 import { computed, defineAsyncComponent, onBeforeUnmount, ref, watch } from 'vue'
-import { Bot, Eraser, X } from '@lucide/vue'
+import { Bookmark, BookmarkCheck, Bot, Eraser, X } from '@lucide/vue'
 import ModuleThemeScope from '@/components/ModuleThemeScope.vue'
 import { useAppI18n } from '@/i18n/useAppI18n.js'
 import { useBreakpoint } from '@/composables/useBreakpoint.js'
@@ -9,6 +9,9 @@ import {
   isOllamaMiniChatOpen,
   miniChatPanelMounted,
   miniChatDragPosition,
+  miniChatMessages,
+  miniChatSaved,
+  miniChatSessionId,
   closeOllamaMiniChat,
   setMiniChatDragPosition,
 } from '../js/ollamaMiniChatStore.js'
@@ -33,6 +36,20 @@ const isMounted = computed(() => miniChatPanelMounted.value)
 const panelRef = ref(null)
 const chatRef = ref(null)
 const showClearConfirm = ref(false)
+const savingChat = ref(false)
+const isChatSaved = computed(() => miniChatSaved.value)
+const canSaveChat = computed(() => {
+  if (miniChatSaved.value || savingChat.value) return false
+  if (!miniChatSessionId.value) return false
+  return (miniChatMessages.value || []).some(
+    (msg) => msg?.type === 'user' && String(msg.content || '').trim(),
+  )
+})
+const saveChatLabel = computed(() => (
+  isChatSaved.value
+    ? t('ai_assistant.apps.chatAlreadySaved')
+    : t('ai_assistant.apps.saveChat')
+))
 const isDragging = ref(false)
 let dragOffsetX = 0
 let dragOffsetY = 0
@@ -146,6 +163,16 @@ function stopDragging() {
   window.removeEventListener('pointercancel', onPointerUp)
 }
 
+async function onSaveChat() {
+  if (!canSaveChat.value || savingChat.value) return
+  savingChat.value = true
+  try {
+    await chatRef.value?.saveChat?.()
+  } finally {
+    savingChat.value = false
+  }
+}
+
 function onClearChat() {
   showClearConfirm.value = true
 }
@@ -203,6 +230,18 @@ onBeforeUnmount(() => {
                 </div>
               </div>
               <div class="ollama-widget__actions">
+                <button
+                  type="button"
+                  class="ollama-widget__icon-btn"
+                  :class="{ 'ollama-widget__icon-btn--saved': isChatSaved }"
+                  :aria-label="saveChatLabel"
+                  :title="saveChatLabel"
+                  :disabled="!canSaveChat || showClearConfirm || savingChat || isChatSaved"
+                  @click="onSaveChat"
+                >
+                  <BookmarkCheck v-if="isChatSaved" :size="18" />
+                  <Bookmark v-else :size="18" />
+                </button>
                 <button
                   type="button"
                   class="ollama-widget__icon-btn"
@@ -405,6 +444,17 @@ onBeforeUnmount(() => {
   &:disabled {
     opacity: 0.45;
     cursor: not-allowed;
+  }
+
+  &--saved {
+    color: var(--ai-accent, var(--color-accent));
+    opacity: 1;
+    cursor: default;
+
+    &:disabled {
+      opacity: 1;
+      cursor: default;
+    }
   }
 }
 

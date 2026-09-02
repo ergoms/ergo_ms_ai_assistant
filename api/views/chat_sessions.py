@@ -2,10 +2,12 @@ import logging
 
 from rest_framework.response import Response
 from rest_framework import permissions, status
+from rest_framework.decorators import action
 from ..permissions import CanViewAiAssistant
 from rest_framework.viewsets import ViewSet
 
 from src.core.utils.mixins import SwaggerSafeMixin
+from ..chat_profiles import hub_module_for_mini, is_hub_session_module
 from ..models import ChatSession
 from ..ownership import owner_public_id
 
@@ -169,4 +171,59 @@ class ChatSessionViewSet(ViewSet, SwaggerSafeMixin):
                 'success': False,
                 'error': 'Сессия не найдена'
             }, status=status.HTTP_404_NOT_FOUND)
+
+    def _owner_sessions(self):
+        user = self.get_safe_user()
+        queryset = ChatSession.objects.filter(
+            user_public_id=owner_public_id(user, required=False),
+        )
+        return self.get_safe_queryset(queryset)
+
+    def _session_payload(self, session):
+        return {
+            'id': str(session.id),
+            'title': session.title or 'Без названия',
+            'module': session.module,
+            'message_count': session.message_count,
+            'created_at': session.created_at.isoformat(),
+            'updated_at': session.updated_at.isoformat(),
+            'metadata': session.metadata or {},
+        }
+
+    @action(detail=True, methods=['post'], url_path='save')
+    def save_to_hub(self, request, pk=None):
+        """
+        POST /api/ai_assistant/chat_sessions/{id}/save/
+        Перенести сессию мини-чата в список хаба (module mini → chat).
+        """
+        queryset = self._owner_sessions()
+        try:
+            session = queryset.get(id=pk)
+        except ChatSession.DoesNotExist:
+            return Response({
+                'success': False,
+                'error': 'Сессия не найдена',
+            }, status=status.HTTP_404_NOT_FOUND)
+
+        if is_hub_session_module(session.module):
+            return Response({
+                'success': True,
+                'already_saved': True,
+                'session': self._session_payload(session),
+            })
+
+        hub_module = hub_module_for_mini(session.module)
+        if not hub_module:
+            return Response({
+                'success': False,
+                'error': 'Эту сессию нельзя сохранить в хаб',
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        session.module = hub_module
+        session.save(update_fields=['module', 'updated_at'])
+        return Response({
+            'success': True,
+            'already_saved': False,
+            'session': self._session_payload(session),
+        })
 

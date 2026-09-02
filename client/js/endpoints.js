@@ -10,6 +10,7 @@ export const endpoints = {
   embeddingsStatus: 'ai_assistant/embeddings_status/',
   chatSessions: 'ai_assistant/chat_sessions/',
   chatSessionDetail: (id) => `ai_assistant/chat_sessions/${id}/`,
+  chatSessionSave: (id) => `ai_assistant/chat_sessions/${id}/save/`,
   knowledgeDocuments: 'ai_assistant/knowledge_documents/',
   knowledgeDocumentDetail: (id) => `ai_assistant/knowledge_documents/${id}/`,
   knowledgeDocumentIndex: (id) => `ai_assistant/knowledge_documents/${id}/index/`,

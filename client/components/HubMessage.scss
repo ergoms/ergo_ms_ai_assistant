@@ -173,15 +173,50 @@
     }
   }
 
-  :deep(br) {
-    content: '';
-  }
-
   // Двойной br ≈ абзац, без «лесенки» пустых строк
   :deep(br + br) {
     display: block;
     margin-top: 0.35rem;
-    content: '';
+  }
+
+  :deep(h1),
+  :deep(h2),
+  :deep(h3),
+  :deep(h4),
+  :deep(h5),
+  :deep(h6) {
+    margin: 0.75rem 0 0.35rem;
+    font-weight: 600;
+    line-height: 1.3;
+    color: var(--text-primary);
+    letter-spacing: 0;
+    text-transform: none;
+
+    &:first-child {
+      margin-top: 0;
+    }
+  }
+
+  :deep(h1) { font-size: 1.15rem; }
+  :deep(h2) { font-size: 1.05rem; }
+  :deep(h3) { font-size: 1rem; }
+  :deep(h4),
+  :deep(h5),
+  :deep(h6) { font-size: 0.9375rem; }
+
+  :deep(hr) {
+    margin: 0.75rem 0;
+    border: none;
+    border-top: 1px solid color-mix(in srgb, var(--accent, #f14336) 22%, var(--color-border, #333));
+  }
+
+  :deep(blockquote) {
+    margin: 0.5rem 0;
+    padding: 0.45rem 0.75rem;
+    border-left: 3px solid var(--accent, var(--color-accent));
+    background: color-mix(in srgb, var(--accent, #f14336) 7%, transparent);
+    color: var(--text-secondary);
+    border-radius: 0 8px 8px 0;
   }
 
   :deep(ol),
@@ -290,9 +325,9 @@
 
   :deep(.markdown-table) {
     width: 100%;
-    min-width: 500px;
+    min-width: 0;
     border-collapse: collapse;
-    font-family: Arial, sans-serif;
+    font-family: var(--font-family-base);
     font-size: $font-size-sm;
     background: var(--bg-base);
     border: 1px solid color-mix(in srgb, var(--accent, #f14336) 20%, transparent);
@@ -300,17 +335,28 @@
     th, td {
       padding: $spacing-sm $spacing-md;
       text-align: left;
+      vertical-align: top;
       border-bottom: 1px solid color-mix(in srgb, var(--accent, #f14336) 10%, transparent);
       word-wrap: break-word;
+      overflow-wrap: anywhere;
       white-space: normal;
-      font-family: Arial, sans-serif;
+      font-family: var(--font-family-base);
+    }
+
+    ul, ol {
+      margin: 0.15rem 0;
+      padding-left: 1.15rem;
+    }
+
+    li {
+      margin: 0.2rem 0;
     }
     
     th {
       background: color-mix(in srgb, var(--accent, #f14336) 10%, transparent);
       font-weight: 600;
       color: var(--text-primary);
-      font-family: Arial, sans-serif;
+      font-family: var(--font-family-base);
       text-transform: uppercase;
       font-size: $font-size-xs;
       letter-spacing: $letter-spacing-wide;
@@ -321,7 +367,7 @@
     
     td {
       color: var(--text-secondary);
-      font-family: Arial, sans-serif;
+      font-family: var(--font-family-base);
     }
     
     tbody tr {

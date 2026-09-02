@@ -123,6 +123,44 @@
     color: $neon-purple;
   }
 
+  :deep(h1),
+  :deep(h2),
+  :deep(h3),
+  :deep(h4),
+  :deep(h5),
+  :deep(h6) {
+    margin: 0.75rem 0 0.35rem;
+    font-weight: $font-weight-semibold;
+    line-height: 1.3;
+    color: var(--nc-text-primary, #{$dark-text-primary});
+
+    &:first-child {
+      margin-top: 0;
+    }
+  }
+
+  :deep(h1) { font-size: 1.15rem; }
+  :deep(h2) { font-size: 1.05rem; }
+  :deep(h3) { font-size: 1rem; }
+  :deep(h4),
+  :deep(h5),
+  :deep(h6) { font-size: 0.9375rem; }
+
+  :deep(hr) {
+    margin: 0.75rem 0;
+    border: none;
+    border-top: 1px solid color-mix(in srgb, var(--accent, #f14336) 22%, transparent);
+  }
+
+  :deep(blockquote) {
+    margin: 0.5rem 0;
+    padding: 0.45rem 0.75rem;
+    border-left: 3px solid var(--accent, #f14336);
+    background: color-mix(in srgb, var(--accent, #f14336) 8%, transparent);
+    color: var(--nc-text-secondary, #{$dark-text-secondary});
+    border-radius: 0 8px 8px 0;
+  }
+
   :deep(.think-block) {
     margin: $spacing-lg 0;
     padding: $spacing-lg;
@@ -159,7 +197,7 @@
 
   :deep(.markdown-table) {
     width: 100%;
-    min-width: 500px;
+    min-width: 0;
     border-collapse: collapse;
     font-size: $font-size-base;
     background: var(--nc-bg-elevated, #{$dark-bg-elevated});
@@ -169,10 +207,17 @@
     td {
       padding: $spacing-md $spacing-lg;
       text-align: left;
+      vertical-align: top;
       border-bottom: 1px solid color-mix(in srgb, var(--accent, #f14336) 10%, transparent);
       word-wrap: break-word;
-      overflow-wrap: break-word;
+      overflow-wrap: anywhere;
       white-space: normal;
+    }
+
+    ul,
+    ol {
+      margin: 0.15rem 0;
+      padding-left: 1.15rem;
     }
 
     th {

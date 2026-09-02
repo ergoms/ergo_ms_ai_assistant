@@ -136,7 +136,7 @@ export function shouldPreferServerMessages(localMessages, serverMessages) {
 function readPersistedState(storageKey = activeStorageKey) {
   try {
     const raw = localStorage.getItem(storageKey)
-    if (!raw) return { sessionId: null, messages: null, pending: false }
+    if (!raw) return { sessionId: null, messages: null, pending: false, saved: false }
     const parsed = JSON.parse(raw)
     const sessionId = isUuid(parsed?.sessionId) ? String(parsed.sessionId) : null
     // Заглушку «не удалось получить ответ» не гидратируем — после F5 нужен typing, не ошибка
@@ -146,17 +146,18 @@ function readPersistedState(storageKey = activeStorageKey) {
       messages = cleaned.length ? cleaned : null
     }
     const pending = Boolean(parsed?.pending) || isAwaitingAssistantReply(messages)
-    return { sessionId, messages, pending }
+    return { sessionId, messages, pending, saved: Boolean(parsed?.saved) }
   } catch {
-    return { sessionId: null, messages: null, pending: false }
+    return { sessionId: null, messages: null, pending: false, saved: false }
   }
 }
 
-function writePersistedState(sessionId, messages, pending) {
+function writePersistedState(sessionId, messages, pending, saved = false) {
   try {
     const nextSessionId = isUuid(sessionId) ? String(sessionId) : null
     const nextMessages = serializeMessages(messages)
     const nextPending = Boolean(pending)
+    const nextSaved = Boolean(saved)
     if (!nextSessionId && !hasUserMessages(nextMessages) && !nextPending) {
       localStorage.removeItem(activeStorageKey)
       return
@@ -165,6 +166,7 @@ function writePersistedState(sessionId, messages, pending) {
       sessionId: nextSessionId,
       messages: nextMessages,
       pending: nextPending,
+      saved: nextSaved,
       savedAt: Date.now(),
     }))
   } catch {
@@ -178,7 +180,7 @@ try {
   const legacy = sessionStorage.getItem('ai_assistant.miniChatSessionId')
   if (legacy && isUuid(legacy) && !hydrated.sessionId) {
     hydrated.sessionId = String(legacy)
-    writePersistedState(hydrated.sessionId, hydrated.messages, hydrated.pending)
+    writePersistedState(hydrated.sessionId, hydrated.messages, hydrated.pending, hydrated.saved)
   }
   sessionStorage.removeItem('ai_assistant.miniChatSessionId')
 } catch {
@@ -201,6 +203,8 @@ export const miniChatLoading = ref(false)
  * Гидрация: true, если прервали стрим обновлением страницы.
  */
 export const miniChatPending = ref(hydrated.pending)
+/** Сессия уже перенесена в список хаба (module=chat / sessionModule профиля). */
+export const miniChatSaved = ref(hydrated.saved)
 
 // После F5 во время/ожидании генерации сразу открываем панель с typing.
 if (hydrated.pending || isAwaitingAssistantReply(hydrated.messages)) {
@@ -219,6 +223,7 @@ function persist(immediate = false) {
       miniChatSessionId.value,
       miniChatMessages.value,
       miniChatPending.value || miniChatLoading.value,
+      miniChatSaved.value,
     )
   }
   if (immediate) {
@@ -298,11 +303,17 @@ export function setMiniChatSessionId(sessionId) {
   persist(true)
 }
 
+export function setMiniChatSaved(value) {
+  miniChatSaved.value = Boolean(value)
+  persist(true)
+}
+
 export function clearMiniChatState() {
   miniChatMessages.value = null
   miniChatSessionId.value = null
   miniChatLoading.value = false
   miniChatPending.value = false
+  miniChatSaved.value = false
   if (persistTimer) {
     clearTimeout(persistTimer)
     persistTimer = null
@@ -334,6 +345,7 @@ export function switchMiniChatProfile(profileId, options = {}) {
   miniChatSessionId.value = hydratedProfile.sessionId
   miniChatLoading.value = Boolean(hydratedProfile.pending)
   miniChatPending.value = Boolean(hydratedProfile.pending)
+  miniChatSaved.value = Boolean(hydratedProfile.saved)
 }
 
 /**
