@@ -18,6 +18,7 @@ from ...settings import (
     RAG_SYSTEM_CORPUS_MAX_FILE_BYTES,
 )
 from ...indexing_queue import enqueue_knowledge_document_index
+from ..audience import normalize_audience
 from ..indexing import RAGIndexingError, RAGIndexingService
 from .extract_user_knowledge import pack_sync_state
 from .sources import iter_system_corpus_documents, project_root
@@ -153,7 +154,7 @@ def sync_system_corpus(
 
     seen_sources: set[str] = set()
 
-    for source_id, title, content in iter_system_corpus_documents(
+    for source_id, title, content, raw_audience in iter_system_corpus_documents(
         root=root,
         max_file_bytes=RAG_SYSTEM_CORPUS_MAX_FILE_BYTES,
     ):
@@ -167,6 +168,7 @@ def sync_system_corpus(
 
             digest = _content_hash(text)
             pack_owner = _pack_owner_from_source(source_id)
+            audience = normalize_audience(raw_audience)
             existing = KnowledgeDocument.objects.filter(
                 corpus=KnowledgeDocument.CORPUS_SYSTEM,
                 source=source_id,
@@ -175,10 +177,14 @@ def sync_system_corpus(
             if existing:
                 meta = existing.metadata or {}
                 if not force and meta.get('content_hash') == digest and existing.is_indexed:
+                    meta_updates = {}
                     if pack_owner and meta.get('pack_owner') != pack_owner:
-                        if not dry_run:
-                            existing.metadata = {**meta, 'pack_owner': pack_owner}
-                            existing.save(update_fields=['metadata'])
+                        meta_updates['pack_owner'] = pack_owner
+                    if meta.get('audience') != audience:
+                        meta_updates['audience'] = audience
+                    if meta_updates and not dry_run:
+                        existing.metadata = {**meta, **meta_updates}
+                        existing.save(update_fields=['metadata'])
                     stats['skipped'] += 1
                     continue
                 if dry_run:
@@ -193,7 +199,7 @@ def sync_system_corpus(
                     'content_hash': digest,
                     'rel_path': source_id,
                     'system_corpus': True,
-                    'audience': 'end_user',
+                    'audience': audience,
                     **({'pack_owner': pack_owner} if pack_owner else {}),
                 }
                 existing.is_indexed = False
@@ -216,7 +222,7 @@ def sync_system_corpus(
                         'content_hash': digest,
                         'rel_path': source_id,
                         'system_corpus': True,
-                        'audience': 'end_user',
+                        'audience': audience,
                         **({'pack_owner': pack_owner} if pack_owner else {}),
                     },
                 )

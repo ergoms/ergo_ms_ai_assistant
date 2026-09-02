@@ -86,6 +86,16 @@ export function useMessageHistory() {
     }
   }
 
+  function replaceAssistantStream(text) {
+    if (!streamingMsgId) {
+      startAssistantStream()
+    }
+    const msg = messages.value.find((m) => m.id === streamingMsgId)
+    if (msg) {
+      msg.content = text || ''
+    }
+  }
+
   function finishAssistantStream(fullResponse, metadata = {}) {
     let msg = streamingMsgId
       ? messages.value.find((m) => m.id === streamingMsgId)
@@ -142,6 +152,7 @@ export function useMessageHistory() {
     addUserMessage,
     startAssistantStream,
     appendStreamChunk,
+    replaceAssistantStream,
     finishAssistantStream,
     setAssistantError,
   }

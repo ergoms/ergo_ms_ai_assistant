@@ -7,9 +7,6 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, List, Optional, Tuple
 
-from django.conf import settings
-from django.core.cache import cache
-
 from ..file_uploads import (
     build_attachments_metadata,
     create_temp_knowledge_document,
@@ -23,179 +20,24 @@ from ..settings import (
     RAG_SYSTEM_CORPUS_ENABLED,
 )
 from .parser import DocumentParseError
+from .prompts import (
+    build_language_instruction,
+    build_runtime_context,
+    build_system_prompt,
+    resolve_ui_language,
+)
 from .retrieval import RetrievalScope
 
 logger = logging.getLogger(__name__)
 
-SUPPORTED_UI_LANGUAGES = frozenset(
-    getattr(settings, 'SUPPORTED_UI_LANGUAGES', None) or {'ru', 'en', 'fr'}
-)
-
-ERGO_SYSTEM_PROMPT = """Ты — помощник пользователя системы ERGO MS.
-
-Твоя задача — объяснять функционал интерфейса простым языком: где что найти, как выполнить типичное действие, какие разделы для чего нужны.
-
-Правила ответа:
-1. Опирайся на блок [ИНФОРМАЦИЯ ИЗ БАЗЫ ЗНАНИЙ], runtime-контекст и загруженные файлы пользователя.
-2. Говори с точки зрения пользователя системы (меню, кнопки, разделы, роли), а не разработчика. Называй ERGO MS системой, не сайтом.
-3. Не упоминай ergoms, manage.py, .env, Docker, миграции, API, исходный код, ModuleBridge и внутреннюю архитектуру — если пользователь сам об этом не спросил явно.
-4. Не выдумывай разделы, кнопки и права. Если в контексте нет ответа — скажи об этом и предложи уточнить вопрос или обратиться к администратору.
-5. Если раздела нет в меню у пользователя — объясни, что доступ зависит от роли, и посоветуй администратора.
-6. Отвечай кратко и по шагам, строго на языке интерфейса пользователя (см. блок [ЯЗЫК ОТВЕТА]).
-"""
-
-
-def _normalize_ui_language(code: Optional[str]) -> Optional[str]:
-    if not code or not isinstance(code, str):
-        return None
-    normalized = code.strip().lower().split('-', 1)[0]
-    if normalized in SUPPORTED_UI_LANGUAGES:
-        return normalized
-    return None
-
-
-def resolve_ui_language(
-    *,
-    user=None,
-    request=None,
-    override: Optional[str] = None,
-) -> str:
-    """Язык UI: профиль пользователя → request.LANGUAGE_CODE → settings.LANGUAGE_CODE."""
-    from_override = _normalize_ui_language(override)
-    if from_override:
-        return from_override
-
-    if user is not None and getattr(user, 'is_authenticated', False):
-        profile = getattr(user, 'adp_profile', None)
-        if profile is None:
-            try:
-                from src.core.cms.adp.models import UserProfile
-
-                profile = UserProfile.objects.filter(user_id=user.pk).only('language').first()
-            except Exception:
-                profile = None
-        profile_lang = _normalize_ui_language(getattr(profile, 'language', None))
-        if profile_lang:
-            return profile_lang
-
-    if request is not None:
-        request_lang = _normalize_ui_language(getattr(request, 'LANGUAGE_CODE', None))
-        if request_lang:
-            return request_lang
-
-    default_lang = _normalize_ui_language(getattr(settings, 'LANGUAGE_CODE', 'ru'))
-    return default_lang or 'ru'
-
-
-def build_language_instruction(ui_language: str) -> str:
-    """Жёсткие правила языка ответа для LLM."""
-    if ui_language == 'ru':
-        return (
-            '[ЯЗЫК ОТВЕТА]\n'
-            'Язык интерфейса пользователя: русский (ru).\n'
-            'Отвечай только на русском языке.\n'
-            'Называй разделы и кнопки по-русски, как в интерфейсе ERGO MS: '
-            '«Настройки», «Профиль», «Система», «Темы», «Язык интерфейса», '
-            '«Тема оформления», «боковое меню», «меню пользователя в шапке».\n'
-            'Путь к настройкам: меню пользователя в шапке → «Настройки»; '
-            'профиль — вкладка «Профиль», язык — «Система», тема — «Темы» или «Тема оформления».\n'
-            'Не используй английские слова, англицизмы и английские подписи в скобках '
-            '(Settings, Profile, Edit, Theme, Interface Language, Dashboard и т.п.), '
-            'кроме непереводимого имени «ERGO MS».\n'
-            'Если в базе знаний или контексте встречаются английские названия — переводи их на русский в ответе.\n'
-            '[/ЯЗЫК ОТВЕТА]'
-        )
-    if ui_language == 'en':
-        return (
-            '[RESPONSE LANGUAGE]\n'
-            'User interface language: English (en).\n'
-            'Reply only in English.\n'
-            'Use English labels as shown in the ERGO MS UI (Settings, Profile, System, Themes).\n'
-            'Path: user menu in the header → Settings; Profile tab, language in System, theme in Themes.\n'
-            '[/RESPONSE LANGUAGE]'
-        )
-    if ui_language == 'fr':
-        return (
-            '[LANGUE DE RÉPONSE]\n'
-            "Langue de l'interface utilisateur : français (fr).\n"
-            'Réponds uniquement en français.\n'
-            "Utilise les libellés français de l'interface ERGO MS (Paramètres, Profil, Système, Thèmes).\n"
-            "Chemin : menu utilisateur dans l'en-tête → Paramètres ; profil — onglet Profil, "
-            "langue — Système, thème — Thèmes.\n"
-            '[/LANGUE DE RÉPONSE]'
-        )
-    return build_language_instruction('ru')
-
-
-RUNTIME_CONTEXT_CACHE_KEY = 'ai_assistant:runtime_context'
-RUNTIME_CONTEXT_CACHE_TTL = 300
-
-
-def build_runtime_context() -> str:
-    """Краткий снимок возможностей системы для пользователя."""
-    cached = cache.get(RUNTIME_CONTEXT_CACHE_KEY)
-    if cached:
-        return cached
-
-    module_lines: list[str] = []
-    try:
-        from src.core.cms.adp.services.permission_catalog import get_modules_catalog
-
-        for mod in get_modules_catalog(include_disabled=False):
-            if mod.get('disabled'):
-                continue
-            label = (mod.get('module_label') or mod.get('module_name') or '').strip()
-            if label:
-                module_lines.append(label)
-    except Exception as exc:
-        logger.warning('Не удалось получить каталог модулей: %s', exc)
-        try:
-            from src.core.utils.module_registry import get_installed_module_names
-
-            module_lines = list(get_installed_module_names())
-        except Exception:
-            module_lines = []
-
-    modules_line = ', '.join(module_lines) if module_lines else '(список недоступен)'
-    context = (
-        '[ВОЗМОЖНОСТИ СИСТЕМЫ]\n'
-        f'Установленные разделы/модули: {modules_line}\n'
-        'Навигация — через боковое меню и меню пользователя в шапке.\n'
-        'Доступ к разделам зависит от роли пользователя.\n'
-        '[/ВОЗМОЖНОСТИ СИСТЕМЫ]'
-    )
-    cache.set(RUNTIME_CONTEXT_CACHE_KEY, context, RUNTIME_CONTEXT_CACHE_TTL)
-    return context
-
-
-def build_system_prompt(
-    *,
-    upload_infos: Optional[List[dict]] = None,
-    enable_vectorization: bool = False,
-    ui_language: str = 'ru',
-    has_images: bool = False,
-) -> str:
-    parts = [
-        ERGO_SYSTEM_PROMPT.strip(),
-        build_language_instruction(ui_language),
-        build_runtime_context(),
-    ]
-    if upload_infos:
-        if enable_vectorization:
-            parts.append(
-                'Пользователь загрузил файлы; они проиндексированы для векторного поиска. '
-                'Учитывай найденные фрагменты при ответе.'
-            )
-        else:
-            parts.append(
-                'Пользователь загрузил файлы. Используй их содержимое при ответе на вопросы.'
-            )
-    if has_images:
-        parts.append(
-            'Пользователь приложил изображения к текущему сообщению. '
-            'Опиши и учитывай их содержимое при ответе (vision).'
-        )
-    return '\n\n'.join(parts)
+__all__ = [
+    'build_language_instruction',
+    'build_ollama_messages',
+    'build_runtime_context',
+    'build_system_prompt',
+    'resolve_rag_for_message',
+    'resolve_ui_language',
+]
 
 
 def _history_user_content(msg: ChatMessage) -> str:
@@ -268,10 +110,6 @@ def _extract_file_context(upload_infos: List[dict]) -> str:
         '\n\n'.join(file_contexts)
         + '\n\nИспользуй информацию из загруженных файлов для ответа на вопрос пользователя.'
     )
-
-
-def _merge_contexts(*parts: str) -> str:
-    return '\n\n'.join(p for p in parts if p)
 
 
 def resolve_rag_for_message(
@@ -412,6 +250,7 @@ def build_ollama_messages(
         {
             'role': 'system',
             'content': build_system_prompt(
+                user=user,
                 upload_infos=document_infos,
                 enable_vectorization=enable_vectorization,
                 ui_language=ui_language,

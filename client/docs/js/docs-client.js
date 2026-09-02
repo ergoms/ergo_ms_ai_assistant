@@ -394,7 +394,7 @@ class DocsClient {
   /**
    * Отправить сообщение в чат с документами (streaming)
    */
-  async sendMessageStream(message, onChunk, onDone, onError, sessionId = null, documentId = null, onPreparing = null) {
+  async sendMessageStream(message, onChunk, onDone, onError, sessionId = null, documentId = null, onPreparing = null, onReplace = null) {
     const config = this.ollamaConfig
     
     const requestBody = withUiLanguage({
@@ -464,6 +464,11 @@ class DocsClient {
               } else if (event.type === 'chunk' && onChunk) {
                 accumulatedContent += event.text
                 onChunk(event.text)
+              } else if (event.type === 'replace') {
+                accumulatedContent = event.text || ''
+                if (onReplace) {
+                  onReplace(accumulatedContent)
+                }
               } else if (event.type === 'done') {
                 doneEventReceived = true
                 if (onDone) {

@@ -27,7 +27,9 @@ alwaysApply: false
 - Bridge `chat.message.add` — обязательный аутентифицированный `user` и фильтр сессии по владельцу
 - Клиентские ошибки — `import { logError } from '@/js/utils/logError.js'`
 - Тема — `theme-defaults.js` + `useModuleThemeMode('ai_assistant')`
-- Сборка prompt chat/stream — [`api/rag/chat_messages.py`](../../api/rag/chat_messages.py); ответы — с точки зрения пользователя сайта
+- Сборка prompt chat/stream — [`api/rag/chat_messages.py`](../../api/rag/chat_messages.py) + [`api/rag/prompts.py`](../../api/rag/prompts.py). Роль только `PermissionService.is_admin` на сервере, не поле клиента
+- Runtime-контекст — видимое меню и модули **этого** пользователя. Полный каталог и админ-гайды (`audience: admin`) не-админу не отдавать
+- Защита чата — [`api/safety/policy.py`](../../api/safety/policy.py): вход (jailbreak / админ-howto) без LLM; выход — замена ответа и SSE `replace`. Свои загрузки RAG по audience не резать
 - Корпус RAG — пакеты `knowledge/` в media_api (локально или `sign_read` у владельца), плюс меню / свой UI / `api/rag/system_corpus/guides`. Не обходить чужие `modules/` и `core/` на диске. Свой пакет: `api/user_guides/`, `knowledge.sign_read.ai_assistant`. Sync: `ergoms ai_assistant:sync-knowledge`
 - Индексация RAG: подокументный прогресс (`indexing.py`) — DEBUG; сводка — stdout команды / INFO задачи Beat; ошибки и расхождения embeddings — WARNING/ERROR
 - В setup-full после migrate: сначала `ergoms publish-knowledge-packs --module=ai_assistant`, затем `sync-knowledge --sync`. На хосте модулей не вызывай публикацию без `--module=` — иначе процесс запишет чужой пакет `core` на местный диск
@@ -47,6 +49,18 @@ from modules.ollama_framework.api.client.factory import create_client
 # BAD — доверять клиентскому base_url (SSRF)
 cfg = dict(ollama_config or {})
 cfg.setdefault('base_url', settings.OLLAMA_BASE_URL)
+```
+
+```python
+# BAD — роль из тела запроса
+if request.data.get('is_admin'):
+    prompt = ADMIN_SYSTEM_PROMPT
+
+# GOOD — роль только с сервера
+from modules.ai_assistant.api.assistant_role import assistant_is_admin
+from modules.ai_assistant.api.rag.prompts import build_system_prompt
+
+build_system_prompt(user=request.user, ui_language=ui_language)
 ```
 
 ```python

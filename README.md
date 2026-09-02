@@ -30,7 +30,7 @@
 
 ## Пользовательский корпус RAG
 
-Источники: боковое меню, каталог модулей (`user_description` + права), ru-подписи своего UI, guides в `api/rag/system_corpus/guides/` и опубликованные пакеты `knowledge/` в media_api. Ассистент не обходит чужие `modules/` и `core/` на диске: пакет читается с местного media или по подписанному URL владельца. Чанки пакетов при ответе режутся по правам ADP.
+Источники: боковое меню, каталог модулей (`user_description` + права), ru-подписи своего UI, guides в `api/rag/system_corpus/guides/` и опубликованные пакеты `knowledge/` в media_api. Ассистент не обходит чужие `modules/` и `core/` на диске: пакет читается с местного media или по подписанному URL владельца. Чанки пакетов при ответе режутся по правам ADP и по метке `audience` (`user` / `admin`): обычному пользователю админские гайды и полная карта меню не подмешиваются.
 
 После смены меню или пакетов: `ergoms ai_assistant:sync-knowledge` (сразу) или дождаться ночного Beat / следующего setup-full. Нужны worker и Beat модуля: `ergoms start-worker --module=ai_assistant` и `ergoms start-beat --module=ai_assistant` (в монолите достаточно общих `start-worker` / `start-beat`).
 
@@ -66,6 +66,7 @@
 - Статус для UI — только `GET /api/ai_assistant/ollama_status/`, не REST чужого модуля
 - Файлы — media_api; bridge `document.parse` принимает только пути под `ai_assistant/` и требует `user`
 - Идентификаторы сущностей — UUID; владелец сессий, документов и задач LLM — `user_public_id`, без FK на пользователя ядра (`api/schema.yaml` `isolated: true`)
+- Роль для промпта и корпуса — только `PermissionService.is_admin` на сервере. Вход режет jailbreak и явные админ-инструкции, выход проверяется до сохранения ответа (`api/safety/policy.py`)
 
 ## Команды
 
@@ -84,6 +85,8 @@ ergoms ai_assistant:ensure-pgvector
 | Gateway к Ollama | `api/ollama_gateway.py` |
 | ModuleBridge наружу | `api/integrations.py` |
 | Chat / stream | `api/views/chat.py`, `chat_stream.py` |
+| Промпты и роль | `api/rag/prompts.py`, `api/assistant_role.py` |
+| Защита выдачи | `api/safety/policy.py` |
 | RAG | `api/rag/` |
 | Корпус / guides | `api/rag/system_corpus/`, `api/user_guides/` |
 | Beat sync | `api/celery_beat_config.py`, `api/tasks.py` |

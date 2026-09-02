@@ -174,6 +174,7 @@ const {
   setMessages,
   addUserMessage,
   appendStreamChunk,
+  replaceAssistantStream,
   finishAssistantStream,
   setAssistantError,
 } = useMessageHistory()
@@ -509,6 +510,10 @@ async function sendMessage(prefilled) {
       (preparingSessionId) => {
         if (requestId !== streamGeneration) return
         applySessionId(preparingSessionId)
+      },
+      (text) => {
+        if (requestId !== streamGeneration) return
+        replaceAssistantStream(text)
       },
     )
     // Обрыв SSE: fetch часто abort'ится ДО pagehide — нельзя писать «не удалось» здесь,

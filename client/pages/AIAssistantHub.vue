@@ -106,6 +106,7 @@ const {
   setMessages,
   addUserMessage,
   appendStreamChunk,
+  replaceAssistantStream,
   finishAssistantStream,
   setAssistantError,
 } = useMessageHistory()
@@ -322,6 +323,8 @@ async function sendChatMessage(text) {
         ? chatSelectedFiles.value
         : null,
       allowVectorization.value && enableVectorization.value,
+      null,
+      replaceAssistantStream,
     )
     if (streamResult?.disconnected) {
       if (isPageUnloading()) {

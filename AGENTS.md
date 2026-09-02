@@ -7,6 +7,7 @@
 - Правила Cursor модуля — `.cursor/rules/ai-assistant.mdc`
 - Обзор для людей — `README.md`
 - Gateway к Ollama — `api/ollama_gateway.py` (`map_ollama_config` + `bridge.call` / HTTP REST)
+- Промпты и роль — `api/rag/prompts.py`, `api/assistant_role.py`; защита выдачи — `api/safety/policy.py`
 - Мост наружу — `api/integrations.py`, `api/chat_profiles.py`
 - Chat profiles (клиент) — `client/js/chatProfiles.js`, `chatTransport.js`, `miniChatBridge.js`, `aiAssistantAccess.js`
 - Клиент — `client/js/` (routes, endpoints, theme-defaults, locales)
@@ -44,7 +45,9 @@
 - Setup-full — `include_in: setup-full-after-migrate` (`--sync`); ежедневно — Celery Beat (`celery_beat_config.py`, `RAG_SYSTEM_CORPUS_BEAT_ENABLED`)
 - Описания модулей для корпуса — `user_description` в `PERMISSION_CATALOG`
 - Модели Ollama для setup-full — `ollama_models.yaml` (pull через `ergoms ollama_framework:pull-setup-models`)
-- Chat messages — через `api/rag/chat_messages.py` (помощник пользователя сайта, не разработчика)
+- Chat messages — через `api/rag/chat_messages.py` и `api/rag/prompts.py`. Роль только с сервера (`PermissionService.is_admin`): отдельные system prompt и runtime-меню для админа и пользователя. Клиентскому «я админ» не доверять
+- Корпус RAG: metadata `audience` (`user` / `admin`). Не-админу не подмешивать `audience=admin`. Полное меню и каталог прав — только админский корпус; пользователю меню даёт runtime
+- Защита выдачи — `api/safety/policy.py`: jailbreak и явный админ-howto на входе (отказ без LLM), проверка ответа до сохранения и `done`. Утечка → `replace` в SSE и `metadata.safety`
 
 ## Команды
 

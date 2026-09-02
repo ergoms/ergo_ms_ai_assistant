@@ -13,6 +13,7 @@ from src.core.utils.mixins import SwaggerSafeMixin
 from ..ollama_gateway import chat as ollama_chat, resolved_model
 from ..models import ChatSession, ChatMessage
 from ..ownership import owner_public_id
+from ..safety.policy import evaluate_user_message, filter_assistant_answer
 from ..skills.integration import execute_skill_from_llm_response
 from ..file_uploads import collect_chat_upload_infos
 from ..rag import build_ollama_messages, resolve_ui_language
@@ -107,6 +108,41 @@ class ChatView(SwaggerSafeMixin, APIView):
                 override=request.data.get('ui_language'),
             )
 
+            refusal = evaluate_user_message(
+                message=message,
+                user=request.user,
+                ui_language=ui_language,
+                session=session,
+                exclude_message_id=user_message.id,
+            )
+            if refusal:
+                response_received_at = timezone.now()
+                processing_time = int(
+                    (response_received_at - request_started_at).total_seconds() * 1000
+                )
+                assistant_message = ChatMessage.objects.create(
+                    session=session,
+                    message_type=ChatMessage.MESSAGE_TYPE_ASSISTANT,
+                    content=refusal,
+                    request_started_at=request_started_at,
+                    response_received_at=response_received_at,
+                    processing_time_ms=processing_time,
+                    metadata={'safety': 'input_blocked'},
+                )
+                session.updated_at = timezone.now()
+                session.save(update_fields=['updated_at'])
+                return Response({
+                    'success': True,
+                    'response': refusal,
+                    'message': refusal,
+                    'session_id': str(session.id),
+                    'message_id': str(assistant_message.id),
+                    'processing_time_ms': processing_time,
+                    'timestamp': assistant_message.created_at.isoformat(),
+                    'skill_name': None,
+                    'skill_call': None,
+                }, status=status.HTTP_200_OK)
+
             messages, _rag_chunks, attachments_meta = build_ollama_messages(
                 message=message,
                 user=request.user,
@@ -134,11 +170,24 @@ class ChatView(SwaggerSafeMixin, APIView):
                 stream=False,
             ).strip()
 
-            skill_result, cleaned_answer, skill_display_name, skill_call = execute_skill_from_llm_response(
-                answer,
-                message,
-                context={'user': request.user, 'session': session, 'module': module}
+            answer, output_blocked = filter_assistant_answer(
+                answer=answer,
+                user=request.user,
+                ui_language=ui_language,
             )
+            if output_blocked:
+                skill_result = None
+                cleaned_answer = answer
+                skill_display_name = None
+                skill_call = None
+            else:
+                skill_result, cleaned_answer, skill_display_name, skill_call = (
+                    execute_skill_from_llm_response(
+                        answer,
+                        message,
+                        context={'user': request.user, 'session': session, 'module': module}
+                    )
+                )
 
             if skill_result and skill_result.success:
                 if cleaned_answer:
@@ -158,6 +207,8 @@ class ChatView(SwaggerSafeMixin, APIView):
                 'skill_name': skill_display_name,
                 'skill_call': skill_call,
             }
+            if output_blocked:
+                message_metadata['safety'] = 'output_blocked'
             if ollama_config:
                 message_metadata['ollama_config'] = ollama_config
 

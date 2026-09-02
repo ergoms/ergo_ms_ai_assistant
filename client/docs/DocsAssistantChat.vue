@@ -476,7 +476,15 @@ const sendMessage = async () => {
         scrollToBottom()
       },
       currentSessionId,
-      selectedDocument.value?.id || null
+      selectedDocument.value?.id || null,
+      null,
+      (text) => {
+        const msg = messages.value.find(m => m.id === streamingMessageId)
+        if (msg) {
+          msg.content = text || ''
+          scrollToBottom()
+        }
+      },
     )
     if (streamResult?.disconnected) {
       const msg = messages.value.find(m => m.id === streamingMessageId)

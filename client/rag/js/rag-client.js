@@ -139,7 +139,7 @@ class RAGClient {
    * @param {boolean} enableVectorization - Включить векторизацию файлов для векторного поиска (опционально)
    * @returns {Promise<void>}
    */
-  async sendMessageStream(message, onChunk, onDone, onError, ollamaConfig = null, sessionId = null, module = 'chat', files = null, enableVectorization = false, onPreparing = null) {
+  async sendMessageStream(message, onChunk, onDone, onError, ollamaConfig = null, sessionId = null, module = 'chat', files = null, enableVectorization = false, onPreparing = null, onReplace = null) {
     // Используем настройки из параметра или из сохраненного конфига
     const config = ollamaConfig || this.ollamaConfig
 
@@ -222,6 +222,11 @@ class RAGClient {
               } else if (event.type === 'chunk' && onChunk) {
                 accumulatedContent += event.text
                 onChunk(event.text)
+              } else if (event.type === 'replace') {
+                accumulatedContent = event.text || ''
+                if (onReplace) {
+                  onReplace(accumulatedContent)
+                }
               } else if (event.type === 'done') {
                 doneEventReceived = true
                 if (onDone) {

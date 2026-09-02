@@ -20,6 +20,7 @@ from ..ownership import owner_public_id
 from ..ollama_gateway import chat_stream, resolved_model
 from ..permissions import CanViewAiAssistant
 from ..rag import build_ollama_messages, resolve_ui_language
+from ..safety.policy import evaluate_user_message, filter_assistant_answer
 from ..skills.integration import execute_skill_from_llm_response
 from .helpers import _get_rag_context, _get_rag_services, _safe_json_dumps
 
@@ -106,6 +107,44 @@ class ChatStreamView(SwaggerSafeMixin, APIView):
             metadata=user_meta,
         )
 
+        ui_language = resolve_ui_language(
+            user=user,
+            request=None,
+            override=ui_language_override,
+        )
+        refusal = evaluate_user_message(
+            message=message,
+            user=user,
+            ui_language=ui_language,
+            session=session,
+            exclude_message_id=user_message.id,
+        )
+        if refusal:
+            request_started_at = timezone.now()
+            assistant_message = ChatMessage.objects.create(
+                session=session,
+                message_type=ChatMessage.MESSAGE_TYPE_ASSISTANT,
+                content=refusal,
+                request_started_at=request_started_at,
+                response_received_at=request_started_at,
+                processing_time_ms=0,
+                metadata={'safety': 'input_blocked'},
+            )
+            session.updated_at = timezone.now()
+            session.save(update_fields=['updated_at'])
+
+            def blocked_event_stream():
+                yield f'data: {_safe_json_dumps({"type": "preparing", "session_id": str(session.id)}, ensure_ascii=False)}\n\n'
+                yield f'data: {_safe_json_dumps({"type": "done", "full_response": refusal, "session_id": str(session.id), "message_id": str(assistant_message.id), "processing_time_ms": 0, "timestamp": assistant_message.created_at.isoformat(), "skill_name": None, "skill_call": None}, ensure_ascii=False)}\n\n'
+
+            response = StreamingHttpResponse(
+                blocked_event_stream(),
+                content_type='text/event-stream',
+            )
+            response['Cache-Control'] = 'no-cache'
+            response['X-Accel-Buffering'] = 'no'
+            return response
+
         # Ограниченная очередь: при обрыве клиента чанки не копятся в RAM.
         event_queue: queue.Queue = queue.Queue(maxsize=256)
 
@@ -151,12 +190,6 @@ class ChatStreamView(SwaggerSafeMixin, APIView):
                 model_name = resolved_model(ollama_config)
                 temperature = (ollama_config or {}).get('temperature', 0)
 
-                ui_language = resolve_ui_language(
-                    user=user,
-                    request=None,
-                    override=ui_language_override,
-                )
-
                 messages, _rag_chunks, attachments_meta = build_ollama_messages(
                     message=message,
                     user=user,
@@ -188,13 +221,25 @@ class ChatStreamView(SwaggerSafeMixin, APIView):
                 response_received_at = timezone.now()
                 raw_response = ''.join(chunk_parts).strip()
 
-                skill_result, cleaned_response, skill_display_name, skill_call = (
-                    execute_skill_from_llm_response(
-                        raw_response,
-                        message,
-                        context={'user': user, 'session': session, 'module': module},
-                    )
+                raw_response, output_blocked = filter_assistant_answer(
+                    answer=raw_response,
+                    user=user,
+                    ui_language=ui_language,
                 )
+                if output_blocked:
+                    emit({'type': 'replace', 'text': raw_response})
+                    skill_result = None
+                    cleaned_response = raw_response
+                    skill_display_name = None
+                    skill_call = None
+                else:
+                    skill_result, cleaned_response, skill_display_name, skill_call = (
+                        execute_skill_from_llm_response(
+                            raw_response,
+                            message,
+                            context={'user': user, 'session': session, 'module': module},
+                        )
+                    )
 
                 if skill_result and skill_result.success:
                     if cleaned_response:
@@ -218,6 +263,8 @@ class ChatStreamView(SwaggerSafeMixin, APIView):
                     'skill_name': skill_display_name,
                     'skill_call': skill_call,
                 }
+                if output_blocked:
+                    message_metadata['safety'] = 'output_blocked'
                 if ollama_config:
                     message_metadata['ollama_config'] = ollama_config
 

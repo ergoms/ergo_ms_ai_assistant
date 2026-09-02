@@ -17,6 +17,7 @@ import { DEFAULT_CHAT_PROFILE_ID } from './chatProfiles.js'
  * @param {string} opts.url
  * @param {object} opts.payload
  * @param {Function} [opts.onChunk]
+ * @param {Function} [opts.onReplace]
  * @param {Function} [opts.onDone]
  * @param {Function} [opts.onError]
  * @param {Function} [opts.onPreparing]
@@ -25,6 +26,7 @@ async function consumeSseStream({
   url,
   payload,
   onChunk,
+  onReplace,
   onDone,
   onError,
   onPreparing,
@@ -68,6 +70,9 @@ async function consumeSseStream({
           } else if (event.type === 'chunk' && onChunk) {
             accumulatedContent += event.text
             onChunk(event.text)
+          } else if (event.type === 'replace') {
+            accumulatedContent = event.text || ''
+            onReplace?.(accumulatedContent)
           } else if (event.type === 'done') {
             doneEventReceived = true
             onDone?.(event.full_response || accumulatedContent, {
@@ -124,6 +129,7 @@ export function createChatTransport(profile) {
       files = null,
       enableVectorization = false,
       onPreparing = null,
+      onReplace = null,
     ) {
       if (!isExternal) {
         return ragClient.sendMessageStream(
@@ -137,6 +143,7 @@ export function createChatTransport(profile) {
           files,
           enableVectorization,
           onPreparing,
+          onReplace,
         )
       }
 
@@ -153,6 +160,7 @@ export function createChatTransport(profile) {
         url,
         payload,
         onChunk,
+        onReplace,
         onDone,
         onError,
         onPreparing,
