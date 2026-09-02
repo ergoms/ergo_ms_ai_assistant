@@ -150,7 +150,48 @@ def build_locale_documents(root: Path | None = None) -> List[DocumentTuple]:
     return docs
 
 
+_capabilities_cache = None
+
+
+def _capabilities_from_core():
+    global _capabilities_cache
+    if _capabilities_cache is not None:
+        return _capabilities_cache
+    try:
+        from src.core.integrations import bridge
+        from src.core.integrations.module_contracts import CORE_KNOWLEDGE_USER_CAPABILITIES
+        op_name = CORE_KNOWLEDGE_USER_CAPABILITIES
+    except ImportError:
+        from src.core.integrations import bridge
+        op_name = 'core.knowledge.user_capabilities'
+    try:
+        result = bridge.call(op_name, full=True, default=None)
+    except Exception as exc:
+        logger.warning('Каталог разделов с ядра недоступен: %s', exc)
+        _capabilities_cache = {}
+        return _capabilities_cache
+    _capabilities_cache = result if isinstance(result, dict) else {}
+    return _capabilities_cache
+
+
 def build_menu_document() -> DocumentTuple | None:
+    payload = _capabilities_from_core()
+    remote_lines = list((payload or {}).get('menu_lines') or [])
+    if remote_lines:
+        source = 'user_ui/site_menu.md'
+        return (
+            source,
+            'Разделы системы (меню)',
+            '\n'.join([
+                '# Разделы системы (боковое меню)',
+                '',
+                'Карта разделов, доступных пользователям в интерфейсе ERGO MS.',
+                'Помоги найти, куда нажать, чтобы открыть нужную функцию.',
+                '',
+                *remote_lines,
+            ]),
+            audience_for_source(source),
+        )
     try:
         from src.core.cms.adp.menu.models import MenuItem
     except Exception as exc:
@@ -196,6 +237,34 @@ def build_menu_document() -> DocumentTuple | None:
 
 
 def build_modules_document() -> DocumentTuple | None:
+    payload = _capabilities_from_core()
+    remote_modules = list((payload or {}).get('modules') or [])
+    if remote_modules:
+        lines = [
+            '# Возможности и модули системы',
+            '',
+            'Установленные модули ERGO MS и связанные с ними действия (с точки зрения пользователя).',
+            'Объясняй, что можно сделать в системе, без технических деталей разработки.',
+            '',
+        ]
+        for item in remote_modules:
+            if not isinstance(item, dict):
+                continue
+            label = (item.get('label') or item.get('name') or '').strip()
+            if not label:
+                continue
+            lines.append(f'## {label}')
+            lines.append('')
+            description = (item.get('user_description') or '').strip()
+            lines.append(description or 'Модуль установлен.')
+            lines.append('')
+        source = 'user_ui/installed_modules.md'
+        return (
+            source,
+            'Модули и возможности системы',
+            '\n'.join(lines),
+            audience_for_source(source),
+        )
     try:
         from src.core.cms.adp.services.permission_catalog import get_modules_catalog
     except Exception as exc:

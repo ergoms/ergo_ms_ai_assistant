@@ -28,9 +28,9 @@ alwaysApply: false
 - Клиентские ошибки — `import { logError } from '@/js/utils/logError.js'`
 - Тема — `theme-defaults.js` + `useModuleThemeMode('ai_assistant')`
 - Сборка prompt chat/stream — [`api/rag/chat_messages.py`](../../api/rag/chat_messages.py) + [`api/rag/prompts.py`](../../api/rag/prompts.py). Роль только `PermissionService.is_admin` на сервере, не поле клиента
-- Runtime-контекст — видимое меню и модули **этого** пользователя. Полный каталог и админ-гайды (`audience: admin`) не-админу не отдавать
+- Runtime-контекст — видимое меню и модули **этого** пользователя через `core.knowledge.user_capabilities` (ядро), не каталог с диска процесса модуля. Полный каталог и админ-гайды (`audience: admin`) не-админу не отдавать
 - Защита чата — [`api/safety/policy.py`](../../api/safety/policy.py): вход (jailbreak / админ-howto) без LLM; выход — замена ответа и SSE `replace`. Свои загрузки RAG по audience не резать
-- Корпус RAG — пакеты `knowledge/` в media_api (локально или `sign_read` у владельца), плюс меню / свой UI / `api/rag/system_corpus/guides`. Не обходить чужие `modules/` и `core/` на диске. Свой пакет: `api/user_guides/`, `knowledge.sign_read.ai_assistant`. Sync: `ergoms ai_assistant:sync-knowledge`
+- Корпус RAG — пакеты `knowledge/` в media_api (локально или `sign_read` у владельца), плюс меню и каталог через `core.knowledge.user_capabilities`, свой UI / `api/rag/system_corpus/guides`. Не обходить чужие `modules/` и `core/` на диске. Свой пакет: `api/user_guides/`, `knowledge.sign_read.ai_assistant`. Sync: `ergoms ai_assistant:sync-knowledge`
 - Индексация RAG: подокументный прогресс (`indexing.py`) — DEBUG; сводка — stdout команды / INFO задачи Beat; ошибки и расхождения embeddings — WARNING/ERROR
 - В setup-full после migrate: сначала `ergoms publish-knowledge-packs --module=ai_assistant`, затем `sync-knowledge --sync`. На хосте модулей не вызывай публикацию без `--module=` — иначе процесс запишет чужой пакет `core` на местный диск
 - Ежедневный sync — `celery_beat_config.py` + `sync_system_knowledge_task` (`RAG_SYSTEM_CORPUS_BEAT_ENABLED`, нужны beat и worker)

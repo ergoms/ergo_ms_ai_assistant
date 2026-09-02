@@ -138,6 +138,55 @@ def role_system_prompt(*, user) -> str:
     return USER_SYSTEM_PROMPT.strip()
 
 
+def _capabilities_op_name() -> str:
+    try:
+        from src.core.integrations.module_contracts import CORE_KNOWLEDGE_USER_CAPABILITIES
+        return CORE_KNOWLEDGE_USER_CAPABILITIES
+    except ImportError:
+        return 'core.knowledge.user_capabilities'
+
+
+def _capabilities_from_core(*, user=None, full: bool = False):
+    """Меню и каталог модулей с ядра, не с диска этого процесса."""
+    try:
+        from src.core.integrations import bridge
+        from src.core.integrations.session_context import get_request_session_claim_values
+    except Exception as exc:
+        logger.warning('Мост для каталога разделов недоступен: %s', exc)
+        return None
+    pid = None
+    if user is not None:
+        try:
+            pid = owner_public_id(user, required=False)
+        except Exception:
+            pid = None
+    try:
+        claims = get_request_session_claim_values() or None
+    except Exception:
+        claims = None
+    result = bridge.call(
+        _capabilities_op_name(),
+        user_public_id=str(pid) if pid else None,
+        full=full,
+        session_claims=claims or None,
+        default=None,
+    )
+    return result if isinstance(result, dict) else None
+
+
+def _format_modules_block(modules) -> str:
+    lines = []
+    for item in modules or []:
+        if not isinstance(item, dict):
+            continue
+        label = (item.get('label') or item.get('name') or '').strip()
+        if not label:
+            continue
+        description = (item.get('user_description') or '').strip()
+        lines.append(f'- {label}: {description}' if description else f'- {label}')
+    return '\n'.join(lines) if lines else '(нет доступных модулей)'
+
+
 def _flatten_menu_lines(nodes: list, *, depth: int = 0) -> list[str]:
     lines: list[str] = []
     for node in nodes or []:
@@ -220,9 +269,16 @@ def build_runtime_context(*, user=None) -> str:
     if cached:
         return cached
 
-    menu_lines = _visible_menu_lines(user) if user is not None else []
-    module_labels = _visible_module_labels(user, is_admin=is_admin) if user is not None else []
-    modules_line = ', '.join(module_labels) if module_labels else '(нет доступных модулей)'
+    payload = _capabilities_from_core(user=user) if user is not None else None
+    if payload:
+        if payload.get('is_admin') is not None:
+            is_admin = bool(payload.get('is_admin'))
+        menu_lines = list(payload.get('menu_lines') or [])[:_MENU_LINES_LIMIT]
+        modules_line = _format_modules_block(payload.get('modules') or [])
+    else:
+        menu_lines = _visible_menu_lines(user) if user is not None else []
+        module_labels = _visible_module_labels(user, is_admin=is_admin) if user is not None else []
+        modules_line = ', '.join(module_labels) if module_labels else '(нет доступных модулей)'
     if menu_lines:
         menu_block = '\n'.join(menu_lines)
     else:
