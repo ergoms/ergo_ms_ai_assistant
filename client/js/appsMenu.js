@@ -6,6 +6,7 @@ import bridge from '@/integrations/ModuleBridge.js'
 import { APPS_MENU_ITEMS_GROUP } from '@/integrations/moduleContracts.js'
 import { tGlobal } from '@/i18n/index.js'
 import { DEFAULT_CHAT_PROFILE_ID } from './chatProfiles.js'
+import { AI_ASSISTANT_MODULE, AI_ASSISTANT_PERMISSIONS } from './permissionKeys.js'
 
 bridge.provideMany(APPS_MENU_ITEMS_GROUP, 'ai_assistant_ollama_chat', {
   id: 'ai_assistant_ollama_chat',
@@ -14,6 +15,8 @@ bridge.provideMany(APPS_MENU_ITEMS_GROUP, 'ai_assistant_ollama_chat', {
     return tGlobal('ai_assistant.apps.ollamaChat')
   },
   icon: 'Bot',
+  permissionModule: AI_ASSISTANT_MODULE,
+  permission: AI_ASSISTANT_PERMISSIONS.MINI_CHAT,
   onClick: () => {
     return bridge.call('ai_assistant.mini_chat.open', DEFAULT_CHAT_PROFILE_ID, { default: false })
   },
