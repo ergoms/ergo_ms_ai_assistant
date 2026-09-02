@@ -61,9 +61,9 @@ class RAGRetrievalService:
     def _system_corpus_visibility_q(self, user) -> Q | None:
         """Сужает системный корпус по снимку прав. None — все пакеты (админ)."""
         try:
-            from src.core.utils.help_corpus import visible_help_owners
+            from src.core.utils.knowledge_pack import visible_knowledge_owners
 
-            owners = visible_help_owners(user)
+            owners = visible_knowledge_owners(user)
         except Exception:
             logger.warning(
                 'Не удалось получить видимые пакеты справки, чанки с pack_owner скрыты',

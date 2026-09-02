@@ -1,7 +1,8 @@
 """
-Источники системного корпуса: collect_help_corpus ядра.
+Источники системного корпуса: модуль собирает из механизмов ядра.
 
-Developer-документация (.cursor/rules, AGENTS.md, исходники) не индексируется.
+Пакеты knowledge/ — load_published_pack_documents. Меню и каталог —
+API ядра. Developer-документация не индексируется.
 """
 from __future__ import annotations
 
