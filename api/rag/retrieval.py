@@ -12,8 +12,10 @@ from django.db.models import Q, QuerySet
 
 from pgvector.django import CosineDistance
 
+from ..assistant_role import assistant_is_admin
 from ..models import KnowledgeDocument, KnowledgeChunk
 from ..ownership import owner_public_id
+from .audience import AUDIENCE_ADMIN
 from .embeddings import OllamaEmbeddingsService, EmbeddingsError
 
 logger = logging.getLogger(__name__)
@@ -59,9 +61,9 @@ class RAGRetrievalService:
     def _system_corpus_visibility_q(self, user) -> Q | None:
         """Сужает системный корпус по снимку прав. None — все пакеты (админ)."""
         try:
-            from src.core.utils.knowledge_pack import visible_knowledge_owners
+            from src.core.utils.help_corpus import visible_help_owners
 
-            owners = visible_knowledge_owners(user)
+            owners = visible_help_owners(user)
         except Exception:
             logger.warning(
                 'Не удалось получить видимые пакеты справки, чанки с pack_owner скрыты',
@@ -79,6 +81,12 @@ class RAGRetrievalService:
             | Q(document__metadata__pack_owner__in=sorted(owners))
         )
 
+    def _system_corpus_audience_q(self, user) -> Q | None:
+        """Скрывает audience=admin у не-админа. None — без фильтра."""
+        if assistant_is_admin(user):
+            return None
+        return ~Q(document__metadata__audience=AUDIENCE_ADMIN)
+
     def _apply_scope_filters(
         self,
         chunks_query: QuerySet,
@@ -89,8 +97,10 @@ class RAGRetrievalService:
         system_only: bool = False,
     ) -> QuerySet:
         visibility = None
+        audience = None
         if system_only or include_system:
             visibility = self._system_corpus_visibility_q(user)
+            audience = self._system_corpus_audience_q(user)
 
         if document_ids:
             return chunks_query.filter(document_id__in=document_ids)
@@ -100,11 +110,15 @@ class RAGRetrievalService:
             )
             if visibility is not None:
                 queryset = queryset.filter(visibility)
+            if audience is not None:
+                queryset = queryset.filter(audience)
             return queryset
         if include_system and user is not None:
             system_q = Q(document__corpus=KnowledgeDocument.CORPUS_SYSTEM)
             if visibility is not None:
                 system_q &= visibility
+            if audience is not None:
+                system_q &= audience
             return chunks_query.filter(
                 system_q
                 | Q(
@@ -118,6 +132,8 @@ class RAGRetrievalService:
             )
             if visibility is not None:
                 queryset = queryset.filter(visibility)
+            if audience is not None:
+                queryset = queryset.filter(audience)
             return queryset
         if user is not None:
             return chunks_query.filter(

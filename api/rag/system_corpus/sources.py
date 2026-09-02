@@ -1,8 +1,7 @@
 """
-Источники системного корпуса: пользовательский функционал системы.
+Источники системного корпуса: collect_help_corpus ядра.
 
-Пакеты knowledge/ читаются из media_api. Developer-документация
-(.cursor/rules, AGENTS.md, исходники) не индексируется.
+Developer-документация (.cursor/rules, AGENTS.md, исходники) не индексируется.
 """
 from __future__ import annotations
 
@@ -13,7 +12,7 @@ from src.config.paths import SYSTEM_DIR
 
 from .extract_user_knowledge import iter_user_knowledge_documents
 
-DocumentTuple = Tuple[str, str, str]  # source, title, content
+DocumentTuple = Tuple[str, str, str, str]  # source, title, content, audience
 
 
 def project_root() -> Path:
@@ -26,18 +25,18 @@ def iter_system_corpus_documents(
     max_file_bytes: int | None = None,
 ) -> Iterator[DocumentTuple]:
     """
-    Yields (source_id, title, content) для пользовательского корпуса.
+    Yields (source_id, title, content, audience) для пользовательского корпуса.
 
     max_file_bytes ограничивает размер content (символы ≈ байты для UTF-8 текста).
     """
-    for source, title, content in iter_user_knowledge_documents(root=root):
+    for source, title, content, audience in iter_user_knowledge_documents(root=root):
         text = (content or '').strip()
         if not text:
             continue
         if max_file_bytes is not None and len(text.encode('utf-8')) > max_file_bytes:
             text = text.encode('utf-8')[:max_file_bytes].decode('utf-8', errors='ignore')
             text = text.rstrip() + '\n…'
-        yield source, title, text
+        yield source, title, text, audience
 
 
 def iter_system_corpus_files(
