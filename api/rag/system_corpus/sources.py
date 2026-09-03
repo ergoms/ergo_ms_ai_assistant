@@ -1,8 +1,8 @@
 """
 Источники системного корпуса: модуль собирает из механизмов ядра.
 
-Пакеты knowledge/ — load_published_pack_documents. Меню и каталог —
-API ядра. Developer-документация не индексируется.
+Пакеты knowledge/ — load_published_pack_documents (в том числе ui_catalog).
+Меню и каталог модулей — API ядра. Developer-документация не индексируется.
 """
 from __future__ import annotations
 

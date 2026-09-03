@@ -274,10 +274,14 @@ def build_ollama_messages(
     if uploaded_file_context:
         user_parts.append(uploaded_file_context)
     if rag_context:
+        from src.core.utils.knowledge_pack import html_to_plain
+
+        rag_context = html_to_plain(rag_context)
         user_parts.append(
             f'[ИНФОРМАЦИЯ ИЗ БАЗЫ ЗНАНИЙ]\n{rag_context}\n[/ИНФОРМАЦИЯ ИЗ БАЗЫ ЗНАНИЙ]\n\n'
             'Используй эту информацию, чтобы подсказать пользователю по интерфейсу и возможностям системы. '
-            'Если релевантного контекста нет — так и скажи, не выдумывай разделы и кнопки.'
+            'Называй только разделы, кнопки и поля, которые есть в этом блоке или в [ВОЗМОЖНОСТИ СИСТЕМЫ]. '
+            'Если экрана или поля нет — так и скажи, не подбирай похожее название.'
         )
     user_parts.append(message)
     user_message: Dict[str, Any] = {

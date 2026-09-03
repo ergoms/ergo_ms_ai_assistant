@@ -13,6 +13,7 @@ from src.core.utils.mixins import SwaggerSafeMixin
 from ..ollama_gateway import chat as ollama_chat, resolved_model
 from ..models import ChatSession, ChatMessage
 from ..ownership import owner_public_id
+from ..safety.grounding import knowledge_text_from_messages
 from ..safety.policy import evaluate_user_message, filter_assistant_answer
 from ..skills.integration import execute_skill_from_llm_response
 from ..file_uploads import collect_chat_upload_infos
@@ -174,6 +175,7 @@ class ChatView(SwaggerSafeMixin, APIView):
                 answer=answer,
                 user=request.user,
                 ui_language=ui_language,
+                knowledge_context=knowledge_text_from_messages(messages),
             )
             if output_blocked:
                 skill_result = None

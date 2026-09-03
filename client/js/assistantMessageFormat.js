@@ -163,9 +163,24 @@ function formatBlockMarkdown(text) {
   return out.join('\n')
 }
 
+/** Модель иногда копирует HTML-списки в ячейку — сначала в markdown, потом экранируем. */
+function htmlListsToMarkdown(text) {
+  let value = String(text || '')
+  if (!/<\s*(ul|ol|li|br|p)\b/i.test(value)) {
+    return value
+  }
+  value = value.replace(BR_TAG_RE, '\n').replace(BR_ENTITY_RE, '\n')
+  value = value.replace(/<\s*\/\s*p\s*>/gi, '\n').replace(/<\s*p\b[^>]*>/gi, '')
+  value = value.replace(/<\s*\/\s*li\s*>\s*<\s*li\b[^>]*>/gi, '\n- ')
+  value = value.replace(/<\s*li\b[^>]*>/gi, '\n- ')
+  value = value.replace(/<\s*\/?\s*(ul|ol)\b[^>]*>/gi, '\n')
+  value = value.replace(/<[^>]+>/g, '')
+  return value
+}
+
 /** Ячейка markdown-таблицы: инлайн-разметка и список, если модель пишет пункты через <br>. */
 function formatTableCell(raw) {
-  let text = String(raw ?? '')
+  let text = htmlListsToMarkdown(String(raw ?? ''))
   text = text.replace(BR_TAG_RE, '\n').replace(BR_ENTITY_RE, '\n')
   const lines = text.split(/\n/).map((line) => line.trim()).filter(Boolean)
   const asList = lines.length >= 2 && lines.every((line) => BULLET_LINE_RE.test(line))

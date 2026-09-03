@@ -1,7 +1,7 @@
 from django.db import models
 from pgvector.django import HnswIndex, VectorField
 
-from .settings import RAG_EMBEDDING_DIMENSIONS
+from .settings import RAG_VECTOR_DIMENSIONS
 
 import uuid
 
@@ -210,7 +210,7 @@ class KnowledgeChunk(models.Model):
     
     # Векторное представление (embedding)
     embedding = VectorField(
-        dimensions=RAG_EMBEDDING_DIMENSIONS,
+        dimensions=RAG_VECTOR_DIMENSIONS,
         help_text='Векторное представление текста (embedding) для поиска по схожести',
     )
     embedding_model = models.CharField(

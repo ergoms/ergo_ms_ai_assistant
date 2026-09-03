@@ -1,0 +1,15 @@
+# en overlay for ergoms.help.yaml
+title: AI assistant
+summary: Chat and RAG help about the product UI
+commands:
+  sync-knowledge:
+    summary: Index site help (menu, UI catalog, knowledge packs) into RAG
+  install-pgvector:
+    summary: Install pgvector files into portable PostgreSQL and create the vector extension
+  ensure-pgvector:
+    summary: Check and create the pgvector extension in the current database
+  howto-eval:
+    summary: Run gold questions about screens and fields (lexical UI catalog search; --ask calls Ollama)
+notes:
+  - 'Invoke: ergoms ai_assistant:howto-eval [--ask]'
+  - 'Embeddings: OLLAMA_EMBEDDINGS_MODEL is an Ollama library name or a Hub snapshot org/name (huggingface_models.yaml)'

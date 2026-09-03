@@ -86,11 +86,20 @@ def sync_system_corpus(
     try:
         health = embeddings_service.check_health()
         if not health.get('available'):
+            backend = health.get('backend') or ''
+            if backend == 'huggingface' or is_huggingface_repo_id(health.get('model') or ''):
+                error = (
+                    health.get('error')
+                    or 'Снимок embeddings Hugging Face недоступен. '
+                    'Установите: ergoms pull-huggingface-models --include-optional'
+                )
+            else:
+                error = (
+                    'Ollama недоступен. Запустите: ergoms ollama_framework:start-ollama'
+                )
             return {
                 'success': False,
-                'error': (
-                    'Ollama недоступен. Запустите: ergoms ollama_framework:start-ollama'
-                ),
+                'error': error,
                 'created': 0,
                 'updated': 0,
                 'skipped': 0,
@@ -102,10 +111,8 @@ def sync_system_corpus(
             model = health.get('model') or 'embeddinggemma'
             if is_huggingface_repo_id(model):
                 hint = (
-                    f'OLLAMA_EMBEDDINGS_MODEL «{model}» — снимок Hugging Face, '
-                    f'не модель Ollama. Укажите имя из библиотеки Ollama '
-                    f'(например embeddinggemma) или: '
-                    f'ergoms ollama_framework:pull-setup-models'
+                    f'Снимок embeddings «{model}» не найден. '
+                    f'Установите: ergoms pull-huggingface-models --include-optional'
                 )
             else:
                 hint = (

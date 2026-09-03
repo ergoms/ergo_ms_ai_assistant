@@ -1,154 +1,25 @@
 """
 Сбор пользовательского корпуса для RAG.
 
-Пакеты knowledge/ — через механизм ядра. Меню, каталог модулей и строки
-интерфейса собирает этот модуль из API ядра, без обхода чужого кода.
+Пакеты knowledge/ — через механизм ядра. Меню и каталог модулей —
+из API ядра. Каталог экранов приходит уже внутри пакетов, без обхода
+локалей и Vue на диске процесса ассистента.
 """
 from __future__ import annotations
 
 import logging
-import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, Iterator, List, Tuple
 
 from src.config.paths import SYSTEM_DIR
+from src.core.utils.knowledge_pack import html_to_plain
 
 from ..audience import audience_for_source
 
 logger = logging.getLogger(__name__)
 
 DocumentTuple = Tuple[str, str, str, str]  # source_id, title, content, audience
-
-_STRING_VALUE_RE = re.compile(
-    r""":\s*(?:'((?:\\.|[^'\\])*)'|"((?:\\.|[^"\\])*)")""",
-)
-_SKIP_LOCALE_PARTS = (
-    'module_template',
-    'node_modules',
-    '__pycache__',
-    '.git/',
-)
-_SKIP_VALUE_PREFIXES = ('http://', 'https://', 'data:', '#')
-
-
-def _unescape_js_string(value: str) -> str:
-    return (
-        value.replace("\\'", "'")
-        .replace('\\"', '"')
-        .replace('\\n', '\n')
-        .replace('\\\\', '\\')
-    )
-
-
-def _is_useful_ui_string(value: str) -> bool:
-    text = value.strip()
-    if len(text) < 4:
-        return False
-    if any(text.startswith(p) for p in _SKIP_VALUE_PREFIXES):
-        return False
-    if re.fullmatch(r'#[0-9a-fA-F]{3,8}', text):
-        return False
-    if not re.search(r'[A-Za-zА-Яа-яЁё]', text):
-        return False
-    if ' ' not in text and not re.search(r'[А-Яа-яЁё]', text) and len(text) < 40:
-        if re.fullmatch(r'[A-Za-z0-9_.:-]+', text):
-            return False
-    return True
-
-
-def _extract_strings_from_js(path: Path) -> List[str]:
-    try:
-        raw = path.read_text(encoding='utf-8')
-    except OSError as exc:
-        logger.warning('Не удалось прочитать %s: %s', path, exc)
-        return []
-    raw = re.sub(r'/\*.*?\*/', '', raw, flags=re.DOTALL)
-    raw = re.sub(r'//.*?$', '', raw, flags=re.MULTILINE)
-
-    values: List[str] = []
-    seen: set[str] = set()
-    for match in _STRING_VALUE_RE.finditer(raw):
-        value = _unescape_js_string(match.group(1) if match.group(1) is not None else match.group(2))
-        if not _is_useful_ui_string(value) or value in seen:
-            continue
-        seen.add(value)
-        values.append(value)
-    return values
-
-
-def _iter_locale_files(root: Path, language: str = 'ru') -> Iterator[Path]:
-    """Ядро и установленные модули, без зашитых имён в коде."""
-    seen: set[str] = set()
-    lang = (language or 'ru').strip() or 'ru'
-
-    def _yield(path: Path) -> Iterator[Path]:
-        if not path.is_file():
-            return
-        rel = path.relative_to(root).as_posix().lower()
-        if any(part in rel for part in _SKIP_LOCALE_PARTS):
-            return
-        key = str(path.resolve())
-        if key in seen:
-            return
-        seen.add(key)
-        yield path
-
-    core_dir = root / 'core' / 'client' / 'src' / 'i18n' / 'locales' / lang
-    if core_dir.is_dir():
-        for path in sorted(core_dir.rglob('*.js')):
-            yield from _yield(path)
-
-    from src.core.utils.module_registry import get_installed_module_names
-
-    for name in get_installed_module_names():
-        client = root / 'modules' / name / 'client'
-        if not client.is_dir():
-            continue
-        for path in (
-            client / 'js' / 'locales.js',
-            client / 'js' / f'locales/{lang}.js',
-        ):
-            yield from _yield(path)
-        lang_dir = client / 'js' / 'locales' / lang
-        if lang_dir.is_dir():
-            for path in sorted(lang_dir.rglob('*.js')):
-                yield from _yield(path)
-        for path in sorted(client.glob('*/js/locales.js')):
-            yield from _yield(path)
-        for path in sorted(client.glob(f'*/js/locales/{lang}.js')):
-            yield from _yield(path)
-        for path in sorted(client.glob(f'*/js/locales/{lang}/*.js')):
-            yield from _yield(path)
-
-
-def build_locale_documents(root: Path | None = None) -> List[DocumentTuple]:
-    root = (root or Path(SYSTEM_DIR)).resolve()
-    docs: List[DocumentTuple] = []
-    for path in _iter_locale_files(root):
-        values = _extract_strings_from_js(path)
-        if not values:
-            continue
-        rel = path.relative_to(root).as_posix()
-        has_cyrillic = any(re.search(r'[А-Яа-яЁё]', v) for v in values)
-        if not has_cyrillic and '/locales/ru' not in rel.replace('\\', '/'):
-            continue
-        lines = [
-            f'# Подписи интерфейса: {rel}',
-            '',
-            'Тексты экранов, кнопок и подсказок системы (для ответов пользователю).',
-            '',
-        ]
-        lines.extend(f'- {value}' for value in values)
-        source = f'user_ui/{rel}'
-        docs.append((
-            source,
-            f'Интерфейс: {path.stem}',
-            '\n'.join(lines),
-            audience_for_source(source),
-        ))
-    return docs
-
 
 _capabilities_cache = None
 
@@ -354,8 +225,8 @@ def load_pack_documents_for_sync() -> PackLoadState:
         title = str(item.get('title') or source)
         docs.append((
             source,
-            title,
-            text,
+            html_to_plain(title),
+            html_to_plain(text),
             audience_for_source(source, pack_audience=item.get('audience')),
         ))
 
@@ -383,7 +254,7 @@ def build_published_pack_documents(root: Path | None = None) -> List[DocumentTup
 
 
 def iter_user_knowledge_documents(root: Path | None = None) -> Iterator[DocumentTuple]:
-    """Корпус модуля: меню, каталог, пакеты ядра, строки интерфейса."""
+    """Корпус модуля: меню, каталог модулей и пакеты knowledge/ (включая ui_catalog)."""
     root = (root or Path(SYSTEM_DIR)).resolve()
     seen: set[str] = set()
 
@@ -398,12 +269,6 @@ def iter_user_knowledge_documents(root: Path | None = None) -> Iterator[Document
         yield source, title, content, audience
 
     for source, title, content, audience in build_published_pack_documents(root):
-        if source in seen or not content.strip():
-            continue
-        seen.add(source)
-        yield source, title, content, audience
-
-    for source, title, content, audience in build_locale_documents(root):
         if source in seen or not content.strip():
             continue
         seen.add(source)

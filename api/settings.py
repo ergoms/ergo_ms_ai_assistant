@@ -3,14 +3,12 @@
 
 Единственный источник истины для RAG, Ollama embeddings и таймаутов модуля.
 """
-import logging
-
 from src.config.env import env
 from src.core.utils.huggingface_snapshot import is_huggingface_repo_id
 
-logger = logging.getLogger(__name__)
-
 _OLLAMA_EMBEDDINGS_DEFAULT = 'embeddinggemma'
+# Колонка pgvector. USER-bge-m3 даёт 1024; более короткие векторы Ollama дополняются нулями.
+RAG_VECTOR_DIMENSIONS = 1024
 
 
 def _normalize_compute_device(value: str) -> str:
@@ -26,20 +24,11 @@ def _normalize_compute_device(value: str) -> str:
 
 OLLAMA_BASE_URL = env.str('OLLAMA_BASE_URL', default='http://127.0.0.1:11434')
 OLLAMA_DEFAULT_MODEL = env.str('OLLAMA_DEFAULT_MODEL', default='mistral:latest')
-_raw_embeddings_model = env.str(
+OLLAMA_EMBEDDINGS_MODEL = env.str(
     'OLLAMA_EMBEDDINGS_MODEL',
     default=_OLLAMA_EMBEDDINGS_DEFAULT,
-)
-if is_huggingface_repo_id(_raw_embeddings_model):
-    logger.warning(
-        'OLLAMA_EMBEDDINGS_MODEL=%s — снимок Hugging Face, для RAG используется %s. '
-        'Исправьте modules/ai_assistant/.env (имя из библиотеки Ollama).',
-        _raw_embeddings_model,
-        _OLLAMA_EMBEDDINGS_DEFAULT,
-    )
-    OLLAMA_EMBEDDINGS_MODEL = _OLLAMA_EMBEDDINGS_DEFAULT
-else:
-    OLLAMA_EMBEDDINGS_MODEL = _raw_embeddings_model
+).strip() or _OLLAMA_EMBEDDINGS_DEFAULT
+EMBEDDINGS_USE_HUGGINGFACE = is_huggingface_repo_id(OLLAMA_EMBEDDINGS_MODEL)
 
 # Транспорт ollama_framework: local (ModuleBridge) или http (REST API)
 OLLAMA_FRAMEWORK_TRANSPORT = env.str('OLLAMA_FRAMEWORK_TRANSPORT', default='local')
@@ -81,7 +70,7 @@ AI_ASSISTANT_MAX_IMAGE_BYTES = env.int('AI_ASSISTANT_MAX_IMAGE_BYTES', default=1
 RAG_TOP_K = env.int('RAG_TOP_K', default=8)
 RAG_SIMILARITY_THRESHOLD = env.float('RAG_SIMILARITY_THRESHOLD', default=0.25)
 RAG_MAX_CONTEXT_LENGTH = env.int('RAG_MAX_CONTEXT_LENGTH', default=6000)
-RAG_EMBEDDING_DIMENSIONS = env.int('RAG_EMBEDDING_DIMENSIONS', default=768)
+RAG_EMBEDDING_DIMENSIONS = RAG_VECTOR_DIMENSIONS
 
 # Пользовательский корпус функционала (меню, UI, guides) — индексация и подмешивание в chat
 RAG_SYSTEM_CORPUS_ENABLED = env.bool('RAG_SYSTEM_CORPUS_ENABLED', default=True)

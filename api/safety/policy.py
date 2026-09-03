@@ -11,6 +11,7 @@ from typing import Iterable, Optional
 
 from ..assistant_role import assistant_is_admin
 from ..models import ChatMessage
+from .grounding import filter_ungrounded_ui
 
 REASON_JAILBREAK = 'jailbreak'
 REASON_ADMIN_HOWTO = 'admin_howto'
@@ -196,11 +197,20 @@ def filter_assistant_answer(
     answer: str,
     user,
     ui_language: str,
+    knowledge_context: str = '',
 ) -> tuple[str, bool]:
-    """Возвращает (текст, blocked). Админ не фильтруется."""
-    if assistant_is_admin(user):
-        return answer, False
-    decision = inspect_output(answer)
-    if decision.allowed:
-        return answer, False
-    return refusal_text(ui_language), True
+    """Возвращает (текст, blocked). Админ не фильтруется по утечкам, но UI-grounding общий."""
+    if not assistant_is_admin(user):
+        decision = inspect_output(answer)
+        if not decision.allowed:
+            return refusal_text(ui_language), True
+    grounded, blocked = filter_ungrounded_ui(
+        answer,
+        knowledge_context=knowledge_context,
+        ui_language=ui_language,
+    )
+    if blocked:
+        return grounded, True
+    from src.core.utils.knowledge_pack import html_to_plain
+
+    return html_to_plain(grounded or answer), False

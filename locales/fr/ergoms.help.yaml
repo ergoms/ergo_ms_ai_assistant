@@ -1,0 +1,15 @@
+# fr overlay for ergoms.help.yaml
+title: Assistant IA
+summary: Chat et aide RAG sur l’interface
+commands:
+  sync-knowledge:
+    summary: Indexer l’aide du produit (menu, catalogue UI, paquets knowledge) dans le RAG
+  install-pgvector:
+    summary: Installer pgvector dans PostgreSQL portable et créer l’extension vector
+  ensure-pgvector:
+    summary: Vérifier et créer l’extension pgvector dans la base courante
+  howto-eval:
+    summary: Lancer les questions d’or sur les écrans et les champs (recherche lexicale ; --ask appelle Ollama)
+notes:
+  - 'Appel : ergoms ai_assistant:howto-eval [--ask]'
+  - 'Embeddings : OLLAMA_EMBEDDINGS_MODEL — nom Ollama ou cliché Hub org/name (huggingface_models.yaml)'

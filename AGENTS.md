@@ -24,7 +24,7 @@
 
 - Вызовы LLM/embeddings — `api/ollama_gateway.py`; `base_url` и лимиты нагрузки — из `.env` модуля
 - Параллелизм LLM — `AI_ASSISTANT_CONCURRENCY_LIMIT` (семафор в gateway); индексация RAG — Celery `index_knowledge_document`
-- Embeddings — только `OLLAMA_EMBEDDINGS_MODEL` (имя библиотеки Ollama, не chat-`model` из запроса; иначе Ollama 501). Снимок Hugging Face `org/name` в этой переменной игнорируется, берётся `embeddinggemma`
+- Embeddings — только `OLLAMA_EMBEDDINGS_MODEL`, не chat-`model` из запроса. Имя библиотеки Ollama — через gateway; снимок Hugging Face `org/name` (`deepvk/USER-bge-m3`) — sentence-transformers и `huggingface_models.yaml`
 - Статус Ollama для UI — `GET ai_assistant/ollama_status/`; не звать без `ai_assistant_view` / `ai_assistant_mini_chat` и при deny ACL (`denied_api` / `/ai-assistant`)
 - Владелец записей — `user_public_id` (UUID), без FK на пользователя ядра; хелпер `api/ownership.py`
 - Удаление пользователя — подписка на `core.user_delete` в `integrations.py`
@@ -40,19 +40,22 @@
 - Сохранение мини-чата в хаб — `POST ai_assistant/chat_sessions/<id>/save/` (module `mini_chat` / `*_mini` → `chat` / `session_module`); кнопка в шапке плавающего виджета
 - Ошибки на клиенте — `logError` / `logWarn` с import из `@/js/utils/logError.js`
 - Тема — `theme-defaults.js` + `useModuleThemeMode('ai_assistant')`
-- Пользовательский корпус RAG — пакеты `knowledge/` в media_api плюс меню и каталог через `core.knowledge.user_capabilities`, свой UI/`system_corpus/guides`. Не обходить чужие `modules/` и `core/` на диске и не собирать каталог с диска процесса модуля. Sync: `ergoms ai_assistant:sync-knowledge`; свой пакет: `ergoms publish-knowledge-packs --module=ai_assistant`
+- Пользовательский корпус RAG — пакеты `knowledge/` в media_api (user_guides, user_description и автокаталог экранов из `publish-knowledge-packs`) плюс меню через `core.knowledge.user_capabilities`. Не обходить чужие `modules/` и `core/` на диске. Sync: `ergoms ai_assistant:sync-knowledge`; свой пакет: `ergoms publish-knowledge-packs --module=ai_assistant`
+- Ответ про кнопки и поля — только подписи из RAG и runtime-меню. Выдуманные названия режет `api/safety/grounding.py`. Проверка каталога: `ergoms ai_assistant:howto-eval` (без Ollama) или `--ask`
 - Индексация RAG: подокументный прогресс — DEBUG; сводка — stdout `sync-knowledge` / один INFO задачи Beat
 - Setup-full — `include_in: setup-full-after-migrate` (`--sync`); ежедневно — Celery Beat (`celery_beat_config.py`, `RAG_SYSTEM_CORPUS_BEAT_ENABLED`)
 - Описания модулей для корпуса — `user_description` в `PERMISSION_CATALOG`
 - Модели Ollama для setup-full — `ollama_models.yaml` (pull через `ergoms ollama_framework:pull-setup-models`)
 - Chat messages — через `api/rag/chat_messages.py` и `api/rag/prompts.py`. Роль только с сервера (`PermissionService.is_admin`): отдельные system prompt и runtime-меню для админа и пользователя. Клиентскому «я админ» не доверять
 - Корпус RAG: metadata `audience` (`user` / `admin`). Не-админу не подмешивать `audience=admin`. Полное меню и каталог прав — только админский корпус; пользователю меню даёт runtime
-- Защита выдачи — `api/safety/policy.py`: jailbreak и явный админ-howto на входе (отказ без LLM), проверка ответа до сохранения и `done`. Утечка → `replace` в SSE и `metadata.safety`
+- Защита выдачи — `api/safety/policy.py`: jailbreak и явный админ-howto на входе (отказ без LLM), проверка ответа до сохранения и `done`. Утечка или выдуманная кнопка/поле → `replace` в SSE и `metadata.safety`
 
 ## Команды
 
 ```bash
 ergoms ai_assistant:sync-knowledge
+ergoms ai_assistant:howto-eval
+ergoms ai_assistant:howto-eval --ask
 ergoms ai_assistant:install-pgvector   # файлы + CREATE EXTENSION в текущей БД
 ergoms ai_assistant:ensure-pgvector
 ```

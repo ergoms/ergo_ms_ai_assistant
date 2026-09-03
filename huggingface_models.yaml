@@ -1,0 +1,9 @@
+# Снимки Hugging Face для RAG, если OLLAMA_EMBEDDINGS_MODEL=org/name.
+# Веса: virtual_env/trained_models/huggingface/<org>/<name>
+# setup-full не качает (required: false); первый encode ставит снимок сам
+# или: ergoms pull-huggingface-models --include-optional
+
+module: ai_assistant
+models:
+  - repo: deepvk/USER-bge-m3
+    required: false

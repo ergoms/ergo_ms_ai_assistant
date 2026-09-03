@@ -338,7 +338,7 @@
       vertical-align: top;
       border-bottom: 1px solid color-mix(in srgb, var(--accent, #f14336) 10%, transparent);
       word-wrap: break-word;
-      overflow-wrap: anywhere;
+      overflow-wrap: break-word;
       white-space: normal;
       font-family: var(--font-family-base);
     }

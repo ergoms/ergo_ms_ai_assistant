@@ -20,6 +20,7 @@ from ..ownership import owner_public_id
 from ..ollama_gateway import chat_stream, resolved_model
 from ..permissions import CanViewAiAssistant
 from ..rag import build_ollama_messages, resolve_ui_language
+from ..safety.grounding import knowledge_text_from_messages
 from ..safety.policy import evaluate_user_message, filter_assistant_answer
 from ..skills.integration import execute_skill_from_llm_response
 from .helpers import _get_rag_context, _get_rag_services, _safe_json_dumps
@@ -225,6 +226,7 @@ class ChatStreamView(SwaggerSafeMixin, APIView):
                     answer=raw_response,
                     user=user,
                     ui_language=ui_language,
+                    knowledge_context=knowledge_text_from_messages(messages),
                 )
                 if output_blocked:
                     emit({'type': 'replace', 'text': raw_response})

@@ -9,13 +9,17 @@ commands:
     summary: Установить файлы pgvector в portable PostgreSQL и создать расширение vector в текущей БД
   ensure-pgvector:
     summary: Проверить и создать расширение pgvector в текущей БД
+  howto-eval:
+    summary: Прогнать золотые вопросы про экраны и поля (лексический поиск по каталогу UI; --ask вызывает Ollama)
 notes:
   - 'Вызов: ergoms ai_assistant:sync-knowledge [--sync]'
+  - 'Вызов: ergoms ai_assistant:howto-eval [--ask]'
   - 'В setup-full: после migrate (include_in setup-full-after-migrate, с --sync)'
   - 'Ежедневно: Celery Beat (RAG_SYSTEM_CORPUS_BEAT_ENABLED; нужны start-beat и start-worker)'
-  - 'Корпус: меню, свой UI и пакеты knowledge/ в media_api, не обход чужих modules/'
-  - 'Свой пакет: ergoms publish-knowledge-packs --module=ai_assistant; hook: api/user_guides/*.md и user_description'
+  - 'Корпус: меню и пакеты knowledge/ в media_api (включая автокаталог экранов), не обход чужих modules/'
+  - 'Свой пакет: ergoms publish-knowledge-packs --module=ai_assistant; hook: api/user_guides/*.md, user_description и ui_catalog'
+  - 'Проверка подсказок по экранам: ergoms ai_assistant:howto-eval [--ask]'
   - 'Векторный RAG: ergoms ai_assistant:install-pgvector, затем ergoms ai_assistant:ensure-pgvector'
-  - 'Нужны Ollama и модель embeddings (OLLAMA_EMBEDDINGS_MODEL; setup-full: ollama_models.yaml → pull-setup-models)'
+  - 'Embeddings: OLLAMA_EMBEDDINGS_MODEL — имя Ollama (pull-setup-models) или снимок Hub org/name (huggingface_models.yaml, pull-huggingface-models). Chat по-прежнему через Ollama'
   - 'Эквивалент: ergoms api sync_system_knowledge'
   - 'Корпус для пользователей сайта, не документация разработчика'
