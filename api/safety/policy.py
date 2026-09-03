@@ -211,6 +211,7 @@ def filter_assistant_answer(
     )
     if blocked:
         return grounded, True
+    from src.core.cms.adp.services.permission_catalog import rewrite_slug_module_labels
     from src.core.utils.knowledge_pack import html_to_plain
 
-    return html_to_plain(grounded or answer), False
+    return rewrite_slug_module_labels(html_to_plain(grounded or answer)), False

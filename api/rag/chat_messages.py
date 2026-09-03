@@ -274,9 +274,10 @@ def build_ollama_messages(
     if uploaded_file_context:
         user_parts.append(uploaded_file_context)
     if rag_context:
+        from src.core.cms.adp.services.permission_catalog import rewrite_slug_module_labels
         from src.core.utils.knowledge_pack import html_to_plain
 
-        rag_context = html_to_plain(rag_context)
+        rag_context = rewrite_slug_module_labels(html_to_plain(rag_context))
         user_parts.append(
             f'[ИНФОРМАЦИЯ ИЗ БАЗЫ ЗНАНИЙ]\n{rag_context}\n[/ИНФОРМАЦИЯ ИЗ БАЗЫ ЗНАНИЙ]\n\n'
             'Используй эту информацию, чтобы подсказать пользователю по интерфейсу и возможностям системы. '

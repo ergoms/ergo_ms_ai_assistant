@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Dict, Iterator, List, Tuple
 
 from src.config.paths import SYSTEM_DIR
+from src.core.cms.adp.services.permission_catalog import rewrite_slug_module_labels
 from src.core.utils.knowledge_pack import html_to_plain
 
 from ..audience import audience_for_source
@@ -127,7 +128,7 @@ def build_modules_document() -> DocumentTuple | None:
             lines.append(f'## {label}')
             lines.append('')
             description = (item.get('user_description') or '').strip()
-            lines.append(description or 'Модуль установлен.')
+            lines.append(description or 'Подробности — в пунктах бокового меню этого раздела.')
             lines.append('')
         source = 'user_ui/installed_modules.md'
         return (
@@ -170,7 +171,7 @@ def build_modules_document() -> DocumentTuple | None:
                 human = (perm_label or key).strip()
                 lines.append(f'- {human}')
         elif not description:
-            lines.append('Модуль установлен; подробные права в каталоге не описаны.')
+            lines.append('Подробности — в пунктах бокового меню этого раздела.')
         lines.append('')
 
     source = 'user_ui/installed_modules.md'
@@ -225,8 +226,8 @@ def load_pack_documents_for_sync() -> PackLoadState:
         title = str(item.get('title') or source)
         docs.append((
             source,
-            html_to_plain(title),
-            html_to_plain(text),
+            rewrite_slug_module_labels(html_to_plain(title)),
+            rewrite_slug_module_labels(html_to_plain(text)),
             audience_for_source(source, pack_audience=item.get('audience')),
         ))
 

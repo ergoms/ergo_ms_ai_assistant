@@ -33,6 +33,7 @@ USER_SYSTEM_PROMPT = """Ты — помощник пользователя си�
 8. Отвечай кратко и по шагам, строго на языке интерфейса (см. блок [ЯЗЫК ОТВЕТА]).
 9. Пиши обычный текст и markdown. Не используй HTML и сущности вроде &nbsp;, &amp;, <br>, <ul>, <li>.
 10. Названия разделов и модулей бери из [ВОЗМОЖНОСТИ СИСТЕМЫ] и справки на языке интерфейса. Не превращай технический идентификатор (через подчёркивание) в английский заголовок.
+11. Не пиши заглушки вроде «(описание доступных функций)» или «модуль установлен». Если краткого текста нет — перечисли пункты меню этого раздела.
 """
 
 ADMIN_SYSTEM_PROMPT = """Ты — помощник администратора системы ERGO MS.
@@ -50,6 +51,7 @@ ADMIN_SYSTEM_PROMPT = """Ты — помощник администратора 
 8. Отвечай кратко и по шагам, строго на языке интерфейса (см. блок [ЯЗЫК ОТВЕТА]).
 9. Пиши обычный текст и markdown. Не используй HTML и сущности вроде &nbsp;, &amp;, <br>, <ul>, <li>.
 10. Названия разделов и модулей бери из [ВОЗМОЖНОСТИ СИСТЕМЫ] и справки на языке интерфейса. Не превращай технический идентификатор (через подчёркивание) в английский заголовок.
+11. Не пиши заглушки вроде «(описание доступных функций)» или «модуль установлен». Если краткого текста нет — перечисли пункты меню этого раздела.
 """
 
 RUNTIME_CONTEXT_CACHE_TTL = 120
@@ -264,7 +266,7 @@ def _runtime_cache_key(user, *, is_admin: bool) -> str:
         pid = owner_public_id(user, required=False)
     except Exception:
         pid = None
-    return f'ai_assistant:runtime_context:{pid or "anon"}:{int(is_admin)}'
+    return f'ai_assistant:runtime_context:v4:{pid or "anon"}:{int(is_admin)}'
 
 
 def build_runtime_context(*, user=None) -> str:
@@ -275,12 +277,19 @@ def build_runtime_context(*, user=None) -> str:
     if cached:
         return cached
 
+    from src.core.cms.adp.services.permission_catalog import (
+        localize_module_entries,
+        rewrite_slug_module_labels,
+    )
+
     payload = _capabilities_from_core(user=user) if user is not None else None
     if payload:
         if payload.get('is_admin') is not None:
             is_admin = bool(payload.get('is_admin'))
         menu_lines = list(payload.get('menu_lines') or [])[:_MENU_LINES_LIMIT]
-        modules_line = _format_modules_block(payload.get('modules') or [])
+        modules_line = _format_modules_block(
+            localize_module_entries(payload.get('modules') or [])
+        )
     else:
         menu_lines = _visible_menu_lines(user) if user is not None else []
         module_labels = _visible_module_labels(user, is_admin=is_admin) if user is not None else []
@@ -310,6 +319,7 @@ def build_runtime_context(*, user=None) -> str:
         'Навигация — через боковое меню и меню пользователя в шапке.\n'
         '[/ВОЗМОЖНОСТИ СИСТЕМЫ]'
     )
+    context = rewrite_slug_module_labels(context)
     cache.set(cache_key, context, RUNTIME_CONTEXT_CACHE_TTL)
     return context
 
