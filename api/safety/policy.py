@@ -211,7 +211,17 @@ def filter_assistant_answer(
     )
     if blocked:
         return grounded, True
-    from src.core.cms.adp.services.permission_catalog import rewrite_slug_module_labels
     from src.core.utils.knowledge_pack import html_to_plain
+    from src.core.utils.user_facing import prepare_user_facing_text
 
-    return rewrite_slug_module_labels(html_to_plain(grounded or answer)), False
+    menu_lines = []
+    try:
+        from ..rag.prompts import runtime_menu_lines
+
+        menu_lines = runtime_menu_lines(user=user)
+    except Exception:
+        menu_lines = []
+    return prepare_user_facing_text(
+        html_to_plain(grounded or answer),
+        menu_lines=menu_lines,
+    ), False

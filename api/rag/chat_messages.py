@@ -25,6 +25,7 @@ from .prompts import (
     build_runtime_context,
     build_system_prompt,
     resolve_ui_language,
+    runtime_menu_lines,
 )
 from .retrieval import RetrievalScope
 
@@ -274,10 +275,13 @@ def build_ollama_messages(
     if uploaded_file_context:
         user_parts.append(uploaded_file_context)
     if rag_context:
-        from src.core.cms.adp.services.permission_catalog import rewrite_slug_module_labels
         from src.core.utils.knowledge_pack import html_to_plain
+        from src.core.utils.user_facing import prepare_user_facing_text
 
-        rag_context = rewrite_slug_module_labels(html_to_plain(rag_context))
+        rag_context = prepare_user_facing_text(
+            html_to_plain(rag_context),
+            menu_lines=runtime_menu_lines(user=user),
+        )
         user_parts.append(
             f'[ИНФОРМАЦИЯ ИЗ БАЗЫ ЗНАНИЙ]\n{rag_context}\n[/ИНФОРМАЦИЯ ИЗ БАЗЫ ЗНАНИЙ]\n\n'
             'Используй эту информацию, чтобы подсказать пользователю по интерфейсу и возможностям системы. '

@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Dict, Iterator, List, Tuple
 
 from src.config.paths import SYSTEM_DIR
-from src.core.cms.adp.services.permission_catalog import rewrite_slug_module_labels
+from src.core.utils.user_facing import prepare_user_facing_text
 from src.core.utils.knowledge_pack import html_to_plain
 
 from ..audience import audience_for_source
@@ -226,8 +226,8 @@ def load_pack_documents_for_sync() -> PackLoadState:
         title = str(item.get('title') or source)
         docs.append((
             source,
-            rewrite_slug_module_labels(html_to_plain(title)),
-            rewrite_slug_module_labels(html_to_plain(text)),
+            prepare_user_facing_text(html_to_plain(title)),
+            prepare_user_facing_text(html_to_plain(text)),
             audience_for_source(source, pack_audience=item.get('audience')),
         ))
 
