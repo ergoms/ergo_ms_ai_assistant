@@ -10,6 +10,50 @@ function escapeHtml(text) {
   return div.innerHTML
 }
 
+const NAMED_ENTITIES = {
+  nbsp: ' ',
+  ensp: ' ',
+  emsp: ' ',
+  thinsp: ' ',
+  amp: '&',
+  lt: '<',
+  gt: '>',
+  quot: '"',
+  apos: "'",
+  mdash: '—',
+  ndash: '–',
+  hellip: '…',
+  laquo: '«',
+  raquo: '»',
+}
+
+/** Модель часто копирует HTML-отступы (&nbsp;) — в разметке они должны стать пробелами. */
+export function decodeHtmlEntities(text) {
+  let value = String(text || '')
+  for (let step = 0; step < 2; step += 1) {
+    const next = value.replace(/&(#x[0-9a-f]+|#\d+|[a-z][a-z0-9]*);/gi, (match, body) => {
+      const token = String(body)
+      if (token.startsWith('#')) {
+        const code = token[1] === 'x' || token[1] === 'X'
+          ? Number.parseInt(token.slice(2), 16)
+          : Number.parseInt(token.slice(1), 10)
+        if (!Number.isFinite(code) || code < 1 || code > 0x10ffff) return match
+        try {
+          const char = String.fromCodePoint(code)
+          return char === '\u00a0' ? ' ' : char
+        } catch {
+          return match
+        }
+      }
+      const named = NAMED_ENTITIES[token.toLowerCase()]
+      return named === undefined ? match : named
+    })
+    if (next === value) break
+    value = next
+  }
+  return value
+}
+
 const BR_TAG_RE = /<\s*br\b[^>]*>/gi
 const BR_ENTITY_RE = /&lt;\s*br\b[^>]*&gt;/gi
 const UNORDERED_LINE_RE = /^(?:[-*•]|—)\s+/
@@ -248,7 +292,7 @@ export function formatMessageContent(content, options = {}) {
   text = afterCode
 
   const { text: afterThink, blocks: thinkBlocks } = extractThinkBlocks(text, thinkingLabel)
-  text = afterThink
+  text = decodeHtmlEntities(afterThink)
 
   const tableRegex = /((?:\|[^\n]+\|\s*\n)+)/g
   const tables = []
