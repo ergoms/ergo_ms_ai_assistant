@@ -24,7 +24,7 @@
 
 - Вызовы LLM/embeddings — `api/ollama_gateway.py`; `base_url` и лимиты нагрузки — из `.env` модуля
 - Параллелизм LLM — `AI_ASSISTANT_CONCURRENCY_LIMIT` (семафор в gateway); индексация RAG — Celery `index_knowledge_document`
-- Embeddings — только `OLLAMA_EMBEDDINGS_MODEL`, не chat-`model` из запроса. Имя библиотеки Ollama — через gateway; снимок Hugging Face `org/name` (`deepvk/USER-bge-m3`) — sentence-transformers и `huggingface_models.yaml`
+- Embeddings — только `OLLAMA_EMBEDDINGS_MODEL`, не chat-`model` из запроса. Имя библиотеки Ollama — через gateway. Снимок `deepvk/USER-bge-m3` — sentence-transformers, без подмены на `embeddinggemma`; веса в `huggingface_models.yaml`
 - Статус Ollama для UI — `GET ai_assistant/ollama_status/`; не звать без `ai_assistant_view` / `ai_assistant_mini_chat` и при deny ACL (`denied_api` / `/ai-assistant`)
 - Владелец записей — `user_public_id` (UUID), без FK на пользователя ядра; хелпер `api/ownership.py`
 - Удаление пользователя — подписка на `core.user_delete` в `integrations.py`

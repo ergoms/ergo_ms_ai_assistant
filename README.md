@@ -10,7 +10,7 @@
 
 ## Зависимости
 
-В [`integrations.yaml`](integrations.yaml) указано `requires: ollama_framework`. Без установленного и запущенного Ollama чат и embeddings недоступны.
+В [`integrations.yaml`](integrations.yaml) указано `requires: ollama_framework`. Без запущенной Ollama чат недоступен. Эмбеддинги снимка `org/name` считаются локально и Ollama не требуют.
 
 Для векторного поиска нужны pgvector (`ergoms ai_assistant:install-pgvector` / `ensure-pgvector`). Модель embeddings — из `OLLAMA_EMBEDDINGS_MODEL`: имя библиотеки Ollama ставит `ergoms ollama_framework:pull-setup-models`, снимок Hugging Face (`deepvk/USER-bge-m3`) — [`huggingface_models.yaml`](huggingface_models.yaml) и `ergoms pull-huggingface-models --include-optional`.
 

@@ -1,5 +1,8 @@
 # Модели для ai_assistant — pull только через ollama_framework (setup-full).
 # requires: ollama_framework в integrations.yaml обязателен.
+# OLLAMA_EMBEDDINGS_MODEL=deepvk/USER-bge-m3 не подменяется на embeddinggemma:
+# снимок в huggingface_models.yaml, счёт через sentence-transformers.
+# default ниже берётся, только если переменная пуста.
 
 module: ai_assistant
 models:
