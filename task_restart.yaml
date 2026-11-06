@@ -1,0 +1,10 @@
+# Что делать с задачей модуля, которую оборвал перезапуск воркера или ergoms.
+#   hold    — не запускать, отложить; продолжить: ergoms celery-parked --resume <id>
+#   drop    — не запускать и не хранить (периодическую задачу Beat поставит сам)
+#   requeue — сразу выполнить заново
+# Правило ядра: .cursor/rules/celery-restart.mdc. Первое совпавшее правило сверху вниз.
+default: hold
+tasks:
+  # Периодическая синхронизация знаний, Beat поставит её снова.
+  - pattern: "modules.ai_assistant.api.tasks.sync_system_knowledge_task"
+    on_restart: drop
