@@ -112,6 +112,7 @@ import {
   dismissOllamaMiniChat,
   isAwaitingAssistantReply,
   activeMiniChatProfileId,
+  activeMiniChatContextId,
   miniChatLoading,
   miniChatMessages,
   miniChatPending,
@@ -165,7 +166,7 @@ const moduleConfig = computed(() => {
 async function ensureProfileLoaded() {
   const profile = await getChatProfile(activeMiniChatProfileId.value)
   activeProfile.value = profile
-  transport.value = createChatTransport(profile)
+  transport.value = createChatTransport(profile, { contextId: activeMiniChatContextId.value })
   return profile
 }
 
@@ -470,6 +471,7 @@ async function sendMessage(prefilled) {
 
   try {
     await ensureProfileLoaded()
+    if (requestId !== streamGeneration) return
     const ollamaConfig = ollamaStatus.value.model
       ? { model: ollamaStatus.value.model }
       : null
@@ -603,7 +605,9 @@ watch(showTyping, (visible) => {
   }
 })
 
-watch(activeMiniChatProfileId, async () => {
+watch([activeMiniChatProfileId, activeMiniChatContextId], async () => {
+  streamGeneration += 1
+  chatInput.value = ''
   await ensureProfileLoaded()
   const hadLocalSnapshot = restoreSavedChat()
   if (!hadLocalSnapshot) {

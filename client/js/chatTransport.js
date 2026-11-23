@@ -112,7 +112,7 @@ async function consumeSseStream({
 /**
  * @param {import('./chatProfiles.js').ChatProfileDescriptor} profile
  */
-export function createChatTransport(profile) {
+export function createChatTransport(profile, { contextId = '' } = {}) {
   const isExternal = Boolean(profile?.external) && profile.id !== DEFAULT_CHAT_PROFILE_ID
 
   return {
@@ -155,6 +155,7 @@ export function createChatTransport(profile) {
         module: sessionModule,
       })
       if (sessionId) payload.session_id = sessionId
+      if (contextId) payload.context_id = contextId
 
       return consumeSseStream({
         url,

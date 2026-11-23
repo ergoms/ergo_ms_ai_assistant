@@ -17,6 +17,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-
 
 /** Активный chat-профиль мини-чата (default или id хоста). */
 export const activeMiniChatProfileId = ref(DEFAULT_CHAT_PROFILE_ID)
+export const activeMiniChatContextId = ref('')
 
 let activeStorageKey = DEFAULT_STORAGE_KEY
 
@@ -332,13 +333,16 @@ export function clearMiniChatState() {
  */
 export function switchMiniChatProfile(profileId, options = {}) {
   const nextId = String(profileId || DEFAULT_CHAT_PROFILE_ID).trim() || DEFAULT_CHAT_PROFILE_ID
-  const nextKey = resolveStorageKey(nextId, options.storageKey)
+  const contextId = options.contextId || ''
+  const baseKey = resolveStorageKey(nextId, options.storageKey)
+  const nextKey = contextId ? `${baseKey}.${contextId}` : baseKey
   if (nextId === activeMiniChatProfileId.value && nextKey === activeStorageKey) {
     return
   }
   // Сохранить текущий профиль перед переключением
   persist(true)
   activeMiniChatProfileId.value = nextId
+  activeMiniChatContextId.value = contextId
   activeStorageKey = nextKey
   const hydratedProfile = readPersistedState(nextKey)
   miniChatMessages.value = hydratedProfile.messages

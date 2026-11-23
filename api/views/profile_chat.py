@@ -71,6 +71,7 @@ class ProfileChatStreamView(SwaggerSafeMixin, APIView):
                 )
 
         message = request.data.get('message')
+        context_id = str(request.data.get('context_id') or '')[:64]
         session_id = request.data.get('session_id')
         module = request.data.get('module') or profile['session_module']
 
@@ -89,18 +90,28 @@ class ProfileChatStreamView(SwaggerSafeMixin, APIView):
                 user_public_id=owner_public_id(user),
             ).first()
 
+        session_metadata = (session.metadata or {}) if session is not None else {}
+        if context_id and (session_metadata.get('profile'), session_metadata.get('context_id')) != (profile['id'], context_id):
+            session = None
+        if not context_id and session_metadata.get('profile') == profile['id']:
+            context_id = session_metadata.get('context_id', '')
+
         if session is None:
+            metadata = {'profile': profile['id']}
+            if context_id:
+                metadata['context_id'] = context_id
             session = ChatSession.objects.create(
                 user_public_id=owner_public_id(user),
                 module=module,
                 title=message[:50],
-                metadata={'profile': profile['id']},
+                metadata=metadata,
             )
         elif not session.metadata:
             session.metadata = {'profile': profile['id']}
             session.save(update_fields=['metadata'])
         elif session.metadata.get('profile') != profile['id']:
             session.metadata['profile'] = profile['id']
+            session.metadata.pop('context_id', None)
             session.save(update_fields=['metadata'])
 
         ChatMessage.objects.create(
@@ -155,6 +166,7 @@ class ProfileChatStreamView(SwaggerSafeMixin, APIView):
                     session_id=str(session.id),
                     history=history_payload,
                     stream_callback=stream_callback,
+                    **({'context_id': context_id} if context_id else {}),
                     default=None,
                 )
 

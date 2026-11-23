@@ -38,8 +38,10 @@ bridge.provide('ai_assistant.mini_chat.open', async (profileId = 'default', opti
     const ok = await hasModulePermission(profile.permissionModule, profile.permission)
     if (!ok) return false
   }
+  if (options.isCurrent && !options.isCurrent()) return false
   openMiniChat(profile.id, {
     storageKey: options.storageKey || profile.storageKey,
+    contextId: options.contextId,
   })
   return true
 })
