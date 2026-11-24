@@ -1,10 +1,10 @@
 /**
- * Публичные client bridge ops для открытия мини-чата с профилем.
+ * Публичные client bridge ops для мини-чата с профилем.
  */
 
 import bridge from '@/integrations/ModuleBridge.js'
 import { DEFAULT_CHAT_PROFILE_ID, getChatProfile } from './chatProfiles.js'
-import { openMiniChat } from './ollamaMiniChatStore.js'
+import { activeMiniChatProfileId, closeOllamaMiniChat, openMiniChat } from './ollamaMiniChatStore.js'
 import { AI_ASSISTANT_MODULE, AI_ASSISTANT_PERMISSIONS } from './permissionKeys.js'
 
 bridge.provide('ai_assistant.mini_chat.open', async (profileId = 'default', options = {}) => {
@@ -43,5 +43,11 @@ bridge.provide('ai_assistant.mini_chat.open', async (profileId = 'default', opti
     storageKey: options.storageKey || profile.storageKey,
     contextId: options.contextId,
   })
+  return true
+})
+
+bridge.provide('ai_assistant.mini_chat.close', (profileId) => {
+  if (profileId !== activeMiniChatProfileId.value) return false
+  closeOllamaMiniChat()
   return true
 })
