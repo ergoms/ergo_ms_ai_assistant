@@ -67,6 +67,7 @@
         </div>
       </div>
 
+      <MiniChatQuote v-if="miniChatQuote" :text="miniChatQuote" @remove="miniChatQuote = ''" />
       <div class="ollama-mini-chat__composer-row">
         <textarea
           ref="inputRef"
@@ -116,6 +117,7 @@ import {
   miniChatLoading,
   miniChatMessages,
   miniChatPending,
+  miniChatQuote,
   miniChatSaved,
   miniChatSessionId,
   setMiniChatLoading,
@@ -142,6 +144,7 @@ import {
 } from '../js/composables/useAssistantStream.js'
 import { useOllamaStatus } from '../js/composables/useOllamaStatus.js'
 import HubMessage from './HubMessage.vue'
+import MiniChatQuote from './MiniChatQuote.vue'
 
 const props = defineProps({
   compact: { type: Boolean, default: false },
@@ -210,7 +213,7 @@ const showTyping = computed(() => {
     && !String(last?.content || '').trim(),
   )
 })
-const canShowSuggestions = computed(() => (moduleConfig.value?.suggestions?.length ?? 0) > 0)
+const canShowSuggestions = computed(() => !miniChatQuote.value && (moduleConfig.value?.suggestions?.length ?? 0) > 0)
 const suggestionsExpanded = ref(false)
 const savingChat = ref(false)
 const hubSessionModule = computed(() => activeProfile.value?.sessionModule || 'chat')
@@ -458,12 +461,15 @@ function clearChat() {
 }
 
 async function sendMessage(prefilled) {
-  const text = (typeof prefilled === 'string' ? prefilled : chatInput.value).trim()
-  if (!text || miniChatLoading.value || miniChatPending.value) return
+  const question = (typeof prefilled === 'string' ? prefilled : chatInput.value).trim()
+  if (!question || miniChatLoading.value || miniChatPending.value) return
+  const quote = miniChatQuote.value
+  const text = quote ? `${question}\n\n> ${quote.replaceAll('\n', '\n> ')}` : question
 
   const requestId = ++streamGeneration
   addUserMessage(text)
   chatInput.value = ''
+  miniChatQuote.value = ''
   // Как на hub: typing сразу от loading, пузырь — с первого SSE-chunk
   setMiniChatLoading(true)
   scheduleTypingAnimRestart()
@@ -586,6 +592,9 @@ async function openFullHub() {
 }
 
 watch(chatInput, () => nextTick(syncInputHeight))
+watch([miniChatQuote, loading], ([quote, busy], [previousQuote]) => {
+  if ((quote || previousQuote) && !busy) inputRef.value?.focus({ preventScroll: true })
+}, { flush: 'post' })
 
 watch(messages, (value) => {
   setMiniChatMessages(value)

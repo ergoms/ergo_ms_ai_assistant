@@ -42,6 +42,7 @@ bridge.provide('ai_assistant.mini_chat.open', async (profileId = 'default', opti
   openMiniChat(profile.id, {
     storageKey: options.storageKey || profile.storageKey,
     contextId: options.contextId,
+    quote: options.quote,
   })
   return true
 })

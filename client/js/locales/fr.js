@@ -43,6 +43,8 @@ export default {
         ollamaChat: 'Assistant IA',
         openHub: 'Ouvrir l’assistant IA',
         send: 'Envoyer',
+        selectedQuote: 'Extrait sélectionné',
+        removeQuote: 'Retirer la citation',
         close: 'Fermer le chat',
         clearChat: 'Effacer le chat',
         clearChatTitle: 'Effacer le chat',

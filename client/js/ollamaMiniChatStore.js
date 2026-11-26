@@ -18,6 +18,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-
 /** Активный chat-профиль мини-чата (default или id хоста). */
 export const activeMiniChatProfileId = ref(DEFAULT_CHAT_PROFILE_ID)
 export const activeMiniChatContextId = ref('')
+export const miniChatQuote = ref('')
 
 let activeStorageKey = DEFAULT_STORAGE_KEY
 
@@ -282,12 +283,12 @@ export function setMiniChatPending(value) {
 
 export function closeOllamaMiniChat() {
   isOllamaMiniChatOpen.value = false
+  miniChatQuote.value = ''
   persist(true)
 }
 
 export function dismissOllamaMiniChat() {
-  isOllamaMiniChatOpen.value = false
-  persist(true)
+  closeOllamaMiniChat()
 }
 
 export function setMiniChatDragPosition(position) {
@@ -310,6 +311,7 @@ export function setMiniChatSaved(value) {
 }
 
 export function clearMiniChatState() {
+  miniChatQuote.value = ''
   miniChatMessages.value = null
   miniChatSessionId.value = null
   miniChatLoading.value = false
@@ -329,7 +331,7 @@ export function clearMiniChatState() {
 /**
  * Переключить профиль мини-чата и гидратировать его storage.
  * @param {string} profileId
- * @param {{ storageKey?: string }} [options]
+ * @param {{ storageKey?: string, contextId?: string }} [options]
  */
 export function switchMiniChatProfile(profileId, options = {}) {
   const nextId = String(profileId || DEFAULT_CHAT_PROFILE_ID).trim() || DEFAULT_CHAT_PROFILE_ID
@@ -341,6 +343,7 @@ export function switchMiniChatProfile(profileId, options = {}) {
   }
   // Сохранить текущий профиль перед переключением
   persist(true)
+  miniChatQuote.value = ''
   activeMiniChatProfileId.value = nextId
   activeMiniChatContextId.value = contextId
   activeStorageKey = nextKey
@@ -355,10 +358,13 @@ export function switchMiniChatProfile(profileId, options = {}) {
 /**
  * Открыть мини-чат с указанным профилем (default или хост-модуль).
  * @param {string} [profileId]
- * @param {{ storageKey?: string }} [options]
+ * @param {{ storageKey?: string, contextId?: string, quote?: string }} [options]
  */
 export function openMiniChat(profileId = DEFAULT_CHAT_PROFILE_ID, options = {}) {
   switchMiniChatProfile(profileId, options)
+  if (typeof options.quote === 'string' && options.quote.trim()) {
+    miniChatQuote.value = options.quote.trim()
+  }
   openOllamaMiniChat()
 }
 

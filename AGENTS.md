@@ -35,6 +35,7 @@
 - `document.parse` — media_api path под `ai_assistant/` + `user`, не произвольный FS path
 - Частота загрузок — `AI_ASSISTANT_UPLOAD_RATE_RAG` / `_CHAT` в `.env` модуля (`media.upload_quota_policies`)
 - Хост-модуль регистрирует chat-профиль: группа `ai_assistant.chat.profiles` (client + server) + op `*.ask_stream`; UI — `bridge.call('ai_assistant.mini_chat.open', profileId)` или `?profile=`; право профиля (`permissionModule` / `permission`) скрывает виджет и блокирует stream; `mini_chat.open` сразу `false`, если ACL закрыл модуль
+- `mini_chat.open` для внешнего профиля принимает `options.contextId` для отдельной истории и `options.quote` для цитаты в черновике. При отправке вопроса цитата входит в текст сообщения
 - Плавающий мини-чат — право `ai_assistant_mini_chat` **или** видимый внешний chat-профиль, плюс нет deny на `/ai-assistant` / `/api/ai_assistant/` (`isVisible` у `shell.floating_widgets`); хаб `/ai-assistant` — `ai_assistant_view`
 - Proxy stream — `POST ai_assistant/chat/profiles/<id>/stream/`; сессии остаются в `ChatSession`
 - Сохранение мини-чата в хаб — `POST ai_assistant/chat_sessions/<id>/save/` (module `mini_chat` / `*_mini` → `chat` / `session_module`); кнопка в шапке плавающего виджета

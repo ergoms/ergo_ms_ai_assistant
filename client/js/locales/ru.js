@@ -43,6 +43,8 @@ export default {
         ollamaChat: 'AI ассистент',
         openHub: 'Открыть AI ассистент',
         send: 'Отправить',
+        selectedQuote: 'Выделенный фрагмент',
+        removeQuote: 'Убрать цитату',
         close: 'Закрыть чат',
         clearChat: 'Очистить чат',
         clearChatTitle: 'Очистить чат',
